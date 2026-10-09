@@ -59,8 +59,30 @@ def _chunk_corpus(
     return all_chunks
 
 
+def _save_index(path: Path, chunks: Sequence[Chunk], strategy: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 1,
+        "strategy": strategy,
+        "chunks": [
+            {"id": c.id, "doc_id": c.doc_id, "text": c.text, "start": c.start, "end": c.end}
+            for c in chunks
+        ],
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _load_index(path: Path) -> list[Chunk]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return [Chunk(**c) for c in payload["chunks"]]
+
+
 def cmd_index(args: argparse.Namespace) -> int:
-    """Index a directory of documents and report metrics."""
+    """Chunk a directory of documents and persist the chunks as a JSON index.
+
+    BM25 statistics and hashing embeddings are rebuilt from the chunks at load time
+    (milliseconds for this corpus), so the chunk list is the only persisted state.
+    """
     corpus_dir = Path(args.dir)
     docs = _load_documents(corpus_dir)
     print(f"Loaded {len(docs)} documents from {corpus_dir}")
@@ -73,23 +95,20 @@ def cmd_index(args: argparse.Namespace) -> int:
     )
     print(f"Generated {len(chunks)} chunks using strategy '{args.strategy}'")
 
-    bm25 = BM25Index()
-    bm25.add(chunks)
-
-    dense = DenseIndex()
-    dense.add(chunks)
-
-    print(f"Successfully indexed {len(chunks)} chunks into BM25 and Dense indices.")
+    out = Path(args.out)
+    _save_index(out, chunks, args.strategy)
+    print(f"Wrote index to {out}")
     return 0
 
 
 def cmd_ask(args: argparse.Namespace) -> int:
     """Answer a user query with chunk citations."""
-    corpus_dir = Path(args.corpus_dir) if args.corpus_dir else DEFAULT_CORPUS_DIR
-    docs = _load_documents(corpus_dir)
-
     pipeline = RAGPipeline()
-    pipeline.index_documents(docs)
+    if args.index:
+        pipeline.index_chunks(_load_index(Path(args.index)))
+    else:
+        corpus_dir = Path(args.corpus_dir) if args.corpus_dir else DEFAULT_CORPUS_DIR
+        pipeline.index_documents(_load_documents(corpus_dir))
 
     answer = pipeline.answer(args.query, top_k=args.top_k)
     print(f"Question: {args.query}\n")
@@ -136,16 +155,23 @@ def cmd_eval(args: argparse.Namespace) -> int:
             if line:
                 qa_pairs.append(json.loads(line))
 
-    strategies = [
-        ("BM25", False),
-        ("BM25", True),
-        ("Dense", False),
-        ("Dense", True),
-        ("Hybrid (RRF)", False),
-        ("Hybrid (RRF)", True),
-        ("Hybrid + Rerank", False),
-        ("Hybrid + Rerank", True),
-    ]
+    names = {
+        "bm25": "BM25",
+        "dense": "Dense",
+        "hybrid": "Hybrid (RRF)",
+        "rerank": "Hybrid + Rerank",
+    }
+    if args.strategies == "all":
+        selected = list(names)
+    else:
+        selected = [s.strip().lower() for s in args.strategies.split(",") if s.strip()]
+        unknown = [s for s in selected if s not in names]
+        if unknown:
+            print(
+                f"Error: unknown strategies {unknown}; choose from {list(names)}", file=sys.stderr
+            )
+            return 2
+    strategies = [(names[s], rw) for s in selected for rw in (False, True)]
 
     results: list[tuple[str, str, float, float, float]] = []
 
@@ -228,6 +254,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     p_index.add_argument("--chunk-size", type=int, default=500, help="Chunk character size.")
     p_index.add_argument("--overlap", type=int, default=50, help="Chunk overlap in characters.")
+    p_index.add_argument(
+        "--out", default=".ragkit/index.json", help="Where to write the chunk index."
+    )
 
     # Ask command
     p_ask = subparsers.add_parser("ask", help="Query the RAG pipeline.")
@@ -237,6 +266,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         default=None,
         help="Custom corpus directory (defaults to bundled energy corpus).",
     )
+    p_ask.add_argument(
+        "--index", default=None, help="Chunk index written by `ragkit index` (overrides corpus)."
+    )
     p_ask.add_argument("--top-k", type=int, default=5, help="Number of retrieved chunks.")
 
     # Eval command
@@ -244,7 +276,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_eval.add_argument(
         "--strategies",
         default="all",
-        help="Strategies to evaluate ('all' or comma-separated list).",
+        help="all, or comma-separated subset of bm25,dense,hybrid,rerank.",
     )
     p_eval.add_argument("--corpus-dir", default=None, help="Path to corpus directory.")
     p_eval.add_argument("--qa-file", default=None, help="Path to qa.jsonl benchmark file.")
