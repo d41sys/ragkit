@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ragkit"
+version = "0.1.0"
+description = "Modular RAG pipeline from scratch with hybrid search, lexical reranking, and evaluation"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+st = ["sentence-transformers>=3.0"]
+llm = ["anthropic>=0.30"]
+
+[project.scripts]
+ragkit = "ragkit.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ragkit"]
