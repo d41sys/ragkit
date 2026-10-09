@@ -43,8 +43,8 @@ uv run ragkit eval --strategies all                             # or a subset: b
 | Hybrid + Rerank | HyDE    | 0.8000   | 0.4993 | 0.6030  |
 
 Findings, reported as-is (no tuning on the eval set):
-- Hybrid RRF gives the best MRR/nDCG. Hybrid+rerank recall@5 (0.975) is **below** BM25 (1.000): the lexical reranker pushes one relevant doc out of the top 5. The corpus is small and keyword-heavy, so BM25 is close to saturated.
-- Template HyDE hurts every retriever. The offline `TemplateLLM` writes generic energy-market text, which pulls queries towards the same few docs. HyDE needs a real LLM (`[llm]`) to help.
+- The QA set is near-saturated: BM25 already reaches recall@5 1.000 and MRR 0.94, because the questions reuse each doc's wording. The table therefore can't separate the methods well. Hybrid+rerank's 0.975 vs 1.000 means one question out of 40, not a meaningful regression.
+- The "+HyDE" rows don't measure HyDE. Offline, `TemplateLLM` appends the same fixed domain paragraph to every query, which acts as a constant keyword prior and pulls queries towards the imbalance, day-ahead and congestion docs. Real HyDE needs `[llm]`.
 
 `ragkit ask "What is imbalance settlement?" --index .ragkit/index.json`, verbatim:
 ```
