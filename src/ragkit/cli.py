@@ -15,13 +15,14 @@ from ragkit.dense import DenseIndex
 from ragkit.embed import HashingEmbedder
 from ragkit.eval import mrr, ndcg_at_k, recall_at_k
 from ragkit.hybrid import HybridRetriever
-from ragkit.pipeline import RAGPipeline
+from ragkit.pipeline import DEFAULT_MIN_SUPPORT, RAGPipeline
 from ragkit.rerank import LexicalReranker
 from ragkit.rewrite import HyDERewriter, TemplateLLM
 
 DEFAULT_DATA_DIR = Path(__file__).parent / "data"
 DEFAULT_CORPUS_DIR = DEFAULT_DATA_DIR / "corpus"
 DEFAULT_QA_PATH = DEFAULT_DATA_DIR / "qa.jsonl"
+DEFAULT_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable.jsonl"
 
 
 def _load_documents(corpus_dir: Path) -> list[tuple[str, str]]:
@@ -101,9 +102,14 @@ def cmd_index(args: argparse.Namespace) -> int:
     return 0
 
 
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    with path.open(encoding="utf-8") as f:
+        return [json.loads(line) for line in f if line.strip()]
+
+
 def cmd_ask(args: argparse.Namespace) -> int:
-    """Answer a user query with chunk citations."""
-    pipeline = RAGPipeline()
+    """Answer a user query with chunk citations, or abstain when support is low."""
+    pipeline = RAGPipeline(min_support=args.min_support)
     if args.index:
         pipeline.index_chunks(_load_index(Path(args.index)))
     else:
@@ -115,6 +121,31 @@ def cmd_ask(args: argparse.Namespace) -> int:
     print(f"Answer:\n{answer.text}\n")
     if answer.citations:
         print(f"Citations: {', '.join(answer.citations)}")
+    print(f"Support: {answer.support:.2f} (threshold {args.min_support:.2f})")
+    return 0
+
+
+def cmd_abstention(args: argparse.Namespace) -> int:
+    """Report answer rate on answerable and abstain rate on unanswerable questions."""
+    corpus_dir = Path(args.corpus_dir) if args.corpus_dir else DEFAULT_CORPUS_DIR
+    pipeline = RAGPipeline(min_support=args.min_support)
+    pipeline.index_documents(_load_documents(corpus_dir))
+
+    answerable = [str(item["q"]) for item in _read_jsonl(DEFAULT_QA_PATH)]
+    unanswerable = _read_jsonl(DEFAULT_UNANSWERABLE_PATH)
+    answered = sum(not pipeline.answer(q).abstained for q in answerable)
+    rows = [("answerable (answered)", answered, len(answerable))]
+    for kind in sorted({str(u["kind"]) for u in unanswerable}):
+        qs = [str(u["q"]) for u in unanswerable if u["kind"] == kind]
+        abstained = sum(pipeline.answer(q).abstained for q in qs)
+        rows.append((f"unanswerable {kind} (abstained)", abstained, len(qs)))
+
+    print(f"\n### Refuse-on-low-confidence (min_support = {args.min_support:.2f})\n")
+    print("| Set | Correct | Rate |")
+    print("|---|---|---|")
+    for name, hit, total in rows:
+        print(f"| {name} | {hit}/{total} | {hit / max(1, total):.2f} |")
+    print()
     return 0
 
 
@@ -270,6 +301,19 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--index", default=None, help="Chunk index written by `ragkit index` (overrides corpus)."
     )
     p_ask.add_argument("--top-k", type=int, default=5, help="Number of retrieved chunks.")
+    p_ask.add_argument(
+        "--min-support",
+        type=float,
+        default=DEFAULT_MIN_SUPPORT,
+        help="Abstain when no retrieved chunk covers this share of the query's content terms.",
+    )
+
+    # Abstention command
+    p_abs = subparsers.add_parser(
+        "abstention", help="Measure refusal on unanswerable vs answerable questions."
+    )
+    p_abs.add_argument("--corpus-dir", default=None, help="Path to corpus directory.")
+    p_abs.add_argument("--min-support", type=float, default=DEFAULT_MIN_SUPPORT)
 
     # Eval command
     p_eval = subparsers.add_parser("eval", help="Evaluate retrieval and reranking strategies.")
@@ -289,6 +333,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_ask(parsed))
     elif parsed.subcommand == "eval":
         sys.exit(cmd_eval(parsed))
+    elif parsed.subcommand == "abstention":
+        sys.exit(cmd_abstention(parsed))
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 import pytest
 
 from ragkit.chunking import Chunk
-from ragkit.pipeline import ExtractiveGenerator, RAGPipeline
+from ragkit.pipeline import ABSTAIN_TEXT, ExtractiveGenerator, RAGPipeline, query_support
 from ragkit.rewrite import (
     AnthropicLLM,
     DecompositionRewriter,
@@ -34,6 +34,56 @@ def test_extractive_generator_citations() -> None:
 
     assert "[doc_a#0]" in ans.text
     assert "doc_a#0" in ans.citations
+
+
+def test_extractive_generator_drops_markdown_headings() -> None:
+    text = "## Imbalance Settlement Rules\nImbalance settlement prices every deviation of a BRP."
+    chunk = Chunk(id="d#0", doc_id="d", text=text, start=0, end=len(text))
+
+    ans = ExtractiveGenerator().generate("What is imbalance settlement?", [chunk])
+
+    assert "#" not in ans.text.replace("[d#0]", "")
+    assert "Rules" not in ans.text
+    assert ans.text.startswith("Imbalance settlement prices every deviation")
+
+
+def test_query_support_ignores_stopwords() -> None:
+    chunk = Chunk(id="d#0", doc_id="d", text="battery round trip efficiency", start=0, end=29)
+
+    assert query_support("What is the battery efficiency?", chunk) == 1.0
+    assert query_support("What is the battery cycle life?", chunk) == pytest.approx(1 / 3)
+    assert query_support("what is the", chunk) == 0.0
+
+
+def _two_doc_pipeline(min_support: float) -> RAGPipeline:
+    pipeline = RAGPipeline(min_support=min_support)
+    pipeline.index_documents(
+        [
+            ("bat", "Battery round trip efficiency is between 85 and 92 percent."),
+            ("pv", "Photovoltaic output forecasts use irradiance and cloud cover data."),
+        ]
+    )
+    return pipeline
+
+
+def test_pipeline_abstains_below_threshold_and_answers_above() -> None:
+    pipeline = _two_doc_pipeline(min_support=0.5)
+
+    refused = pipeline.answer("Who won the football world cup final?")
+    answered = pipeline.answer("What is battery round trip efficiency?")
+
+    assert refused.abstained
+    assert refused.text == ABSTAIN_TEXT
+    assert refused.citations == []
+    assert not answered.abstained
+    assert answered.support == 1.0
+    assert "[bat#rec_0]" in answered.text
+
+
+def test_pipeline_threshold_zero_never_abstains() -> None:
+    pipeline = _two_doc_pipeline(min_support=0.0)
+
+    assert not pipeline.answer("Who won the football world cup final?").abstained
 
 
 def test_rag_pipeline_end_to_end() -> None:

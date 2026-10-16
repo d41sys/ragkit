@@ -13,6 +13,69 @@ from ragkit.hybrid import HybridRetriever
 from ragkit.rerank import LexicalReranker, Reranker
 
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+_HEADING_LINE = re.compile(r"^\s{0,3}#{1,6}\s.*$", re.MULTILINE)
+
+ABSTAIN_TEXT = "I cannot answer this from the indexed documents."
+# Calibrated on the answerable set only (qa.jsonl): the 5th percentile of best-chunk
+# support, so about 95% of answerable questions are answered. Unanswerable questions
+# were not used to pick it.
+DEFAULT_MIN_SUPPORT = 0.5
+
+# Function words carry no evidence that a passage answers the question.
+STOPWORDS = frozenset(
+    [
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "can",
+        "do",
+        "does",
+        "for",
+        "from",
+        "has",
+        "have",
+        "how",
+        "in",
+        "is",
+        "it",
+        "its",
+        "of",
+        "on",
+        "or",
+        "that",
+        "the",
+        "their",
+        "this",
+        "to",
+        "was",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
+        "will",
+        "with",
+        "would",
+        "i",
+        "you",
+        "typical",
+        "typically",
+    ]
+)
+
+
+def query_support(query: str, chunk: Chunk) -> float:
+    """Fraction of the query's content terms that occur in the chunk (0.0 to 1.0)."""
+    terms = {t for t in tokenize(query) if t not in STOPWORDS}
+    if not terms:
+        return 0.0
+    return len(terms & set(tokenize(chunk.text))) / len(terms)
 
 
 @dataclass(frozen=True)
@@ -21,6 +84,8 @@ class Answer:
 
     text: str
     citations: list[str] = field(default_factory=list)
+    abstained: bool = False
+    support: float = 1.0
 
 
 class Generator(Protocol):
@@ -46,7 +111,7 @@ class ExtractiveGenerator:
 
         candidates: list[tuple[str, Chunk, float]] = []
         for chunk in chunks:
-            raw_sents = _SENTENCE_SPLIT.split(chunk.text.strip())
+            raw_sents = _SENTENCE_SPLIT.split(_HEADING_LINE.sub("", chunk.text).strip())
             for s in raw_sents:
                 clean_s = s.strip()
                 if len(clean_s) < 20:
@@ -90,13 +155,16 @@ class RAGPipeline:
         retriever: HybridRetriever | None = None,
         reranker: Reranker | None = None,
         generator: Generator | None = None,
+        min_support: float = 0.0,
     ) -> None:
+        """Build the pipeline; ``min_support`` > 0 enables refusal on low confidence."""
         self.chunker: Callable[[str, str], list[Chunk]] = (
             chunker if chunker is not None else (lambda text, doc_id: recursive(text, doc_id))
         )
         self.retriever: HybridRetriever = retriever if retriever is not None else HybridRetriever()
         self.reranker: Reranker | None = reranker if reranker is not None else LexicalReranker()
         self.generator: Generator = generator if generator is not None else ExtractiveGenerator()
+        self.min_support = min_support
         self.indexed_chunks: list[Chunk] = []
 
     def index_documents(self, documents: Sequence[tuple[str, str]]) -> None:
@@ -126,6 +194,10 @@ class RAGPipeline:
         return [chunk for chunk, _ in initial_candidates[:top_k]]
 
     def answer(self, query: str, top_k: int = 5) -> Answer:
-        """Answer a query end-to-end with chunk retrieval and generation."""
+        """Answer a query end-to-end, abstaining when no chunk supports it enough."""
         top_chunks = self.retrieve(query, top_k=top_k)
-        return self.generator.generate(query, top_chunks)
+        support = max((query_support(query, c) for c in top_chunks), default=0.0)
+        if support < self.min_support:
+            return Answer(text=ABSTAIN_TEXT, abstained=True, support=support)
+        answer = self.generator.generate(query, top_chunks)
+        return Answer(text=answer.text, citations=answer.citations, support=support)

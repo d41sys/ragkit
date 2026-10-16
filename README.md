@@ -15,7 +15,9 @@ flowchart LR
   R --> B & V
   B & V --> F[fusion: RRF k=60 / weighted min-max a=0.5]
   F --> K[LexicalReranker: coverage + min-span + BM25]
-  K --> G[extractive generator with chunk_id citations]
+  K --> S{support ≥ 0.5?}
+  S -->|yes| G[extractive generator with chunk_id citations]
+  S -->|no| A[abstain]
 ```
 Optional extras: `[st]` swaps in `all-MiniLM-L6-v2` embeddings and the `ms-marco-MiniLM-L-6-v2` cross-encoder; `[llm]` adds `AnthropicLLM` (needs `ANTHROPIC_API_KEY`) for rewriting.
 
@@ -26,6 +28,7 @@ uv run ragkit index src/ragkit/data/corpus     # writes .ragkit/index.json
 uv run ragkit ask "What is imbalance settlement?" --index .ragkit/index.json
 uv run ragkit ask "What is imbalance settlement?"              # indexes the bundled corpus on the fly
 uv run ragkit eval --strategies all                             # or a subset: bm25,dense,hybrid,rerank
+uv run ragkit abstention                                        # refuse-on-low-confidence check
 ```
 
 ## Results
@@ -51,16 +54,29 @@ Findings, reported as-is (no tuning on the eval set):
 Question: What is imbalance settlement?
 
 Answer:
-## Balancing Energy Gate Closure and Cross-Border MARI/PICASSO Platforms
-
-The implementation of 15-minute imbalance settlement periods across Europe is coordinated with centralized balancing energy exchange platforms: PICASSO for automatic Frequency Restoration Reserves (aFRR) and MARI for manual Frequency Restoration Reserves (mFRR). [doc_24_subhourly_dispatch#rec_5] # Imbalance Settlement Principles and Dual-Pricing Mechanisms
-
-Imbalance settlement is the post-delivery commercial accounting framework that financially penalizes deviations between a Balance Responsible Party's (BRP) contracted market position and its actual metered energy flows. [doc_05_imbalance_settlement#rec_0] A BRP's imbalance volume in settlement period t is defined as:
+The implementation of 15-minute imbalance settlement periods across Europe is coordinated with centralized balancing energy exchange platforms: PICASSO for automatic Frequency Restoration Reserves (aFRR) and MARI for manual Frequency Restoration Reserves (mFRR). [doc_24_subhourly_dispatch#rec_5] Imbalance settlement is the post-delivery commercial accounting framework that financially penalizes deviations between a Balance Responsible Party's (BRP) contracted market position and its actual metered energy flows. [doc_05_imbalance_settlement#rec_0] A BRP's imbalance volume in settlement period t is defined as:
 Imbalance_Volume(t) = Metered_Generation(t) - Metered_Consumption(t) + Contracted_Sales(t) - Contracted_Purchases(t). [doc_05_imbalance_settlement#rec_1]
 
 Citations: doc_24_subhourly_dispatch#rec_5, doc_05_imbalance_settlement#rec_0, doc_05_imbalance_settlement#rec_1
+Support: 1.00 (threshold 0.50)
 ```
-Known limitation visible above: the extractive generator splits on sentence punctuation, not on markdown structure, so section headings leak into the answer text and the top-ranked sentence comes from a neighbouring doc that mentions the term.
+Markdown headings are stripped before sentence extraction. Remaining limitation: the top-ranked sentence still comes from a neighbouring doc that mentions the term.
+
+### Refuse on low confidence
+
+`support` = share of the query's content terms (stopwords removed) found in the best retrieved chunk. Below `--min-support` the pipeline abstains instead of answering.
+
+`ragkit abstention`:
+
+| Set | Correct | Rate |
+|---|---|---|
+| answerable (answered) | 39/40 | 0.97 |
+| unanswerable near_domain (abstained) | 9/10 | 0.90 |
+| unanswerable off_domain (abstained) | 6/6 | 1.00 |
+
+- The threshold 0.5 is the 5th percentile of support on the 40 answerable questions. The unanswerable set was not used to pick it.
+- The 16 unanswerable questions (`data/unanswerable.jsonl`) were written by the author. They are checked against the corpus by keyword, not by an independent annotator. 10 are near-domain (energy topics the corpus does not cover).
+- The near-domain miss: "What is the typical cycle life of a sodium-sulfur battery?" reaches support 0.60, because "cycle", "life" and "battery" all appear in the battery doc. Term coverage cannot tell "the corpus talks about this" from "the corpus answers this".
 
 ## Design decisions
 - **Protocols for every model boundary** (`Embedder`, `Reranker`, `LLM`, `Generator`): offline defaults keep tests deterministic, and neural models plug in through extras.
