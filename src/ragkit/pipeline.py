@@ -201,17 +201,20 @@ class RAGPipeline:
         self.indexed_chunks.extend(chunks)
         self.retriever.add(chunks)
 
-    def retrieve(self, query: str, top_k: int = 5) -> list[Chunk]:
-        """Retrieve and rerank candidate chunks for a query."""
+    def retrieve_scored(self, query: str, top_k: int = 5) -> list[tuple[Chunk, float]]:
+        """Retrieve and rerank candidates, keeping the final-stage score of each chunk."""
         initial_candidates = self.retriever.search(query, k=max(top_k * 2, 10))
         if not initial_candidates:
             return []
 
         if self.reranker is not None:
-            reranked = self.reranker.rerank(query, initial_candidates, top_k=top_k)
-            return [chunk for chunk, _ in reranked]
+            return self.reranker.rerank(query, initial_candidates, top_k=top_k)
 
-        return [chunk for chunk, _ in initial_candidates[:top_k]]
+        return list(initial_candidates[:top_k])
+
+    def retrieve(self, query: str, top_k: int = 5) -> list[Chunk]:
+        """Retrieve and rerank candidate chunks for a query."""
+        return [chunk for chunk, _ in self.retrieve_scored(query, top_k=top_k)]
 
     def answer(self, query: str, top_k: int = 5) -> Answer:
         """Answer a query end-to-end, abstaining when no chunk supports it enough."""

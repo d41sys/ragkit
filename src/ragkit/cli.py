@@ -13,6 +13,17 @@ from typing import Any
 
 import numpy as np
 
+from ragkit.abstention import (
+    SIGNALS,
+    SignalTable,
+    accept_counts,
+    auroc_ci,
+    calibrate_threshold,
+    collect_signals,
+    cross_validated_accept,
+    paired_auroc_ci,
+    risk_at_coverage,
+)
 from ragkit.bm25 import BM25Index
 from ragkit.chunking import Chunk, fixed, recursive, semantic, sentence
 from ragkit.dense import DenseIndex
@@ -193,6 +204,8 @@ def cmd_ask(args: argparse.Namespace) -> int:
 
 def cmd_abstention(args: argparse.Namespace) -> int:
     """Report answer rate on answerable and abstain rate on unanswerable questions."""
+    if args.signals is not None:
+        return _cmd_abstention_signals(args)
     ds = _resolve_dataset(args)
     pipeline = RAGPipeline(min_support=args.min_support)
     pipeline.index_documents(_load_documents(ds.corpus_dir))
@@ -223,6 +236,117 @@ def cmd_abstention(args: argparse.Namespace) -> int:
         print(f"| {name} | {hit}/{total} | {hit / max(1, total):.2f} | [{lo:.2f}, {hi:.2f}] |")
     p5 = float(np.quantile([a.support for a in answers], 0.05)) if answers else 0.0
     print(f"\n5th percentile of best-chunk support on the answerable set: {p5:.3f}\n")
+    return 0
+
+
+def _collect_table(ds: Dataset) -> SignalTable:
+    """Score every question of a dataset with all abstention signals."""
+    unanswerable = [str(u["q"]) for u in _read_jsonl(ds.unanswerable_path)]
+    return collect_signals(_load_documents(ds.corpus_dir), _read_jsonl(ds.qa_path), unanswerable)
+
+
+def _signed_ci(t: tuple[float, float, float]) -> str:
+    return f"{t[0]:+.3f} [{t[1]:+.3f}, {t[2]:+.3f}]"
+
+
+def _rate_cell(hit: int, total: int) -> str:
+    lo, hi = wilson_interval(hit, total)
+    return f"{hit}/{total} ({hit / max(1, total):.2f}) [{lo:.2f}, {hi:.2f}]"
+
+
+_COVERAGES = (1.0, 0.9, 0.8, 0.7)
+
+
+def _cmd_abstention_signals(args: argparse.Namespace) -> int:
+    """Compare abstention signals: AUROC, risk-coverage, CV and zero-shot thresholds."""
+    ds = _resolve_dataset(args)
+    if args.signals == "all":
+        names = list(SIGNALS)
+    else:
+        names = [s.strip() for s in args.signals.split(",") if s.strip()]
+        unknown = [s for s in names if s not in SIGNALS]
+        if unknown:
+            print(f"Error: unknown signals {unknown}; choose from {list(SIGNALS)}", file=sys.stderr)
+            return 2
+    table = _collect_table(ds)
+    labels = table.answerable
+    n_a, n_u = table.n_answerable, table.n_unanswerable
+    baseline = table.scores["query_support"]
+
+    print(f"\n### Abstention signals ({n_a} answerable vs {n_u} unanswerable questions)\n")
+    for name in names:
+        print(f"- `{name}`: {SIGNALS[name]}")
+    print("\nHigher = more likely answerable for every signal; the sign is fixed in advance.\n")
+
+    print("AUROC, answerable vs unanswerable (stratified bootstrap 95% CI, 2000 resamples).")
+    print("`vs chance`: CI above 0.5 = separates the classes. The paired difference vs the")
+    print("`query_support` baseline resamples the same questions for both signals.\n")
+    print("| Signal | AUROC | vs chance | AUROC - baseline | separated from baseline |")
+    print("|---|---|---|---|---|")
+    above = 0
+    for name in names:
+        a, lo, hi = auroc_ci(table.scores[name], labels)
+        chance = "above" if lo > 0.5 else "below" if hi < 0.5 else "no"
+        above += chance == "above"
+        if name == "query_support":
+            diff, sep = "baseline", "-"
+        else:
+            d = paired_auroc_ci(table.scores[name], baseline, labels)
+            diff = _signed_ci(d)
+            sep = "yes (better)" if d[1] > 0 else "yes (worse)" if d[2] < 0 else "no"
+        print(f"| `{name}` | {a:.3f} [{lo:.3f}, {hi:.3f}] | {chance} | {diff} | {sep} |")
+    print(f"\n{above} of {len(names)} signals have an AUROC CI entirely above 0.5.\n")
+
+    n = len(labels)
+    n_miss = int(table.retrieval_miss.sum())
+    print(f"Risk-coverage: answer the top share of all {n} questions by each signal.")
+    print("Rows are the share of answered questions that are unanswerable (ties at the cut-off")
+    print("are split fractionally). 'Bad' = unanswerable, or answerable with no relevant article")
+    print(f"in the retrieved top 5 ({n_miss} of {n_a} answerable questions miss).\n")
+    for title, bad in (
+        ("unanswerable share of answered", ~labels),
+        ("bad share of answered (unanswerable or retrieval miss)", ~labels | table.retrieval_miss),
+    ):
+        print(f"{title}:\n")
+        print("| Signal | " + " | ".join(f"{int(c * 100)}%" for c in _COVERAGES) + " |")
+        print("|---|" + "---|" * len(_COVERAGES))
+        for name in names:
+            cells = [f"{risk_at_coverage(table.scores[name], bad, c):.3f}" for c in _COVERAGES]
+            print(f"| `{name}` | " + " | ".join(cells) + " |")
+        print()
+
+    print(f"Threshold chosen on training folds only ({args.cv_folds}-fold stratified CV by")
+    print(f"question, seed {args.cv_seed}; maximises balanced accuracy on the training folds).")
+    print("Held-out decisions are pooled over folds. 'Always answer' scores 0.500.\n")
+    print(
+        "| Signal | answered (answerable) | abstained (unanswerable) | balanced acc. | median t |"
+    )
+    print("|---|---|---|---|---|")
+    for name in names:
+        cv = cross_validated_accept(table.scores[name], labels, args.cv_folds, args.cv_seed)
+        ya, na, yu, nu = accept_counts(cv.accepted, labels)
+        bal = (ya / na + yu / nu) / 2.0
+        t = float(np.median(cv.thresholds))
+        print(f"| `{name}` | {_rate_cell(ya, na)} | {_rate_cell(yu, nu)} | {bal:.3f} | {t:.3g} |")
+    print()
+
+    synthetic = BUNDLED_DATASETS["synthetic"]
+    if ds == synthetic:
+        print("Zero-shot transfer: not applicable (this is the calibration set).\n")
+        return 0
+    cal = _collect_table(synthetic)
+    print("Zero-shot transfer: threshold = 5th percentile of each signal on the synthetic")
+    print(
+        "answerable set (as for `--min-support`; no unanswerable data used), applied unchanged.\n"
+    )
+    print("| Signal | synthetic t | answered (answerable) | abstained (unanswerable) | bal. acc. |")
+    print("|---|---|---|---|---|")
+    for name in names:
+        t = calibrate_threshold(cal.scores[name][cal.answerable])
+        ya, na, yu, nu = accept_counts(table.scores[name] >= t, labels)
+        bal = (ya / na + yu / nu) / 2.0
+        print(f"| `{name}` | {t:.3f} | {_rate_cell(ya, na)} | {_rate_cell(yu, nu)} | {bal:.3f} |")
+    print()
     return 0
 
 
@@ -397,6 +521,19 @@ def cmd_eval(args: argparse.Namespace) -> int:
             )
         print()
 
+    for use_rewrite in (False, True):
+        a, b = ("Hybrid + Rerank", use_rewrite), ("Hybrid (RRF)", use_rewrite)
+        if a not in scores or b not in scores:
+            continue
+        rewrite = "HyDE" if use_rewrite else "None"
+        d5 = paired_bootstrap_ci(scores[a]["r5"], scores[b]["r5"])
+        dm = paired_bootstrap_ci(scores[a]["mrr"], scores[b]["mrr"])
+        print(f"Paired difference, Hybrid + Rerank minus Hybrid (RRF), rewrite {rewrite}:\n")
+        print("| dRecall@5 | dMRR |")
+        print("|---|---|")
+        print(f"| {_signed_ci(d5)} | {_signed_ci(dm)} |")
+        print()
+
     types = sorted({str(item["type"]) for item in qa_pairs if "type" in item})
     if types:
         print("Breakdown by question type (no rewrite): mean Recall@5 / MRR\n")
@@ -493,6 +630,13 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     _add_dataset_args(p_abs)
     p_abs.add_argument("--min-support", type=float, default=DEFAULT_MIN_SUPPORT)
+    p_abs.add_argument(
+        "--signals",
+        default=None,
+        help="all, or comma-separated abstention signals: compare them by AUROC / risk-coverage.",
+    )
+    p_abs.add_argument("--cv-folds", type=int, default=5, help="Folds for threshold CV.")
+    p_abs.add_argument("--cv-seed", type=int, default=0, help="Seed of the CV fold assignment.")
 
     # Ablation command
     p_abl = subparsers.add_parser("ablation", help="Staged end-to-end ablation table.")
