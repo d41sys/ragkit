@@ -10,6 +10,7 @@ import pytest
 
 from ragkit.abstention import (
     SIGNALS,
+    LogisticModel,
     accept_counts,
     auroc,
     auroc_ci,
@@ -18,6 +19,8 @@ from ragkit.abstention import (
     collect_signals,
     compute_signals,
     cross_validated_accept,
+    fit_logistic,
+    nested_cv_logistic,
     paired_auroc_ci,
     risk_at_coverage,
     stratified_folds,
@@ -144,6 +147,123 @@ def test_cross_validated_threshold_on_separable_scores() -> None:
     assert accept_counts(cv.accepted, labels) == (10, 10, 10, 10)
 
 
+def _objective(
+    x: np.ndarray, y: np.ndarray, model: LogisticModel, l2: float, w: np.ndarray, b: float
+) -> float:
+    z = ((x - model.mean) / model.scale) @ w + b
+    t = y.astype(float)
+    return float(np.sum(np.logaddexp(0.0, z) - t * z) + 0.5 * l2 * np.sum(w * w))
+
+
+def test_fit_logistic_converges_on_a_separable_toy_case() -> None:
+    x = np.array([[0.0, 5.0], [0.5, 4.0], [1.0, 6.0], [3.0, 5.5], [3.5, 4.5], [4.0, 5.0]])
+    y = np.array([False, False, False, True, True, True])
+    model = fit_logistic(x, y, l2=0.1)
+    assert model.converged
+    assert model.n_iter < 30
+    scores = model.decision(x)
+    assert np.array_equal(scores > 0, y)
+    assert auroc(scores, y) == 1.0
+    assert model.weights[0] > 0  # the informative feature points towards "answerable"
+    # Strictly convex objective: no small perturbation of the solution may lower it.
+    best = _objective(x, y, model, 0.1, model.weights, model.bias)
+    rng = np.random.default_rng(0)
+    for _ in range(50):
+        dw, db = rng.normal(0.0, 0.05, size=2), float(rng.normal(0.0, 0.05))
+        assert _objective(x, y, model, 0.1, model.weights + dw, model.bias + db) >= best
+    # A stronger ridge shrinks the weights even though the classes are separable.
+    assert np.linalg.norm(fit_logistic(x, y, l2=10.0).weights) < np.linalg.norm(model.weights)
+
+
+def test_fit_logistic_matches_a_symmetric_hand_case() -> None:
+    # Symmetric 1-D data: the optimum has zero intercept and a positive slope.
+    x = np.array([[-2.0], [-1.0], [1.0], [2.0]])
+    y = np.array([False, True, False, True])
+    model = fit_logistic(x, y, l2=1.0)
+    assert model.converged
+    assert model.bias == pytest.approx(0.0, abs=1e-9)
+    assert model.weights[0] > 0.0
+    assert model.decision([[0.0]])[0] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_fit_logistic_validates_input() -> None:
+    x = np.zeros((4, 2))
+    with pytest.raises(ValueError, match="at least one"):
+        fit_logistic(x, [True] * 4)
+    with pytest.raises(ValueError, match="positive"):
+        fit_logistic(x, [True, False, True, False], l2=0.0)
+    with pytest.raises(ValueError, match="one row per label"):
+        fit_logistic(x, [True, False])
+    # A constant feature gets scale 1 instead of dividing by zero.
+    model = fit_logistic(np.zeros((4, 1)), [True, False, True, False])
+    assert np.all(np.isfinite(model.decision(x[:, :1])))
+
+
+def _noisy_problem(
+    seed: int, n_pos: int, n_neg: int, shift: float
+) -> tuple[np.ndarray, np.ndarray]:
+    rng = np.random.default_rng(seed)
+    labels = np.array([True] * n_pos + [False] * n_neg)
+    x = rng.normal(size=(n_pos + n_neg, 9))
+    x[:n_pos, 0] += shift
+    return x, labels
+
+
+def test_nested_cv_never_fits_on_the_questions_it_scores() -> None:
+    x, labels = _noisy_problem(4, 30, 20, shift=1.0)
+    res = nested_cv_logistic(x, labels, k=5, seed=0)
+    outer = [f for f in res.fits if f.stage == "outer"]
+    assert len(outer) == 5
+    # Every question is scored by exactly one outer fold.
+    assert sorted(np.concatenate([f.scored for f in outer]).tolist()) == list(range(50))
+    pending = []
+    for record in res.fits:
+        assert not set(record.fit.tolist()) & set(record.scored.tolist())
+        if record.stage == "inner":
+            pending.append(record)
+            continue
+        # The inner fits of this fold only touch the outer training questions.
+        assert pending
+        for inner in pending:
+            assert set(inner.fit.tolist()) | set(inner.scored.tolist()) <= set(record.fit.tolist())
+            assert not set(inner.fit.tolist()) & set(record.scored.tolist())
+            assert not set(inner.scored.tolist()) & set(record.scored.tolist())
+        pending = []
+    assert not pending
+
+
+def test_nested_cv_held_out_scores_come_from_models_fitted_without_them() -> None:
+    x, labels = _noisy_problem(5, 30, 20, shift=1.0)
+    res = nested_cv_logistic(x, labels, k=5, seed=0)
+    train, test = stratified_folds(labels, k=5, seed=0)[0]
+    refit = fit_logistic(x[train], labels[train], l2=res.l2[0])
+    assert np.allclose(res.scores[test], refit.decision(x[test]))
+    # Rewriting the held-out fold's features cannot change what was chosen inside its fold.
+    changed = x.copy()
+    changed[test] = 100.0
+    after = nested_cv_logistic(changed, labels, k=5, seed=0)
+    assert after.l2[0] == res.l2[0]
+    assert after.thresholds[0] == res.thresholds[0]
+    assert not np.allclose(after.scores[test], res.scores[test])
+    assert nested_cv_logistic(x, labels, k=5, seed=0).thresholds == res.thresholds
+
+
+def test_nested_cv_gives_chance_auroc_on_pure_noise_and_finds_real_signal() -> None:
+    noise, labels = _noisy_problem(6, 42, 12, shift=0.0)
+    assert auroc(nested_cv_logistic(noise, labels, k=5, seed=0).scores, labels) < 0.7
+    signal, labels = _noisy_problem(6, 42, 12, shift=3.0)
+    res = nested_cv_logistic(signal, labels, k=5, seed=0)
+    assert auroc(res.scores, labels) > 0.9
+    answered, _, abstained, _ = accept_counts(res.accepted, labels)
+    assert answered >= 36 and abstained >= 9
+
+
+def test_nested_cv_needs_two_questions_per_class_in_every_training_fold() -> None:
+    x, labels = _noisy_problem(7, 4, 2, shift=1.0)
+    with pytest.raises(ValueError, match="at least 2"):
+        nested_cv_logistic(x, labels, k=2, seed=0)
+
+
 def test_calibrate_threshold_is_the_answerable_quantile() -> None:
     assert calibrate_threshold([float(i) for i in range(21)], 0.05) == pytest.approx(1.0)
 
@@ -233,9 +353,39 @@ def test_cli_abstention_signals_prints_all_tables(
     assert "| AUROC - baseline |" in out
     for name in SIGNALS:
         assert f"| `{name}` |" in out
+    assert "| `combined` |" in out
+    assert "nested CV by question" in out
     assert "unanswerable share of answered" in out
     assert "5-fold stratified CV" in out
     assert "Zero-shot transfer: threshold" in out
+
+
+def test_cli_cohort_filters_unanswerable_questions(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    args = _dataset(tmp_path)
+    unans = tmp_path / "unans.jsonl"
+    records = [json.loads(line) for line in unans.read_text(encoding="utf-8").splitlines()]
+    for i, record in enumerate(records):
+        record["cohort"] = "original-12" if i < 2 else "expanded"
+        record["miss_type"] = "national_rule"
+    unans.write_text("\n".join(json.dumps(r) for r in records), encoding="utf-8")
+    with pytest.raises(SystemExit) as ex:
+        main(["abstention", "--cohort", "expanded", *args])
+    assert ex.value.code == 0
+    out = capsys.readouterr().out
+    assert "| unanswerable off_domain (abstained) |" in out
+    assert "/4 |" in out  # 6 records, 2 tagged original-12
+    assert "| unanswerable national_rule (abstained) |" in out
+    with pytest.raises(SystemExit) as ex:
+        main(["abstention", "--cohort", "original-12", *args])
+    assert ex.value.code == 0
+    assert "/2 |" in capsys.readouterr().out
+
+
+def test_cli_cohort_without_tagged_records_is_an_error(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit, match="no unanswerable records with cohort 'expanded'"):
+        main(["abstention", "--cohort", "expanded", *_dataset(tmp_path)])
 
 
 def test_cli_abstention_rejects_unknown_signal(

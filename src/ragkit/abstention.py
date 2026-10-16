@@ -297,6 +297,158 @@ def cross_validated_accept(scores: Scores, labels: Flags, k: int = 5, seed: int 
     return CVResult(thresholds, accepted)
 
 
+# Ridge strengths tried by the inner loop of the nested CV, fixed before any scoring.
+L2_GRID: tuple[float, ...] = (0.01, 0.1, 1.0, 10.0, 100.0)
+
+
+@dataclass(frozen=True)
+class LogisticModel:
+    """L2-regularised logistic regression on standardised features; label True = answerable."""
+
+    mean: FloatArray
+    scale: FloatArray
+    weights: FloatArray  # one per standardised feature
+    bias: float
+    n_iter: int
+    converged: bool
+
+    def decision(self, features: Sequence[Sequence[float]] | FloatArray) -> FloatArray:
+        """Logit per row; higher = more likely answerable (monotone in the probability)."""
+        x = np.asarray(features, dtype=np.float64)
+        return np.asarray(((x - self.mean) / self.scale) @ self.weights + self.bias)
+
+
+def _logistic_objective(a: FloatArray, y: FloatArray, p: FloatArray, reg: FloatArray) -> float:
+    z = a @ p
+    return float(np.sum(np.logaddexp(0.0, z) - y * z) + 0.5 * np.sum(reg * p * p))
+
+
+def fit_logistic(
+    features: Sequence[Sequence[float]] | FloatArray,
+    labels: Flags,
+    l2: float = 1.0,
+    max_iter: int = 100,
+    tol: float = 1e-6,
+) -> LogisticModel:
+    """Newton's method with backtracking on ``sum(log-loss) + l2 / 2 * |w|^2`` (numpy only).
+
+    Features are standardised with the training mean and standard deviation (a constant column
+    gets scale 1). The intercept is not penalised. ``l2 > 0`` makes the objective strictly convex,
+    so the fit exists and is unique even when the classes are perfectly separable.
+    ``converged`` is True when the gradient's largest entry falls below ``tol``.
+    """
+    x = np.asarray(features, dtype=np.float64)
+    y = np.asarray(labels, dtype=np.bool_)
+    if x.ndim != 2 or len(x) != len(y):
+        raise ValueError("features must be 2-D with one row per label")
+    if l2 <= 0.0:
+        raise ValueError("l2 must be positive")
+    if y.all() or not y.any():
+        raise ValueError("need at least one answerable and one unanswerable question")
+    mean = x.mean(axis=0)
+    scale = x.std(axis=0)
+    scale[scale == 0.0] = 1.0
+    a = np.hstack([(x - mean) / scale, np.ones((len(x), 1))])
+    t = y.astype(np.float64)
+    reg = np.append(np.full(x.shape[1], l2), 0.0)
+    p = np.zeros(a.shape[1])
+    converged = False
+    n_iter = 0
+    while True:
+        prob = 0.5 * (1.0 + np.tanh(0.5 * (a @ p)))
+        grad = a.T @ (prob - t) + reg * p
+        if float(np.max(np.abs(grad))) < tol:
+            converged = True
+            break
+        if n_iter == max_iter:
+            break
+        n_iter += 1
+        hess = (a * (prob * (1.0 - prob))[:, None]).T @ a + np.diag(reg)
+        step = np.linalg.solve(hess + 1e-12 * np.eye(len(p)), grad)
+        f0 = _logistic_objective(a, t, p, reg)
+        slope = float(grad @ step)
+        rate = 1.0
+        while rate > 1e-12:
+            slack = 1e-12 * (1.0 + abs(f0))  # floating-point noise near the optimum
+            if _logistic_objective(a, t, p - rate * step, reg) <= f0 - 1e-4 * rate * slope + slack:
+                break
+            rate /= 2.0
+        if rate <= 1e-12:
+            break
+        p = p - rate * step
+    return LogisticModel(mean, scale, p[:-1], float(p[-1]), n_iter, converged)
+
+
+@dataclass(frozen=True)
+class FitRecord:
+    """One model fit during nested CV: the questions it was fitted on and the ones it scored."""
+
+    stage: str  # "inner" (ridge-strength and threshold selection) or "outer" (held-out scoring)
+    fit: IntArray
+    scored: IntArray
+
+
+@dataclass(frozen=True)
+class NestedCVResult:
+    """Held-out output of the combined model; every question is scored by exactly one outer fold."""
+
+    scores: FloatArray  # held-out logit for every question
+    accepted: BoolArray  # held-out decision at the threshold chosen inside the training fold
+    l2: list[float]  # ridge strength chosen per outer fold
+    thresholds: list[float]  # logit threshold chosen per outer fold
+    fits: list[FitRecord]
+
+
+def nested_cv_logistic(
+    features: Sequence[Sequence[float]] | FloatArray,
+    labels: Flags,
+    k: int = 5,
+    seed: int = 0,
+    inner_k: int = 5,
+    l2_grid: Sequence[float] = L2_GRID,
+) -> NestedCVResult:
+    """Stratified nested CV by question for the combined abstention model.
+
+    Per outer fold, only that fold's training questions are used: (1) an inner stratified CV
+    picks the ridge strength from ``l2_grid`` by out-of-fold log-loss (ties go to the stronger
+    penalty); (2) the inner out-of-fold logits of the chosen model give the answer/abstain
+    threshold that maximises balanced accuracy (:func:`best_threshold`); (3) the model is refitted
+    on all training questions and scores the held-out fold. The held-out questions are never used
+    to fit, to choose the penalty, or to choose the threshold.
+    """
+    x = np.asarray(features, dtype=np.float64)
+    y = np.asarray(labels, dtype=np.bool_)
+    if x.ndim != 2 or len(x) != len(y):
+        raise ValueError("features must be 2-D with one row per label")
+    scores = np.zeros(len(y), dtype=np.float64)
+    accepted = np.zeros(len(y), dtype=np.bool_)
+    chosen_l2: list[float] = []
+    thresholds: list[float] = []
+    fits: list[FitRecord] = []
+    for train, test in stratified_folds(y, k=k, seed=seed):
+        y_tr = y[train]
+        k_in = min(inner_k, int(y_tr.sum()), int((~y_tr).sum()))
+        if k_in < 2:
+            raise ValueError("each training fold needs at least 2 questions per class")
+        oof = {c: np.zeros(len(train), dtype=np.float64) for c in l2_grid}
+        for in_fit, in_test in stratified_folds(y_tr, k=k_in, seed=seed + 1):
+            fits.append(FitRecord("inner", train[in_fit], train[in_test]))
+            for c in l2_grid:
+                model = fit_logistic(x[train[in_fit]], y_tr[in_fit], l2=c)
+                oof[c][in_test] = model.decision(x[train[in_test]])
+        t = y_tr.astype(np.float64)
+        loss = {c: float(np.mean(np.logaddexp(0.0, z) - t * z)) for c, z in oof.items()}
+        best = min(sorted(l2_grid, reverse=True), key=lambda c: loss[c])
+        threshold = best_threshold(oof[best], y_tr)
+        fits.append(FitRecord("outer", train, test))
+        final = fit_logistic(x[train], y_tr, l2=best)
+        scores[test] = final.decision(x[test])
+        accepted[test] = scores[test] >= threshold
+        chosen_l2.append(best)
+        thresholds.append(threshold)
+    return NestedCVResult(scores, accepted, chosen_l2, thresholds, fits)
+
+
 def calibrate_threshold(answerable_scores: Scores, quantile: float = 0.05) -> float:
     """Answerable-only calibration: the ``quantile`` of the scores (no unanswerable data)."""
     return float(np.quantile(np.asarray(answerable_scores, dtype=np.float64), quantile))

@@ -21,6 +21,8 @@ from ragkit.abstention import (
     calibrate_threshold,
     collect_signals,
     cross_validated_accept,
+    fit_logistic,
+    nested_cv_logistic,
     paired_auroc_ci,
     risk_at_coverage,
 )
@@ -51,6 +53,7 @@ DEFAULT_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable.jsonl"
 EU_CORPUS_DIR = DEFAULT_DATA_DIR / "corpus_eu"
 EU_QA_PATH = DEFAULT_DATA_DIR / "qa_eu.jsonl"
 EU_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable_eu.jsonl"
+COHORTS = ("all", "original-12", "expanded")
 
 
 @dataclass(frozen=True)
@@ -81,6 +84,12 @@ def _add_dataset_args(parser: argparse.ArgumentParser, *, questions: bool = True
         parser.add_argument("--qa-file", default=None, help="Override the answerable QA jsonl.")
         parser.add_argument(
             "--unanswerable-file", default=None, help="Override the unanswerable jsonl."
+        )
+        parser.add_argument(
+            "--cohort",
+            choices=COHORTS,
+            default="all",
+            help="Keep only unanswerable questions of this cohort (original-12 or expanded).",
         )
 
 
@@ -184,6 +193,17 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
         return [json.loads(line) for line in f if line.strip()]
 
 
+def _read_unanswerable(ds: Dataset, cohort: str = "all") -> list[dict[str, Any]]:
+    """Unanswerable records of a dataset, optionally restricted to one ``cohort`` tag."""
+    records = _read_jsonl(ds.unanswerable_path)
+    if cohort == "all":
+        return records
+    kept = [r for r in records if r.get("cohort") == cohort]
+    if not kept:
+        raise SystemExit(f"Error: no unanswerable records with cohort {cohort!r}")
+    return kept
+
+
 def cmd_ask(args: argparse.Namespace) -> int:
     """Answer a user query with chunk citations, or abstain when support is low."""
     pipeline = RAGPipeline(min_support=args.min_support)
@@ -212,7 +232,7 @@ def cmd_abstention(args: argparse.Namespace) -> int:
 
     qa_items = _read_jsonl(ds.qa_path)
     answerable = [str(item["q"]) for item in qa_items]
-    unanswerable = _read_jsonl(ds.unanswerable_path)
+    unanswerable = _read_unanswerable(ds, args.cohort)
     answers = [pipeline.answer(q) for q in answerable]
     answered = sum(not a.abstained for a in answers)
     rows = [("answerable (answered)", answered, len(answerable))]
@@ -227,6 +247,10 @@ def cmd_abstention(args: argparse.Namespace) -> int:
         qs = [str(u["q"]) for u in unanswerable if u["kind"] == kind]
         abstained = sum(pipeline.answer(q).abstained for q in qs)
         rows.append((f"unanswerable {kind} (abstained)", abstained, len(qs)))
+    for miss in sorted({str(u["miss_type"]) for u in unanswerable if "miss_type" in u}):
+        qs = [str(u["q"]) for u in unanswerable if u.get("miss_type") == miss]
+        abstained = sum(pipeline.answer(q).abstained for q in qs)
+        rows.append((f"unanswerable {miss} (abstained)", abstained, len(qs)))
 
     print(f"\n### Refuse-on-low-confidence (min_support = {args.min_support:.2f})\n")
     print("| Set | Correct | Rate | Wilson 95% CI |")
@@ -239,9 +263,9 @@ def cmd_abstention(args: argparse.Namespace) -> int:
     return 0
 
 
-def _collect_table(ds: Dataset) -> SignalTable:
+def _collect_table(ds: Dataset, cohort: str = "all") -> SignalTable:
     """Score every question of a dataset with all abstention signals."""
-    unanswerable = [str(u["q"]) for u in _read_jsonl(ds.unanswerable_path)]
+    unanswerable = [str(u["q"]) for u in _read_unanswerable(ds, cohort)]
     return collect_signals(_load_documents(ds.corpus_dir), _read_jsonl(ds.qa_path), unanswerable)
 
 
@@ -268,15 +292,22 @@ def _cmd_abstention_signals(args: argparse.Namespace) -> int:
         if unknown:
             print(f"Error: unknown signals {unknown}; choose from {list(SIGNALS)}", file=sys.stderr)
             return 2
-    table = _collect_table(ds)
+    table = _collect_table(ds, args.cohort)
     labels = table.answerable
     n_a, n_u = table.n_answerable, table.n_unanswerable
     baseline = table.scores["query_support"]
+    features = np.column_stack([table.scores[name] for name in names])
+    combined = nested_cv_logistic(features, labels, args.cv_folds, args.cv_seed)
+    columns = [(name, table.scores[name]) for name in names] + [("combined", combined.scores)]
 
     print(f"\n### Abstention signals ({n_a} answerable vs {n_u} unanswerable questions)\n")
     for name in names:
         print(f"- `{name}`: {SIGNALS[name]}")
     print("\nHigher = more likely answerable for every signal; the sign is fixed in advance.\n")
+    print("`combined` = L2 logistic regression on all signals above (numpy only), held-out scores")
+    print(f"only: {args.cv_folds}-fold stratified nested CV by question (seed {args.cv_seed}); the")
+    print("ridge strength and threshold are chosen inside each training fold, so the held-out")
+    print("fold never enters a fit.\n")
 
     print("AUROC, answerable vs unanswerable (stratified bootstrap 95% CI, 2000 resamples).")
     print("`vs chance`: CI above 0.5 = separates the classes. The paired difference vs the")
@@ -295,6 +326,11 @@ def _cmd_abstention_signals(args: argparse.Namespace) -> int:
             diff = _signed_ci(d)
             sep = "yes (better)" if d[1] > 0 else "yes (worse)" if d[2] < 0 else "no"
         print(f"| `{name}` | {a:.3f} [{lo:.3f}, {hi:.3f}] | {chance} | {diff} | {sep} |")
+    a, lo, hi = auroc_ci(combined.scores, labels)
+    chance = "above" if lo > 0.5 else "below" if hi < 0.5 else "no"
+    d = paired_auroc_ci(combined.scores, baseline, labels)
+    sep = "yes (better)" if d[1] > 0 else "yes (worse)" if d[2] < 0 else "no"
+    print(f"| `combined` | {a:.3f} [{lo:.3f}, {hi:.3f}] | {chance} | {_signed_ci(d)} | {sep} |")
     print(f"\n{above} of {len(names)} signals have an AUROC CI entirely above 0.5.\n")
 
     n = len(labels)
@@ -310,8 +346,8 @@ def _cmd_abstention_signals(args: argparse.Namespace) -> int:
         print(f"{title}:\n")
         print("| Signal | " + " | ".join(f"{int(c * 100)}%" for c in _COVERAGES) + " |")
         print("|---|" + "---|" * len(_COVERAGES))
-        for name in names:
-            cells = [f"{risk_at_coverage(table.scores[name], bad, c):.3f}" for c in _COVERAGES]
+        for name, scores in columns:
+            cells = [f"{risk_at_coverage(scores, bad, c):.3f}" for c in _COVERAGES]
             print(f"| `{name}` | " + " | ".join(cells) + " |")
         print()
 
@@ -328,7 +364,18 @@ def _cmd_abstention_signals(args: argparse.Namespace) -> int:
         bal = (ya / na + yu / nu) / 2.0
         t = float(np.median(cv.thresholds))
         print(f"| `{name}` | {_rate_cell(ya, na)} | {_rate_cell(yu, nu)} | {bal:.3f} | {t:.3g} |")
+    ya, na, yu, nu = accept_counts(combined.accepted, labels)
+    bal = (ya / na + yu / nu) / 2.0
+    t = float(np.median(combined.thresholds))
+    row = f"{_rate_cell(ya, na)} | {_rate_cell(yu, nu)} | {bal:.3f} | {t:.3g} (logit)"
+    print(f"| `combined` | {row} |")
     print()
+    print(f"Combined model: ridge strength chosen per outer fold = {combined.l2}.")
+    chosen = float(np.median(combined.l2))
+    full = fit_logistic(features, labels, l2=chosen)
+    coefs = sorted(zip(names, full.weights, strict=True), key=lambda c: -abs(float(c[1])))
+    print(f"In-sample fit on all questions, description only, never scored (l2 = {chosen:g}):")
+    print("standardised coefficients " + ", ".join(f"{n} {w:+.2f}" for n, w in coefs) + ".\n")
 
     synthetic = BUNDLED_DATASETS["synthetic"]
     if ds == synthetic:
@@ -368,7 +415,7 @@ def cmd_ablation(args: argparse.Namespace) -> int:
     ds = _resolve_dataset(args)
     docs = _load_documents(ds.corpus_dir)
     answerable = _read_jsonl(ds.qa_path)
-    unanswerable = [str(u["q"]) for u in _read_jsonl(ds.unanswerable_path)]
+    unanswerable = [str(u["q"]) for u in _read_unanswerable(ds, args.cohort)]
 
     print("\n### Staged ablation (end-to-end, top_k = 5; mean [bootstrap 95% CI over questions])\n")
     print("| Stage | Recall@5 | MRR | Answer F1 | Faithfulness | Answered | Abstain (unans.) |")

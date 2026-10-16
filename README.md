@@ -33,9 +33,10 @@ uv run ragkit ablation                                          # staged end-to-
 uv run ragkit eval --corpus eu                                  # same commands on the EUR-Lex corpus
 uv run ragkit abstention --corpus eu
 uv run ragkit ablation --corpus eu
-uv run ragkit abstention --corpus eu --signals all               # AUROC / risk-coverage / CV and zero-shot thresholds per signal
+uv run ragkit abstention --corpus eu --signals all               # AUROC / risk-coverage / CV and zero-shot thresholds per signal, plus the combined logistic model (nested CV), on all 45 unanswerable questions
+uv run ragkit abstention --corpus eu --signals all --cohort original-12   # same on the 12 original unanswerable questions only (`--cohort expanded`: the 33 added ones)
 uv run ragkit abstention --corpus synthetic --signals all        # same table on the synthetic set, for contrast
-# any of eval / abstention / ablation also take --corpus-dir, --qa-file, --unanswerable-file
+# any of eval / abstention / ablation also take --corpus-dir, --qa-file, --unanswerable-file, --cohort
 ```
 
 ## Results
@@ -128,9 +129,11 @@ uv run ragkit fetch-eu --retrieved-on 2026-10-16     # rewrites src/ragkit/data/
 
 Regenerating from the cached download reproduced the committed Markdown files byte for byte (checked with `diff -r`). A fresh download could differ if the Publications Office republishes the XHTML; compare the SHA-256 in `SOURCES.json`.
 
-**Questions.** `qa_eu.jsonl`: 42 answerable (17 `direct`, 17 `paraphrase`, 8 `multi-hop` needing two articles) and `unanswerable_eu.jsonl`: 12 on-topic questions the corpus does not answer. Every record has `provenance` (article ids with paragraph) and `status: "reviewed-agent"`; the 28 records that the review changed also carry a `review_note`.
+**Questions.** `qa_eu.jsonl`: 42 answerable (17 `direct`, 17 `paraphrase`, 8 `multi-hop` needing two articles) and `unanswerable_eu.jsonl`: 45 on-topic questions the corpus does not answer. The first 12 are the original set (`"cohort": "original-12"`); 33 were added later (`"cohort": "expanded"`) in four near-miss types tagged `miss_type`: 9 `wrong_regulation` (an EU act the corpus only cites by number), 8 `absent_article` (a plausible article of an included act that is not among the 94), 9 `missing_number` (the corpus names the quantity but states no value) and 7 `national_rule` (Member State or non-EU detail). Every record has `provenance` (closest article ids) and `status: "reviewed-agent"`; the 43 records that a review changed also carry a `review_note` (25 answerable and 3 of the original 12 in the first pass, 15 of the 33 added ones in the second).
 
 > **Review status: second-pass review by a separate agent; no human domain expert has reviewed these labels, and single-annotator risk remains.** The questions were first drafted by one AI agent. A second, independent agent pass then read every cited article and re-checked each answer, each paraphrase and multi-hop claim, and the relevant-article labels against the BM25 and dense top-10 (and checked that none of the 94 articles answers an unanswerable question). It changed 25 of 42 answerable items (13 questions and 19 reference answers rewritten, 4 retyped, 3 relevant ids added and 1 removed) and 3 of 12 unanswerable ones, and dropped none; the per-item log is in [`docs/qa_eu_review.md`](docs/qa_eu_review.md). The reviewers are agents, probably of the same model family as the drafter, so shared blind spots are possible, and the owner could not audit the result. Offline tests check that every `relevant_doc_id` exists and that every quoted span in a reference answer occurs verbatim in the cited articles; they do not check that the labels are complete. Where the same rule is repeated in two acts, both were labelled only if the question needs both.
+
+> **The 33 added unanswerable questions were reviewed in a separate adversarial agent pass; no human saw them either.** Protocol (fixed and committed in `29ffeb7` before any abstention signal was computed on the new questions): draft, check each against BM25/dense/hybrid top-10 and corpus greps, then a second agent tried to prove each one answerable, read every article in the union of the top-10 lists and checked every statement in the `reason` text. Reviewer verdicts, counted from its table: 23 OK, 7 `reason` factually wrong, 2 partial (an article states a maximum settlement period without a value; an EU compensation floor that applies in Germany), 1 compound question. None was found answerable and none was dropped; 4 questions were reworded and 11 reasons corrected. The reviewer is again an agent, probably of the drafter's model family. Closest calls (a nearby threshold, deadline or pricing statement that does not answer the question) are listed in [`docs/qa_eu_review.md`](docs/qa_eu_review.md).
 
 The review changed the benchmark, so the numbers below are not comparable one-to-one with the draft-label run. Draft-label run, for comparison (BM25 / Dense / Hybrid / Hybrid+Rerank, no rewrite, recall@5 / MRR): 0.893 / 0.663, 0.750 / 0.639, 0.786 / 0.665, 0.821 / 0.622. After review: 0.857 / 0.676, 0.619 / 0.528, 0.786 / 0.636, 0.821 / 0.591. Part of the movement is the stricter paraphrase questions (less lexical overlap), part is the added labels; the two effects were not separated.
 
@@ -183,7 +186,7 @@ What this does and does not show, as measured:
 
 ### Abstention transfer: `ragkit abstention --corpus eu`
 
-The refusal threshold 0.5 was set on the synthetic answerable set. Applied unchanged to the EU set:
+The refusal threshold 0.5 was set on the synthetic answerable set. Applied unchanged to the EU set, with the 12 original unanswerable questions (`ragkit abstention --corpus eu --cohort original-12`; the rerun on all 45 is at the end of this subsection):
 
 | Set | Correct | Rate | Wilson 95% CI |
 |---|---|---|---|
@@ -205,9 +208,13 @@ It does not transfer: 0.5 refuses 52% of answerable questions (22 of 42), and 88
 
 Draft-label run, for comparison: at 0.50 answered 22/42 (direct 13/14, multi-hop 4/8, paraphrase 5/20) and abstained 9/12; at 0.25 answered 40/42 (14/14, 8/8, 18/20) and abstained 1/12.
 
-The default threshold stays 0.5. Operating points on this set (`for t in 0.25 0.30 0.40 0.50; do ragkit abstention --corpus eu --min-support $t; done`), shown as a trade-off curve and not a tuned choice: answered / abstained = 40/42 and 1/12 at 0.25, 31/42 and 2/12 at 0.30, 27/42 and 8/12 at 0.40, 20/42 and 9/12 at 0.50 (draft labels: 40/42 and 1/12, 34/42 and 2/12, 30/42 and 8/12, 22/42 and 9/12). None of these four points gives both a high answer rate and a high refusal rate. Query-term coverage is a lexical signal: it cannot tell a paraphrased answerable question from an on-topic question whose terms all occur in the corpus (the EU unanswerable set is on-topic by construction). With 12 unanswerable questions the CIs are wide. The unanswerable questions changed little in the review (3 of 12 edited), so the 9/12 and 1/12 refusal counts are unchanged.
+The default threshold stays 0.5. Operating points on this set (`for t in 0.25 0.30 0.40 0.50; do ragkit abstention --corpus eu --cohort original-12 --min-support $t; done`), shown as a trade-off curve and not a tuned choice: answered / abstained = 40/42 and 1/12 at 0.25, 31/42 and 2/12 at 0.30, 27/42 and 8/12 at 0.40, 20/42 and 9/12 at 0.50 (draft labels: 40/42 and 1/12, 34/42 and 2/12, 30/42 and 8/12, 22/42 and 9/12). None of these four points gives both a high answer rate and a high refusal rate. Query-term coverage is a lexical signal: it cannot tell a paraphrased answerable question from an on-topic question whose terms all occur in the corpus (the EU unanswerable set is on-topic by construction). With 12 unanswerable questions the CIs are wide. The unanswerable questions changed little in the review (3 of 12 edited), so the 9/12 and 1/12 refusal counts are unchanged. After the larger unanswerable set was added, the 12-question tables above were rerun with `--cohort original-12` and reproduce (counts, AUROCs and CV balanced-accuracy ranges unchanged).
 
-### Abstention signals under domain shift: `ragkit abstention --corpus eu --signals all`
+With all 45 unanswerable questions (`uv run ragkit abstention --corpus eu --min-support 0.5` and `--min-support 0.25`, answerable side unchanged): 0.50 abstains on 30/45 (0.67, Wilson [0.52, 0.79]); 0.25 abstains on 5/45 (0.11, [0.05, 0.23]). The 33 added questions alone: 21/33 (0.64, [0.47, 0.78]) at 0.50 and 4/33 (0.12, [0.05, 0.27]) at 0.25, so the original 12 (9/12 and 1/12) were not unusually easy or hard. By `miss_type` at 0.50 (abstained): `wrong_regulation` 7/9, `national_rule` 5/7, `missing_number` 5/9, `absent_article` 4/8; at 0.25: 2/9, 2/7, 0/9, 0/8. [INFERENCE] `absent_article` and `missing_number` questions reuse the corpus's own vocabulary most, which may be why the coverage rule abstains least on them; not tested, and each cell has 7 to 9 questions, so the CIs are wide (0.3 or more).
+
+### Abstention signals under domain shift: `ragkit abstention --corpus eu --signals all --cohort original-12`
+
+This subsection is the first measurement, on the 12 original unanswerable questions (plus the later `combined` rows). The 45-question rerun follows in the next subsection.
 
 Question: is query-term coverage (the current `query_support`) a good abstention signal, or does another cheap signal from the same pipeline separate answerable from unanswerable questions better? Nine signals, all computed from the existing pipeline (no new dependency), each oriented so that higher = more likely answerable (the sign is fixed in advance, never flipped):
 
@@ -221,7 +228,9 @@ Question: is query-term coverage (the current `query_support`) a good abstention
 
 The `[st]` cross-encoder was not run (not installed here), so no neural signal is compared.
 
-Commands (offline, a few seconds each): `uv run ragkit abstention --corpus eu --signals all` and `uv run ragkit abstention --corpus synthetic --signals all`. AUROC = P(answerable scores higher than unanswerable), ties count 1/2. CIs: percentile bootstrap, 2000 resamples, answerable and unanswerable questions resampled separately, seed 0. The paired difference resamples the same questions for both signals. Labels are the agent-reviewed ones described above.
+**Combined model (`combined`).** L2-regularised logistic regression on all nine signals (numpy only: Newton's method with backtracking, features standardised on the training fold, label = answerable, intercept not penalised). It is only ever scored out of fold, with 5-fold stratified nested CV by question. Inside each outer training fold an inner 5-fold stratified CV picks the ridge strength from {0.01, 0.1, 1, 10, 100} by out-of-fold log-loss (ties to the stronger penalty) and picks the answer/abstain threshold on the inner out-of-fold logits (maximising balanced accuracy, as for the single signals); the model is then refitted on the whole outer training fold and scores the held-out fold. The held-out fold never enters a fit, the ridge choice or the threshold: unit tests check that no fit's training indices intersect the indices it scores, that the inner fits stay inside the outer training fold, and that rewriting a held-out fold's features cannot change what its fold chose. The pooled held-out logits give one score per question, so AUROC, the paired difference and risk-coverage reuse the code of the single signals. Their bootstrap CIs treat those pooled scores as fixed, so they leave out the variance from refitting and are probably a little too narrow [INFERENCE]. Grid, folds and the primary seed (0) were fixed before the new questions were scored.
+
+Commands (offline, about 20 seconds each): `uv run ragkit abstention --corpus eu --signals all --cohort original-12` and `uv run ragkit abstention --corpus synthetic --signals all`. AUROC = P(answerable scores higher than unanswerable), ties count 1/2. CIs: percentile bootstrap, 2000 resamples, answerable and unanswerable questions resampled separately, seed 0. The paired difference resamples the same questions for both signals. Labels are the agent-reviewed ones described above.
 
 **AUROC, answerable vs unanswerable.** EU = 42 vs 12 questions; synthetic = 40 vs 16 (for contrast):
 
@@ -236,6 +245,7 @@ Commands (offline, a few seconds each): `uv run ragkit abstention --corpus eu --
 | `dense_margin` | 0.433 [0.240, 0.629] | -0.209 [-0.446, +0.028] | 0.747 [0.614, 0.863] |
 | `rerank_top` | 0.562 [0.393, 0.724] | -0.080 [-0.231, +0.051] | 0.759 [0.603, 0.900] |
 | `rerank_margin` | 0.393 [0.232, 0.562] | -0.249 [-0.456, -0.037] | 0.702 [0.548, 0.841] |
+| `combined` | 0.740 [0.595, 0.861] | +0.098 [-0.027, +0.242] | 0.975 [0.920, 1.000] |
 
 **Risk-coverage on the EU set.** Answer the top share of all 54 questions by each signal. Cell = "unanswerable share of answered / bad share of answered", where bad = unanswerable, or answerable with no relevant article in the retrieved top 5 (6 of the 42 answerable questions miss). At 100% coverage every signal gives 0.222 / 0.333 (12 of 54 are unanswerable). Ties at the cut-off are split fractionally.
 
@@ -250,10 +260,11 @@ Commands (offline, a few seconds each): `uv run ragkit abstention --corpus eu --
 | `dense_margin` | 0.224 / 0.327 | 0.209 / 0.302 | 0.211 / 0.289 |
 | `rerank_top` | 0.224 / 0.306 | 0.209 / 0.302 | 0.211 / 0.316 |
 | `rerank_margin` | 0.245 / 0.327 | 0.256 / 0.349 | 0.289 / 0.395 |
+| `combined` | 0.204 / 0.327 | 0.209 / 0.302 | 0.158 / 0.263 |
 
 On the synthetic set the same rows for `query_support` fall from 0.286 (100%) to 0.200 / 0.111 / 0.026 at 90 / 80 / 70% coverage; on the EU set they barely move (0.222 to 0.214 / 0.233 / 0.202).
 
-**Threshold transfer on the EU set.** A threshold `t` (answer when score >= t) is chosen on training folds only: 5-fold stratified CV by question (seed 0; folds hold 8 to 9 answerable and 2 to 3 unanswerable questions), maximising balanced accuracy (mean of answer rate on answerable and abstain rate on unanswerable) on the training folds. Held-out decisions are pooled over the five folds. "Always answer" scores 0.500. The last column is the range of the held-out balanced accuracy over CV seeds 0 to 4 (`for s in 1 2 3 4; do uv run ragkit abstention --corpus eu --signals all --cv-seed $s; done`):
+**Threshold transfer on the EU set.** A threshold `t` (answer when score >= t) is chosen on training folds only: 5-fold stratified CV by question (seed 0; folds hold 8 to 9 answerable and 2 to 3 unanswerable questions), maximising balanced accuracy (mean of answer rate on answerable and abstain rate on unanswerable) on the training folds. Held-out decisions are pooled over the five folds. "Always answer" scores 0.500. The last column is the range of the held-out balanced accuracy over CV seeds 0 to 4 (`for s in 1 2 3 4; do uv run ragkit abstention --corpus eu --signals all --cohort original-12 --cv-seed $s; done`). For `combined` the threshold is on the logit scale and chosen inside the nested CV:
 
 | Signal | answered (42 answerable) | abstained (12 unanswerable) | balanced acc. (seed 0) | range, seeds 0-4 |
 |---|---|---|---|---|
@@ -266,6 +277,7 @@ On the synthetic set the same rows for `query_support` fall from 0.286 (100%) to
 | `dense_margin` | 34/42 (0.81) [0.67, 0.90] | 2/12 (0.17) [0.05, 0.45] | 0.488 | 0.405-0.488 |
 | `rerank_top` | 12/42 (0.29) [0.17, 0.44] | 12/12 (1.00) [0.76, 1.00] | 0.643 | 0.530-0.643 |
 | `rerank_margin` | 7/42 (0.17) [0.08, 0.31] | 6/12 (0.50) [0.25, 0.75] | 0.333 | 0.333-0.429 |
+| `combined` | 24/42 (0.57) [0.42, 0.71] | 9/12 (0.75) [0.47, 0.91] | 0.661 | 0.589-0.726 |
 
 (Brackets are Wilson 95% CIs.) For contrast, the same procedure on the synthetic set gives `query_support` 39/40 answered and 14/16 abstained (balanced accuracy 0.925) and `idf_support` 40/40 and 15/16 (0.969).
 
@@ -290,10 +302,92 @@ On the synthetic set the same rows for `query_support` fall from 0.286 (100%) to
 - **Risk-coverage agrees.** Dropping the lowest 30% of questions by `query_support` leaves the unanswerable share at 0.202 (0.222 with no abstention); the best EU row, `dense_top` at 70% coverage, still has 0.132, which is about 5 unanswerable questions among 38 answered.
 - **Thresholds do not rescue a weak signal.** Held-out balanced accuracy is 0.33 to 0.71, with three signals at or below the 0.500 of always answering (`bm25_norm`, `dense_margin`, `rerank_margin`). The top held-out value (`bm25_margin`, 0.714) belongs to a signal whose AUROC CI lower bound is 0.500 and which moves between 0.613 and 0.714 over seeds 0 to 4; picking it afterwards would be selection on 12 questions.
 - **Raw-score thresholds do not transfer.** BM25 and cosine scales depend on the corpus (IDF, length), so the synthetic 5th percentile either answers nearly everything (`bm25_top`: 40/42 answered, 2/12 abstained; `dense_top`: 42/42 and 0/12) or nothing useful. The two term-coverage signals keep their abstention rate on the unanswerable questions (9/12 and 12/12) but at the cost of refusing 52% and 64% of answerable questions. The best zero-shot balanced accuracy (`idf_support`, 0.679) is a single operating point without an interval.
+- **The combined model on the 12 is a tie too, and seed-dependent.** `combined` reaches 0.740 [0.595, 0.861] at the pre-set CV seed 0 (+0.098 [-0.027, +0.242] over `query_support`), but its AUROC over CV seeds 0 to 4 is 0.740, 0.599, 0.732, 0.651, 0.768, and the paired difference is -0.043 to +0.126, with a CI that excludes 0 for one seed of five (seed 4, +0.126 [+0.001, +0.258]). Reporting the best seed would have manufactured a win.
 
-**CI width caveat.** With 12 unanswerable questions the bootstrap AUROC CIs are 0.30 to 0.39 wide and the paired-difference CIs 0.12 to 0.47 wide, so differences below about 0.2 AUROC cannot be resolved on this set. Percentile bootstrap intervals with 12 negatives are probably too narrow rather than too wide [INFERENCE]. The intervals reflect question-sampling noise only, not label noise: the labels are agent-reviewed, not human-expert-reviewed (see the review note above), and one mislabelled unanswerable question could move an AUROC by roughly up to 0.08 [INFERENCE].
+**CI width caveat (12 questions).** With 12 unanswerable questions the bootstrap AUROC CIs are 0.30 to 0.39 wide and the paired-difference CIs 0.12 to 0.47 wide, so differences below about 0.2 AUROC cannot be resolved on this set. Percentile bootstrap intervals with 12 negatives are probably too narrow rather than too wide [INFERENCE]. The intervals reflect question-sampling noise only, not label noise: the labels are agent-reviewed, not human-expert-reviewed (see the review note above), and one mislabelled unanswerable question could move an AUROC by roughly up to 0.08 [INFERENCE].
 
-### Staged ablation: `ragkit ablation --corpus eu`
+### More unanswerable questions and a combined model: 12 to 45
+
+Two changes were made to fix the width problem, and they are kept separable: 33 more unanswerable questions (the data change) and a logistic regression on all nine signals (the model change, defined above). The same nine signals are scored on the 12 original questions, on the 33 added ones alone, and on all 45; `combined` is scored with the same nested CV in each case.
+
+Commands (offline, about 20 seconds each; CV seed 0 on all 45 is the primary result, named before scoring):
+
+```bash
+uv run ragkit abstention --corpus eu --signals all --cohort original-12
+uv run ragkit abstention --corpus eu --signals all --cohort expanded
+uv run ragkit abstention --corpus eu --signals all                                  # all 45
+for s in 1 2 3 4; do uv run ragkit abstention --corpus eu --signals all --cv-seed $s; done
+```
+
+**AUROC, answerable (42) vs unanswerable (12 / 33 / 45).** The last column is the paired difference on all 45 questions:
+
+| Signal | 12 original | 33 added | all 45 | all 45 minus `query_support` |
+|---|---|---|---|---|
+| `query_support` | 0.642 [0.478, 0.796] | 0.566 [0.434, 0.684] | 0.587 [0.463, 0.702] | baseline |
+| `idf_support` | 0.633 [0.476, 0.776] | 0.549 [0.416, 0.673] | 0.571 [0.443, 0.687] | -0.015 [-0.057, +0.025] |
+| `bm25_top` | 0.734 [0.567, 0.875] | 0.614 [0.476, 0.737] | 0.646 [0.528, 0.762] | +0.060 [-0.044, +0.174] |
+| `bm25_norm` | 0.554 [0.367, 0.726] | 0.527 [0.392, 0.657] | 0.534 [0.413, 0.659] | -0.053 [-0.137, +0.033] |
+| `bm25_margin` | 0.665 [0.500, 0.815] | 0.576 [0.440, 0.699] | 0.600 [0.483, 0.719] | +0.013 [-0.123, +0.144] |
+| `dense_top` | 0.734 [0.569, 0.879] | 0.659 [0.536, 0.778] | 0.679 [0.558, 0.794] | +0.092 [-0.059, +0.252] |
+| `dense_margin` | 0.433 [0.240, 0.629] | 0.533 [0.398, 0.661] | 0.506 [0.388, 0.623] | -0.080 [-0.221, +0.060] |
+| `rerank_top` | 0.562 [0.393, 0.724] | 0.528 [0.390, 0.653] | 0.537 [0.418, 0.658] | -0.050 [-0.122, +0.027] |
+| `rerank_margin` | 0.393 [0.232, 0.562] | 0.509 [0.373, 0.642] | 0.478 [0.356, 0.603] | -0.109 [-0.242, +0.032] |
+| `combined` | 0.740 [0.595, 0.861] | 0.495 [0.357, 0.626] | 0.589 [0.467, 0.709] | +0.003 [-0.115, +0.134] |
+
+**More data versus a better signal**, same questions and same code:
+
+| | 12 unanswerable | 45 unanswerable |
+|---|---|---|
+| `query_support` AUROC (CI width) | 0.642 [0.478, 0.796] (0.318) | 0.587 [0.463, 0.702] (0.239) |
+| `combined` AUROC (CI width) | 0.740 [0.595, 0.861] (0.266) | 0.589 [0.467, 0.709] (0.242) |
+| `combined` minus `query_support` (CI width) | +0.098 [-0.027, +0.242] (0.269) | +0.003 [-0.115, +0.134] (0.249) |
+| the same difference over CV seeds 0 to 4 | -0.043 to +0.126; CI excludes 0 for 1 of 5 | +0.003 to +0.059; CI excludes 0 for 0 of 5 |
+| `combined` AUROC over CV seeds 0 to 4 | 0.599 to 0.768 | 0.589 to 0.646 |
+| signals with the AUROC CI entirely above 0.5 (of 9) | 2 (`bm25_top`, `dense_top`) | 2 (`bm25_top`, `dense_top`) |
+
+**Risk-coverage on all 45** (54 became 87 questions). Answer the top share of all 87 questions by each signal; cell = "unanswerable share of answered / bad share of answered" (bad = unanswerable, or answerable with the relevant article outside the retrieved top 5; 6 of 42 answerable miss). At 100% coverage every signal gives 0.517 / 0.586 (45 of 87 are unanswerable). `combined` uses its held-out scores.
+
+| Signal | 90% | 80% | 70% |
+|---|---|---|---|
+| `query_support` | 0.500 / 0.560 | 0.519 / 0.567 | 0.508 / 0.557 |
+| `idf_support` | 0.513 / 0.564 | 0.529 / 0.571 | 0.508 / 0.557 |
+| `bm25_top` | 0.513 / 0.564 | 0.486 / 0.529 | 0.475 / 0.508 |
+| `bm25_norm` | 0.538 / 0.577 | 0.514 / 0.557 | 0.492 / 0.541 |
+| `bm25_margin` | 0.513 / 0.577 | 0.500 / 0.557 | 0.475 / 0.541 |
+| `dense_top` | 0.500 / 0.577 | 0.486 / 0.571 | 0.459 / 0.541 |
+| `dense_margin` | 0.513 / 0.577 | 0.500 / 0.557 | 0.508 / 0.557 |
+| `rerank_top` | 0.513 / 0.564 | 0.500 / 0.557 | 0.525 / 0.574 |
+| `rerank_margin` | 0.551 / 0.603 | 0.543 / 0.600 | 0.541 / 0.607 |
+| `combined` | 0.526 / 0.603 | 0.514 / 0.571 | 0.508 / 0.541 |
+
+**Held-out accept/abstain rates at the CV-chosen threshold (all 45).** Threshold chosen on training folds only, 5-fold CV seed 0, balanced accuracy as above; for `combined` the threshold is chosen on inner out-of-fold logits inside the nested CV. Brackets are Wilson 95% CIs; "always answer" scores 0.500. The last column is the range of held-out balanced accuracy over CV seeds 0 to 4:
+
+| Signal | answered (42 answerable) | abstained (45 unanswerable) | balanced acc. (seed 0) | range, seeds 0-4 |
+|---|---|---|---|---|
+| `query_support` | 10/42 (0.24) [0.13, 0.39] | 42/45 (0.93) [0.82, 0.98] | 0.586 | 0.542-0.608 |
+| `idf_support` | 17/42 (0.40) [0.27, 0.56] | 28/45 (0.62) [0.48, 0.75] | 0.513 | 0.509-0.533 |
+| `bm25_top` | 25/42 (0.60) [0.44, 0.73] | 31/45 (0.69) [0.54, 0.80] | 0.642 | 0.604-0.642 |
+| `bm25_norm` | 10/42 (0.24) [0.13, 0.39] | 37/45 (0.82) [0.69, 0.91] | 0.530 | 0.498-0.542 |
+| `bm25_margin` | 22/42 (0.52) [0.38, 0.67] | 28/45 (0.62) [0.48, 0.75] | 0.573 | 0.502-0.573 |
+| `dense_top` | 18/42 (0.43) [0.29, 0.58] | 38/45 (0.84) [0.71, 0.92] | 0.637 | 0.560-0.648 |
+| `dense_margin` | 21/42 (0.50) [0.36, 0.64] | 17/45 (0.38) [0.25, 0.52] | 0.439 | 0.437-0.479 |
+| `rerank_top` | 12/42 (0.29) [0.17, 0.44] | 41/45 (0.91) [0.79, 0.96] | 0.598 | 0.575-0.598 |
+| `rerank_margin` | 14/42 (0.33) [0.21, 0.48] | 29/45 (0.64) [0.50, 0.77] | 0.489 | 0.440-0.512 |
+| `combined` | 23/42 (0.55) [0.40, 0.69] | 27/45 (0.60) [0.45, 0.73] | 0.574 | 0.561-0.607 |
+
+Inside the nested CV the inner loop chose ridge strengths 10, 10, 10, 100, 100 on the 45 (the two strongest values of the grid), so the fitted models were heavily shrunk; the in-sample fit on all 45, printed by the command and never scored, puts its largest standardised weights on `dense_top` (+0.35), `bm25_margin` (+0.18) and `rerank_margin` (-0.17). On the 33 added questions alone the outer folds chose 10, 10, 100, 100, 100 and the combined AUROC is 0.495.
+
+**Findings, as measured.**
+- **More data narrowed the intervals and removed optimism; it did not reveal a separating signal.** The AUROC CI width of `query_support` fell from 0.318 to 0.239 (all single-signal AUROC CIs are now 0.23 to 0.25 wide, was 0.30 to 0.39) and the paired-difference CIs are 0.08 to 0.31 wide (was 0.12 to 0.47). The point estimates fell: `query_support` 0.642 to 0.587, `combined` 0.740 to 0.589. On the 33 added questions alone `query_support` is 0.566 and `combined` 0.495, so the 12-question values were optimistic.
+- **The combined model is not better than `query_support`.** +0.003 [-0.115, +0.134] on 45, and no CV seed from 0 to 4 gives a paired CI that excludes 0. The paired CIs are 0.08 to 0.31 wide, so depending on the pair, differences below roughly 0.05 to 0.15 AUROC still cannot be resolved. The combination does no better than one of its inputs: `dense_top` alone is higher (0.679 against 0.589), although that input was picked after the fact.
+- **One signal replicates.** `dense_top` and `bm25_top` tied for best on the original 12 (0.734; picked after seeing that table, so a post-hoc choice). On the 33 questions not used to pick them, `dense_top` is 0.659 [0.536, 0.778], the only signal of nine with a CI above 0.5, and `bm25_top` is 0.614 [0.476, 0.737]. On all 45 both are above chance (0.679 and 0.646) and both tie with `query_support` (+0.092 [-0.059, +0.252], +0.060 [-0.044, +0.174]). `dense_top` separates the classes weakly; 0.68 is far from a usable abstention rule.
+- **Risk-coverage does not improve.** Dropping the lowest 30% of questions by `query_support` leaves the unanswerable share at 0.508 (0.517 with no abstention); the best row, `dense_top` at 70% coverage, is 0.459, about 28 unanswerable among 61 answered. `combined` is 0.508.
+- **Thresholds.** Held-out balanced accuracy is 0.44 to 0.64 at seed 0; `combined` is 0.574 [range 0.561 to 0.607], answering 23/42 and abstaining on 27/45, about the same as `query_support` (0.586, answering 10/42 and abstaining on 42/45). `bm25_top` (0.642) and `dense_top` (0.637) are highest, but each answered-rate and abstain-rate CI is wide and choosing them now is selection on this table.
+- **Verdict: no usable abstention signal in these nine, alone or combined, on on-topic unanswerable questions.** [INFERENCE] Term coverage and the other cheap lexical and hashing-cosine signals measure how much the question looks like the corpus, which is high by construction for these 45 questions, and a linear combination of them cannot add the missing information (whether the corpus states the answer). A signal that reads the retrieved text against the question (an entailment model or a cross-encoder) is not run here.
+
+**Caveats.** The 33 added questions were drafted by one agent and reviewed by another; they were designed as near-misses, so these AUROCs describe near-miss unanswerable questions only (the synthetic set's mostly off-domain unanswerables give 0.987). The original 12 are 27% of the set, so conclusions rest on 45 questions and 42 answerable ones. The `miss_type` groups (7 to 9 questions each) are too small to compare. The bootstrap CIs do not include label noise or refit variance.
+
+### Staged ablation: `ragkit ablation --corpus eu --cohort original-12`
 
 | Stage | Recall@5 | MRR | Answer F1 | Faithfulness | Answered | Abstain (unans.) |
 |---|---|---|---|---|---|---|
@@ -308,13 +402,14 @@ Draft-label run, for comparison (recall@5 / MRR): BM25 0.845 / 0.650, + dense 0.
 - Answer F1 (about 0.22) is almost identical across stages and says little: the extractive generator returns up to three sentences and F1 is token overlap with the quoted reference answer, not correctness. It drops to 0.117 with refusal because refused questions score 0. The reference answers were also rewritten in the review (19 of 42), so F1 is not comparable with the draft-label run (about 0.24).
 - Faithfulness is 1.000 by construction (extractive generator).
 - The only stage that changes behaviour is refusal, and at the default threshold it costs 22 of 42 answerable questions to refuse 9 of 12 unanswerable ones (see above).
+- On all 45 unanswerable questions (`uv run ragkit ablation --corpus eu`) the three rows without refusal abstain on 0/45 and the refusal row on 30/45; every other column is unchanged because it depends only on the 42 answerable questions.
 
 ### Caveats
 
-- Labels are agent-drafted and second-pass reviewed by a separate agent; no human domain expert has reviewed them and single-annotator risk remains (see the note above and [`docs/qa_eu_review.md`](docs/qa_eu_review.md)); 42 and 12 questions.
+- Labels are agent-drafted and second-pass reviewed by a separate agent; no human domain expert has reviewed them and single-annotator risk remains (see the note above and [`docs/qa_eu_review.md`](docs/qa_eu_review.md)); 42 answerable and 45 unanswerable questions (12 original, 33 added later).
 - English original texts only; not consolidated; amendments after 2019 are absent, so a question about current law may differ from what the corpus says.
 - Article-level documents are long (up to about 11k characters), so the 500-character chunks lose the article heading in most chunks; doc-level labels hide that.
-- Abstention-signal comparison: 12 unanswerable questions make the AUROC CIs about 0.3 wide (see that section); the cross-encoder signal was not run.
+- Abstention-signal comparison: 45 unanswerable questions give AUROC CIs about 0.24 wide (0.30 to 0.39 with the original 12), so differences below roughly 0.05 to 0.15 AUROC remain unresolved (see that section); the combined model's CIs ignore refit variance; the cross-encoder signal was not run.
 - The hashing embedder and lexical reranker are the offline defaults. Neural embeddings (`[st]` extra) were not run, so "dense retrieval does not help" applies to the hashing embedder only.
 
 ## Design decisions
