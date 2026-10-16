@@ -18,6 +18,7 @@ from ragkit.cli import (
 
 _QUOTE = re.compile(r"“([^”]+)”")
 _QUESTION_TYPES = {"direct", "paraphrase", "multi-hop"}
+_MISS_TYPES = {"wrong_regulation", "absent_article", "missing_number", "national_rule"}
 
 
 def _norm(text: str) -> str:
@@ -93,12 +94,30 @@ def test_eu_reference_answers_quote_the_cited_articles(docs: dict[str, str]) -> 
 
 def test_eu_unanswerable_questions_are_on_topic_drafts(docs: dict[str, str]) -> None:
     unanswerable = _jsonl(EU_UNANSWERABLE_PATH)
-    assert len(unanswerable) >= 12
+    assert len(unanswerable) >= 45
+    questions = [str(item["q"]) for item in unanswerable]
+    assert len(set(questions)) == len(questions)
     answerable = {str(item["q"]) for item in _jsonl(EU_QA_PATH)}
     for item in unanswerable:
         assert item["kind"] == "near_domain"
         assert item["status"] == "reviewed-agent"
         assert item["q"] not in answerable
+        assert item["reason"]
         provenance = item["provenance"]
         assert isinstance(provenance, list) and provenance
         assert {p.split("#")[0] for p in provenance} <= docs.keys()
+
+
+def test_eu_unanswerable_cohorts_keep_the_original_twelve_identifiable() -> None:
+    unanswerable = _jsonl(EU_UNANSWERABLE_PATH)
+    original = [item for item in unanswerable if item["cohort"] == "original-12"]
+    expanded = [item for item in unanswerable if item["cohort"] == "expanded"]
+    assert len(original) == 12 and len(original) + len(expanded) == len(unanswerable)
+    assert unanswerable[:12] == original  # the original block stays first and in order
+    assert (
+        original[0]["q"] == "How much did TenneT spend on redispatching in the Netherlands in 2023?"
+    )
+    assert all("miss_type" not in item for item in original)
+    assert {item["miss_type"] for item in expanded} == _MISS_TYPES
+    for kind in _MISS_TYPES:
+        assert sum(item["miss_type"] == kind for item in expanded) >= 5
