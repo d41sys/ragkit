@@ -6,16 +6,30 @@ import argparse
 import json
 import sys
 from collections.abc import Sequence
+from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 from ragkit.bm25 import BM25Index
 from ragkit.chunking import Chunk, fixed, recursive, semantic, sentence
 from ragkit.dense import DenseIndex
 from ragkit.embed import HashingEmbedder
-from ragkit.eval import answer_f1, faithfulness, mrr, ndcg_at_k, recall_at_k
+from ragkit.eurlex import EU_ACTS, build_corpus, strip_metadata_comment
+from ragkit.eval import (
+    answer_f1,
+    bootstrap_ci,
+    faithfulness,
+    mrr,
+    ndcg_at_k,
+    paired_bootstrap_ci,
+    recall_at_k,
+    wilson_interval,
+)
 from ragkit.hybrid import HybridRetriever
-from ragkit.pipeline import DEFAULT_MIN_SUPPORT, RAGPipeline
+from ragkit.pipeline import DEFAULT_MIN_SUPPORT, RAGPipeline, query_support
 from ragkit.rerank import LexicalReranker
 from ragkit.rewrite import HyDERewriter, TemplateLLM
 
@@ -23,6 +37,58 @@ DEFAULT_DATA_DIR = Path(__file__).parent / "data"
 DEFAULT_CORPUS_DIR = DEFAULT_DATA_DIR / "corpus"
 DEFAULT_QA_PATH = DEFAULT_DATA_DIR / "qa.jsonl"
 DEFAULT_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable.jsonl"
+EU_CORPUS_DIR = DEFAULT_DATA_DIR / "corpus_eu"
+EU_QA_PATH = DEFAULT_DATA_DIR / "qa_eu.jsonl"
+EU_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable_eu.jsonl"
+
+
+@dataclass(frozen=True)
+class Dataset:
+    """A corpus directory with its answerable and unanswerable question files."""
+
+    corpus_dir: Path
+    qa_path: Path
+    unanswerable_path: Path
+
+
+BUNDLED_DATASETS = {
+    "synthetic": Dataset(DEFAULT_CORPUS_DIR, DEFAULT_QA_PATH, DEFAULT_UNANSWERABLE_PATH),
+    "eu": Dataset(EU_CORPUS_DIR, EU_QA_PATH, EU_UNANSWERABLE_PATH),
+}
+
+
+def _add_dataset_args(parser: argparse.ArgumentParser, *, questions: bool = True) -> None:
+    """Shared dataset selection: a bundled preset, each part overridable by path."""
+    parser.add_argument(
+        "--corpus",
+        choices=sorted(BUNDLED_DATASETS),
+        default="synthetic",
+        help="Bundled dataset: synthetic energy-flexibility docs, or eu (EUR-Lex articles).",
+    )
+    parser.add_argument("--corpus-dir", default=None, help="Override the corpus directory.")
+    if questions:
+        parser.add_argument("--qa-file", default=None, help="Override the answerable QA jsonl.")
+        parser.add_argument(
+            "--unanswerable-file", default=None, help="Override the unanswerable jsonl."
+        )
+
+
+def _resolve_dataset(args: argparse.Namespace) -> Dataset:
+    """Bundled preset from ``--corpus``, with any explicit path flag taking precedence."""
+    base = BUNDLED_DATASETS[args.corpus]
+    qa_file = getattr(args, "qa_file", None)
+    unanswerable_file = getattr(args, "unanswerable_file", None)
+    return Dataset(
+        Path(args.corpus_dir) if args.corpus_dir else base.corpus_dir,
+        Path(qa_file) if qa_file else base.qa_path,
+        Path(unanswerable_file) if unanswerable_file else base.unanswerable_path,
+    )
+
+
+def _ci(values: Sequence[float]) -> str:
+    """``mean [lo, hi]`` with a 95% percentile-bootstrap interval over questions."""
+    mean, lo, hi = bootstrap_ci(values)
+    return f"{mean:.3f} [{lo:.3f}, {hi:.3f}]"
 
 
 def _load_documents(corpus_dir: Path) -> list[tuple[str, str]]:
@@ -34,7 +100,7 @@ def _load_documents(corpus_dir: Path) -> list[tuple[str, str]]:
     for file_path in sorted(corpus_dir.glob("*")):
         if file_path.suffix.lower() in {".md", ".txt"}:
             doc_id = file_path.stem
-            text = file_path.read_text(encoding="utf-8")
+            text = strip_metadata_comment(file_path.read_text(encoding="utf-8"))
             docs.append((doc_id, text))
     return docs
 
@@ -127,25 +193,36 @@ def cmd_ask(args: argparse.Namespace) -> int:
 
 def cmd_abstention(args: argparse.Namespace) -> int:
     """Report answer rate on answerable and abstain rate on unanswerable questions."""
-    corpus_dir = Path(args.corpus_dir) if args.corpus_dir else DEFAULT_CORPUS_DIR
+    ds = _resolve_dataset(args)
     pipeline = RAGPipeline(min_support=args.min_support)
-    pipeline.index_documents(_load_documents(corpus_dir))
+    pipeline.index_documents(_load_documents(ds.corpus_dir))
 
-    answerable = [str(item["q"]) for item in _read_jsonl(DEFAULT_QA_PATH)]
-    unanswerable = _read_jsonl(DEFAULT_UNANSWERABLE_PATH)
-    answered = sum(not pipeline.answer(q).abstained for q in answerable)
+    qa_items = _read_jsonl(ds.qa_path)
+    answerable = [str(item["q"]) for item in qa_items]
+    unanswerable = _read_jsonl(ds.unanswerable_path)
+    answers = [pipeline.answer(q) for q in answerable]
+    answered = sum(not a.abstained for a in answers)
     rows = [("answerable (answered)", answered, len(answerable))]
+    for qtype in sorted({str(item["type"]) for item in qa_items if "type" in item}):
+        flags = [
+            not a.abstained
+            for a, item in zip(answers, qa_items, strict=True)
+            if item.get("type") == qtype
+        ]
+        rows.append((f"answerable {qtype} (answered)", sum(flags), len(flags)))
     for kind in sorted({str(u["kind"]) for u in unanswerable}):
         qs = [str(u["q"]) for u in unanswerable if u["kind"] == kind]
         abstained = sum(pipeline.answer(q).abstained for q in qs)
         rows.append((f"unanswerable {kind} (abstained)", abstained, len(qs)))
 
     print(f"\n### Refuse-on-low-confidence (min_support = {args.min_support:.2f})\n")
-    print("| Set | Correct | Rate |")
-    print("|---|---|---|")
+    print("| Set | Correct | Rate | Wilson 95% CI |")
+    print("|---|---|---|---|")
     for name, hit, total in rows:
-        print(f"| {name} | {hit}/{total} | {hit / max(1, total):.2f} |")
-    print()
+        lo, hi = wilson_interval(hit, total)
+        print(f"| {name} | {hit}/{total} | {hit / max(1, total):.2f} | [{lo:.2f}, {hi:.2f}] |")
+    p5 = float(np.quantile([a.support for a in answers], 0.05)) if answers else 0.0
+    print(f"\n5th percentile of best-chunk support on the answerable set: {p5:.3f}\n")
     return 0
 
 
@@ -164,12 +241,12 @@ def _ablation_stages(min_support: float) -> list[tuple[str, RAGPipeline]]:
 
 def cmd_ablation(args: argparse.Namespace) -> int:
     """Run the full pipeline stage by stage on the same questions and print one table."""
-    corpus_dir = Path(args.corpus_dir) if args.corpus_dir else DEFAULT_CORPUS_DIR
-    docs = _load_documents(corpus_dir)
-    answerable = _read_jsonl(DEFAULT_QA_PATH)
-    unanswerable = [str(u["q"]) for u in _read_jsonl(DEFAULT_UNANSWERABLE_PATH)]
+    ds = _resolve_dataset(args)
+    docs = _load_documents(ds.corpus_dir)
+    answerable = _read_jsonl(ds.qa_path)
+    unanswerable = [str(u["q"]) for u in _read_jsonl(ds.unanswerable_path)]
 
-    print("\n### Staged ablation (end-to-end, top_k = 5)\n")
+    print("\n### Staged ablation (end-to-end, top_k = 5; mean [bootstrap 95% CI over questions])\n")
     print("| Stage | Recall@5 | MRR | Answer F1 | Faithfulness | Answered | Abstain (unans.) |")
     print("|---|---|---|---|---|---|---|")
     for name, pipeline in _ablation_stages(args.min_support):
@@ -194,7 +271,7 @@ def cmd_ablation(args: argparse.Namespace) -> int:
         abstained = sum(pipeline.answer(q).abstained for q in unanswerable)
         n = len(answerable)
         print(
-            f"| {name} | {sum(r5) / n:.3f} | {sum(rr) / n:.3f} | {sum(f1) / n:.3f} | "
+            f"| {name} | {_ci(r5)} | {_ci(rr)} | {sum(f1) / n:.3f} | "
             f"{sum(faith) / max(1, len(faith)):.3f} | {answered}/{n} | "
             f"{abstained}/{len(unanswerable)} |"
         )
@@ -204,8 +281,8 @@ def cmd_ablation(args: argparse.Namespace) -> int:
 
 def cmd_eval(args: argparse.Namespace) -> int:
     """Evaluate retrieval and reranking strategies on the QA benchmark dataset."""
-    corpus_dir = Path(args.corpus_dir) if args.corpus_dir else DEFAULT_CORPUS_DIR
-    qa_path = Path(args.qa_file) if args.qa_file else DEFAULT_QA_PATH
+    ds = _resolve_dataset(args)
+    corpus_dir, qa_path = ds.corpus_dir, ds.qa_path
 
     if not qa_path.is_file():
         print(f"Error: QA benchmark file not found at {qa_path}", file=sys.stderr)
@@ -231,13 +308,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     llm = TemplateLLM()
     hyde = HyDERewriter(llm=llm)
 
-    # Load QA pairs
-    qa_pairs: list[dict[str, Any]] = []
-    with qa_path.open(encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                qa_pairs.append(json.loads(line))
+    qa_pairs = _read_jsonl(qa_path)
 
     names = {
         "bm25": "BM25",
@@ -257,12 +328,11 @@ def cmd_eval(args: argparse.Namespace) -> int:
             return 2
     strategies = [(names[s], rw) for s in selected for rw in (False, True)]
 
-    results: list[tuple[str, str, float, float, float]] = []
+    # Per-question scores for every (strategy, rewrite) row, in qa_pairs order.
+    scores: dict[tuple[str, bool], dict[str, list[float]]] = {}
 
     for name, use_rewrite in strategies:
-        recall_list: list[float] = []
-        mrr_list: list[float] = []
-        ndcg_list: list[float] = []
+        per_q: dict[str, list[float]] = {"r5": [], "mrr": [], "ndcg": []}
 
         for item in qa_pairs:
             q = str(item["q"])
@@ -293,29 +363,89 @@ def cmd_eval(args: argparse.Namespace) -> int:
                 if chunk.doc_id not in retrieved_doc_ids:
                     retrieved_doc_ids.append(chunk.doc_id)
 
-            r5 = recall_at_k(retrieved_doc_ids, relevant_docs, k=5)
-            rr = mrr(retrieved_doc_ids, relevant_docs)
-            n10 = ndcg_at_k(retrieved_doc_ids, relevant_docs, k=10)
+            per_q["r5"].append(recall_at_k(retrieved_doc_ids, relevant_docs, k=5))
+            per_q["mrr"].append(mrr(retrieved_doc_ids, relevant_docs))
+            per_q["ndcg"].append(ndcg_at_k(retrieved_doc_ids, relevant_docs, k=10))
 
-            recall_list.append(r5)
-            mrr_list.append(rr)
-            ndcg_list.append(n10)
+        scores[(name, use_rewrite)] = per_q
 
-        mean_recall = sum(recall_list) / max(1, len(recall_list))
-        mean_mrr = sum(mrr_list) / max(1, len(mrr_list))
-        mean_ndcg = sum(ndcg_list) / max(1, len(ndcg_list))
-
-        results.append((name, "HyDE" if use_rewrite else "None", mean_recall, mean_mrr, mean_ndcg))
-
-    # Print markdown table
-    print("\n### RagKit Strategy Benchmark Results\n")
-    print(
-        f"| {'Strategy':<18} | {'Rewrite':<8} | {'Recall@5':<10} | {'MRR':<10} | {'nDCG@10':<10} |"
-    )
-    print(f"|{'-' * 20}|{'-' * 10}|{'-' * 12}|{'-' * 12}|{'-' * 12}|")
-    for strategy, rewrite, r5, rr, n10 in results:
-        print(f"| {strategy:<18} | {rewrite:<8} | {r5:<10.4f} | {rr:<10.4f} | {n10:<10.4f} |")
+    n = len(qa_pairs)
+    print(f"\n### RagKit Strategy Benchmark Results ({n} questions; mean [bootstrap 95% CI])\n")
+    print("| Strategy | Rewrite | Recall@5 | MRR | nDCG@10 |")
+    print("|---|---|---|---|---|")
+    for (name, use_rewrite), per_q in scores.items():
+        rewrite = "HyDE" if use_rewrite else "None"
+        nd = sum(per_q["ndcg"]) / max(1, n)
+        print(f"| {name} | {rewrite} | {_ci(per_q['r5'])} | {_ci(per_q['mrr'])} | {nd:.3f} |")
     print()
+
+    base_key = ("BM25", False)
+    if base_key in scores and len(scores) > 1:
+        print("Paired difference vs BM25 / None (mean [bootstrap 95% CI]); a CI that excludes")
+        print("0 means the two methods are separated on this question set.\n")
+        print("| Strategy | Rewrite | dRecall@5 | dMRR |")
+        print("|---|---|---|---|")
+        for (name, use_rewrite), per_q in scores.items():
+            if (name, use_rewrite) == base_key:
+                continue
+            rewrite = "HyDE" if use_rewrite else "None"
+            d5 = paired_bootstrap_ci(per_q["r5"], scores[base_key]["r5"])
+            dm = paired_bootstrap_ci(per_q["mrr"], scores[base_key]["mrr"])
+            print(
+                f"| {name} | {rewrite} | {d5[0]:+.3f} [{d5[1]:+.3f}, {d5[2]:+.3f}] | "
+                f"{dm[0]:+.3f} [{dm[1]:+.3f}, {dm[2]:+.3f}] |"
+            )
+        print()
+
+    types = sorted({str(item["type"]) for item in qa_pairs if "type" in item})
+    if types:
+        print("Breakdown by question type (no rewrite): mean Recall@5 / MRR\n")
+        print("| Strategy | " + " | ".join(f"{t} (n={_count(qa_pairs, t)})" for t in types) + " |")
+        print("|---|" + "---|" * len(types))
+        for (name, use_rewrite), per_q in scores.items():
+            if use_rewrite:
+                continue
+            cells = []
+            for t in types:
+                idx = [i for i, item in enumerate(qa_pairs) if item.get("type") == t]
+                r5 = sum(per_q["r5"][i] for i in idx) / len(idx)
+                rr = sum(per_q["mrr"][i] for i in idx) / len(idx)
+                cells.append(f"{r5:.3f} / {rr:.3f}")
+            print(f"| {name} | " + " | ".join(cells) + " |")
+        # How much of each question's wording the best relevant chunk already contains.
+        overlap = [
+            max(
+                (
+                    query_support(str(item["q"]), c)
+                    for c in chunks
+                    if c.doc_id in item["relevant_doc_ids"]
+                ),
+                default=0.0,
+            )
+            for item in qa_pairs
+        ]
+        cells = []
+        for t in types:
+            idx = [i for i, item in enumerate(qa_pairs) if item.get("type") == t]
+            cells.append(f"{sum(overlap[i] for i in idx) / len(idx):.3f}")
+        print("| *question terms in best relevant chunk* | " + " | ".join(cells) + " |")
+        print()
+    return 0
+
+
+def _count(items: Sequence[dict[str, Any]], qtype: str) -> int:
+    return sum(1 for item in items if item.get("type") == qtype)
+
+
+def cmd_fetch_eu(args: argparse.Namespace) -> int:
+    """Download the EU legal acts and rebuild the article-level corpus (needs network)."""
+    doc_ids = build_corpus(
+        EU_ACTS,
+        Path(args.out),
+        cache_dir=Path(args.cache),
+        retrieved_on=args.retrieved_on,
+    )
+    print(f"Wrote {len(doc_ids)} article documents to {args.out}")
     return 0
 
 
@@ -345,11 +475,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     # Ask command
     p_ask = subparsers.add_parser("ask", help="Query the RAG pipeline.")
     p_ask.add_argument("query", help="Question text.")
-    p_ask.add_argument(
-        "--corpus-dir",
-        default=None,
-        help="Custom corpus directory (defaults to bundled energy corpus).",
-    )
+    _add_dataset_args(p_ask, questions=False)
     p_ask.add_argument(
         "--index", default=None, help="Chunk index written by `ragkit index` (overrides corpus)."
     )
@@ -365,12 +491,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_abs = subparsers.add_parser(
         "abstention", help="Measure refusal on unanswerable vs answerable questions."
     )
-    p_abs.add_argument("--corpus-dir", default=None, help="Path to corpus directory.")
+    _add_dataset_args(p_abs)
     p_abs.add_argument("--min-support", type=float, default=DEFAULT_MIN_SUPPORT)
 
     # Ablation command
     p_abl = subparsers.add_parser("ablation", help="Staged end-to-end ablation table.")
-    p_abl.add_argument("--corpus-dir", default=None, help="Path to corpus directory.")
+    _add_dataset_args(p_abl)
     p_abl.add_argument("--min-support", type=float, default=DEFAULT_MIN_SUPPORT)
 
     # Eval command
@@ -380,8 +506,21 @@ def main(argv: Sequence[str] | None = None) -> None:
         default="all",
         help="all, or comma-separated subset of bm25,dense,hybrid,rerank.",
     )
-    p_eval.add_argument("--corpus-dir", default=None, help="Path to corpus directory.")
-    p_eval.add_argument("--qa-file", default=None, help="Path to qa.jsonl benchmark file.")
+    _add_dataset_args(p_eval)
+
+    # Fetch-EU command
+    p_fetch = subparsers.add_parser(
+        "fetch-eu", help="Download EUR-Lex acts and rebuild the article-level EU corpus."
+    )
+    p_fetch.add_argument("--out", default=str(EU_CORPUS_DIR), help="Output corpus directory.")
+    p_fetch.add_argument(
+        "--cache", default="data/raw/eurlex", help="Gitignored cache for the downloaded XHTML."
+    )
+    p_fetch.add_argument(
+        "--retrieved-on",
+        default=date.today().isoformat(),
+        help="Retrieval date recorded in SOURCES.json (default: today).",
+    )
 
     parsed = parser.parse_args(argv)
 
@@ -395,6 +534,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_abstention(parsed))
     elif parsed.subcommand == "ablation":
         sys.exit(cmd_ablation(parsed))
+    elif parsed.subcommand == "fetch-eu":
+        sys.exit(cmd_fetch_eu(parsed))
 
 
 if __name__ == "__main__":

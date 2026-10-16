@@ -6,7 +6,10 @@ import math
 import re
 from collections import Counter
 from collections.abc import Sequence
+from statistics import NormalDist
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from ragkit.bm25 import tokenize
 
@@ -241,3 +244,58 @@ def answer_f1(prediction: str, reference: str) -> float:
     precision = overlap / len(pred)
     recall = overlap / len(ref)
     return 2 * precision * recall / (precision + recall)
+
+
+def bootstrap_ci(
+    values: Sequence[float],
+    *,
+    n_resamples: int = 2000,
+    confidence: float = 0.95,
+    seed: int = 0,
+) -> tuple[float, float, float]:
+    """Mean of per-question scores with a percentile-bootstrap confidence interval.
+
+    Questions are resampled with replacement, so the interval reflects question-sampling noise
+    only (not annotation noise). Returns ``(mean, lower, upper)``; the generator is seeded, so
+    the same input always gives the same interval.
+    """
+    if not values:
+        raise ValueError("values must be non-empty")
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must be in (0, 1)")
+    arr = np.asarray(values, dtype=np.float64)
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, len(arr), size=(n_resamples, len(arr)))
+    means = arr[idx].mean(axis=1)
+    tail = (1.0 - confidence) / 2.0
+    lo, hi = np.quantile(means, [tail, 1.0 - tail])
+    return float(arr.mean()), float(lo), float(hi)
+
+
+def paired_bootstrap_ci(
+    a: Sequence[float],
+    b: Sequence[float],
+    *,
+    n_resamples: int = 2000,
+    confidence: float = 0.95,
+    seed: int = 0,
+) -> tuple[float, float, float]:
+    """Bootstrap CI of the mean per-question difference ``a - b`` (same questions, paired)."""
+    if len(a) != len(b):
+        raise ValueError("a and b must have the same length")
+    diff = [x - y for x, y in zip(a, b, strict=True)]
+    return bootstrap_ci(diff, n_resamples=n_resamples, confidence=confidence, seed=seed)
+
+
+def wilson_interval(successes: int, n: int, confidence: float = 0.95) -> tuple[float, float]:
+    """Wilson score interval for a binomial rate; ``(0.0, 1.0)`` when ``n == 0``."""
+    if n < 0 or not 0 <= successes <= n:
+        raise ValueError("require 0 <= successes <= n")
+    if n == 0:
+        return 0.0, 1.0
+    z = NormalDist().inv_cdf(0.5 + confidence / 2.0)
+    p = successes / n
+    denom = 1.0 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
+    return max(0.0, centre - half), min(1.0, centre + half)
