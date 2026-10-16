@@ -1,4 +1,4 @@
-"""Offline checks on the bundled EUR-Lex corpus and its agent-drafted QA labels."""
+"""Offline checks on the bundled EUR-Lex corpus and its agent-drafted, agent-reviewed QA labels."""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def test_eu_questions_are_wellformed_and_labels_resolve(docs: dict[str, str]) ->
     questions = [item["q"] for item in qa]
     assert len(set(questions)) == len(questions)
     for item in qa:
-        assert item["status"] == "draft-agent"
+        assert item["status"] == "reviewed-agent"
         relevant = item["relevant_doc_ids"]
         assert isinstance(relevant, list)
         assert relevant and set(relevant) <= docs.keys(), item["q"]
@@ -97,7 +97,7 @@ def test_eu_unanswerable_questions_are_on_topic_drafts(docs: dict[str, str]) -> 
     answerable = {str(item["q"]) for item in _jsonl(EU_QA_PATH)}
     for item in unanswerable:
         assert item["kind"] == "near_domain"
-        assert item["status"] == "draft-agent"
+        assert item["status"] == "reviewed-agent"
         assert item["q"] not in answerable
         provenance = item["provenance"]
         assert isinstance(provenance, list) and provenance
