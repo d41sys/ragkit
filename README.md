@@ -29,6 +29,7 @@ uv run ragkit ask "What is imbalance settlement?" --index .ragkit/index.json
 uv run ragkit ask "What is imbalance settlement?"              # indexes the bundled corpus on the fly
 uv run ragkit eval --strategies all                             # or a subset: bm25,dense,hybrid,rerank
 uv run ragkit abstention                                        # refuse-on-low-confidence check
+uv run ragkit ablation                                          # staged end-to-end table
 ```
 
 ## Results
@@ -77,6 +78,24 @@ Markdown headings are stripped before sentence extraction. Remaining limitation:
 - The threshold 0.5 is the 5th percentile of support on the 40 answerable questions. The unanswerable set was not used to pick it.
 - The 16 unanswerable questions (`data/unanswerable.jsonl`) were written by the author. They are checked against the corpus by keyword, not by an independent annotator. 10 are near-domain (energy topics the corpus does not cover).
 - The near-domain miss: "What is the typical cycle life of a sodium-sulfur battery?" reaches support 0.60, because "cycle", "life" and "battery" all appear in the battery doc. Term coverage cannot tell "the corpus talks about this" from "the corpus answers this".
+
+### Staged ablation
+
+`ragkit ablation` runs the full pipeline (retrieve top 5, extractive answer) on the same 40 answerable and 16 unanswerable questions, adding one component per row:
+
+| Stage | Recall@5 | MRR | Answer F1 | Faithfulness | Answered | Abstain (unans.) |
+|---|---|---|---|---|---|---|
+| BM25 | 1.000 | 0.940 | 0.238 | 1.000 | 40/40 | 0/16 |
+| + dense (hybrid RRF) | 1.000 | 0.944 | 0.220 | 1.000 | 40/40 | 0/16 |
+| + lexical rerank | 0.975 | 0.902 | 0.235 | 1.000 | 40/40 | 0/16 |
+| + refuse (support >= 0.50) | 0.975 | 0.902 | 0.234 | 1.000 | 39/40 | 15/16 |
+
+Reading, as measured:
+- **The composed pipeline does not beat its stages on answer quality.** Course lesson 69 expects it to; on this corpus it does not. Hybrid adds +0.004 MRR over BM25, the lexical reranker loses one question at recall@5 and 0.04 MRR, and answer F1 stays within 0.22–0.24 for every stage. The only stage that changes behaviour is refusal: 15/16 unanswerable questions refused for 1/40 answerable lost.
+- The QA set is too easy to separate retrievers (BM25 already at recall@5 1.000). A harder set is item R4 of the improvement plan.
+- Faithfulness is 1.000 by construction: the extractive generator only copies corpus sentences. It becomes informative with an LLM generator.
+- Answer F1 is low (≈0.23) because reference answers are paraphrases and the extractive answer is up to 3 corpus sentences; it measures token overlap, not correctness.
+- The rerank MRR here (0.902) is lower than in the `eval` table (0.942) because the pipeline reranks 10 candidates (`2 × top_k`) while `eval` reranks 20.
 
 ## Design decisions
 - **Protocols for every model boundary** (`Embedder`, `Reranker`, `LLM`, `Generator`): offline defaults keep tests deterministic, and neural models plug in through extras.

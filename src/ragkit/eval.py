@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections import Counter
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
@@ -49,6 +50,7 @@ _STOPWORDS = {
 }
 
 _SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
+_CITATION = re.compile(r"\[[^\]]+\]")
 
 
 def precision_at_k(
@@ -169,7 +171,7 @@ def faithfulness(
     Returns:
         Faithfulness score in [0.0, 1.0].
     """
-    raw_sentences = _SENTENCE_BOUNDARY.split(answer.strip())
+    raw_sentences = _SENTENCE_BOUNDARY.split(_CITATION.sub(" ", answer).strip())
     sentences = [s.strip() for s in raw_sentences if s.strip()]
     if not sentences:
         return 0.0
@@ -220,3 +222,22 @@ def answer_relevance(
     av = embedder.embed_query(answer)
     cos = float(qv @ av)
     return max(0.0, min(1.0, cos))
+
+
+def answer_f1(prediction: str, reference: str) -> float:
+    """Token F1 between a generated answer and a reference answer.
+
+    Citations such as ``[doc#rec_0]`` and stopwords are removed first; tokens are counted
+    as multisets, as in SQuAD-style F1.
+    """
+    pred = [t for t in tokenize(_CITATION.sub(" ", prediction)) if t not in _STOPWORDS]
+    ref = [t for t in tokenize(reference) if t not in _STOPWORDS]
+    if not pred or not ref:
+        return 0.0
+    common = Counter(pred) & Counter(ref)
+    overlap = sum(common.values())
+    if overlap == 0:
+        return 0.0
+    precision = overlap / len(pred)
+    recall = overlap / len(ref)
+    return 2 * precision * recall / (precision + recall)

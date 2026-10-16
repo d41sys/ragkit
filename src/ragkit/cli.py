@@ -13,7 +13,7 @@ from ragkit.bm25 import BM25Index
 from ragkit.chunking import Chunk, fixed, recursive, semantic, sentence
 from ragkit.dense import DenseIndex
 from ragkit.embed import HashingEmbedder
-from ragkit.eval import mrr, ndcg_at_k, recall_at_k
+from ragkit.eval import answer_f1, faithfulness, mrr, ndcg_at_k, recall_at_k
 from ragkit.hybrid import HybridRetriever
 from ragkit.pipeline import DEFAULT_MIN_SUPPORT, RAGPipeline
 from ragkit.rerank import LexicalReranker
@@ -145,6 +145,59 @@ def cmd_abstention(args: argparse.Namespace) -> int:
     print("|---|---|---|")
     for name, hit, total in rows:
         print(f"| {name} | {hit}/{total} | {hit / max(1, total):.2f} |")
+    print()
+    return 0
+
+
+def _ablation_stages(min_support: float) -> list[tuple[str, RAGPipeline]]:
+    """Cumulative stages: each row adds one component to the previous row."""
+    return [
+        ("BM25", RAGPipeline(retriever=BM25Index(), rerank=False)),
+        ("+ dense (hybrid RRF)", RAGPipeline(retriever=HybridRetriever(), rerank=False)),
+        ("+ lexical rerank", RAGPipeline(retriever=HybridRetriever())),
+        (
+            f"+ refuse (support >= {min_support:.2f})",
+            RAGPipeline(retriever=HybridRetriever(), min_support=min_support),
+        ),
+    ]
+
+
+def cmd_ablation(args: argparse.Namespace) -> int:
+    """Run the full pipeline stage by stage on the same questions and print one table."""
+    corpus_dir = Path(args.corpus_dir) if args.corpus_dir else DEFAULT_CORPUS_DIR
+    docs = _load_documents(corpus_dir)
+    answerable = _read_jsonl(DEFAULT_QA_PATH)
+    unanswerable = [str(u["q"]) for u in _read_jsonl(DEFAULT_UNANSWERABLE_PATH)]
+
+    print("\n### Staged ablation (end-to-end, top_k = 5)\n")
+    print("| Stage | Recall@5 | MRR | Answer F1 | Faithfulness | Answered | Abstain (unans.) |")
+    print("|---|---|---|---|---|---|---|")
+    for name, pipeline in _ablation_stages(args.min_support):
+        pipeline.index_documents(docs)
+        r5: list[float] = []
+        rr: list[float] = []
+        f1: list[float] = []
+        faith: list[float] = []
+        answered = 0
+        for item in answerable:
+            q = str(item["q"])
+            chunks = pipeline.retrieve(q, top_k=5)
+            doc_ids = list(dict.fromkeys(c.doc_id for c in chunks))
+            relevant = [str(d) for d in item["relevant_doc_ids"]]
+            r5.append(recall_at_k(doc_ids, relevant, k=5))
+            rr.append(mrr(doc_ids, relevant))
+            ans = pipeline.answer(q, top_k=5)
+            f1.append(0.0 if ans.abstained else answer_f1(ans.text, str(item["answer"])))
+            if not ans.abstained:
+                answered += 1
+                faith.append(faithfulness(ans.text, [c.text for c in chunks]))
+        abstained = sum(pipeline.answer(q).abstained for q in unanswerable)
+        n = len(answerable)
+        print(
+            f"| {name} | {sum(r5) / n:.3f} | {sum(rr) / n:.3f} | {sum(f1) / n:.3f} | "
+            f"{sum(faith) / max(1, len(faith)):.3f} | {answered}/{n} | "
+            f"{abstained}/{len(unanswerable)} |"
+        )
     print()
     return 0
 
@@ -315,6 +368,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_abs.add_argument("--corpus-dir", default=None, help="Path to corpus directory.")
     p_abs.add_argument("--min-support", type=float, default=DEFAULT_MIN_SUPPORT)
 
+    # Ablation command
+    p_abl = subparsers.add_parser("ablation", help="Staged end-to-end ablation table.")
+    p_abl.add_argument("--corpus-dir", default=None, help="Path to corpus directory.")
+    p_abl.add_argument("--min-support", type=float, default=DEFAULT_MIN_SUPPORT)
+
     # Eval command
     p_eval = subparsers.add_parser("eval", help="Evaluate retrieval and reranking strategies.")
     p_eval.add_argument(
@@ -335,6 +393,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_eval(parsed))
     elif parsed.subcommand == "abstention":
         sys.exit(cmd_abstention(parsed))
+    elif parsed.subcommand == "ablation":
+        sys.exit(cmd_ablation(parsed))
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ import pytest
 
 from ragkit.embed import HashingEmbedder
 from ragkit.eval import (
+    answer_f1,
     answer_relevance,
     faithfulness,
     mrr,
@@ -100,3 +101,21 @@ def test_answer_relevance_cosine() -> None:
 
     assert score_good > score_bad
     assert score_good > 0.3
+
+
+def test_answer_f1_hand_computed() -> None:
+    # pred content tokens: battery efficiency 90 percent  (4)
+    # ref content tokens:  battery round trip efficiency 90 percent ac  (7)
+    # overlap 4 -> P = 1, R = 4/7, F1 = 8/11
+    pred = "The battery efficiency is 90 percent. [doc_02#rec_0]"
+    ref = "Battery round trip efficiency is 90 percent AC."
+    assert answer_f1(pred, ref) == pytest.approx(8 / 11)
+    assert answer_f1("unrelated words", ref) == 0.0
+    assert answer_f1("", ref) == 0.0
+
+
+def test_faithfulness_ignores_citation_markers() -> None:
+    chunk = "Efficiency is 90 percent."
+    # Without stripping, the marker adds 6 content tokens and overlap drops to 3/9 < 0.5.
+    answer = "Efficiency is 90 percent. [doc_02_battery_dispatch_storage#rec_0]"
+    assert faithfulness(answer, [chunk]) == 1.0

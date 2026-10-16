@@ -12,6 +12,19 @@ from ragkit.chunking import Chunk, recursive
 from ragkit.hybrid import HybridRetriever
 from ragkit.rerank import LexicalReranker, Reranker
 
+
+class Retriever(Protocol):
+    """Anything that indexes chunks and returns scored candidates (BM25, dense, hybrid)."""
+
+    def add(self, chunks: Sequence[Chunk]) -> None:
+        """Index chunks."""
+        ...
+
+    def search(self, query: str, k: int = 10) -> list[tuple[Chunk, float]]:
+        """Return up to ``k`` (chunk, score) pairs, best first."""
+        ...
+
+
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 _HEADING_LINE = re.compile(r"^\s{0,3}#{1,6}\s.*$", re.MULTILINE)
 
@@ -152,17 +165,24 @@ class RAGPipeline:
     def __init__(
         self,
         chunker: Callable[[str, str], list[Chunk]] | None = None,
-        retriever: HybridRetriever | None = None,
+        retriever: Retriever | None = None,
         reranker: Reranker | None = None,
         generator: Generator | None = None,
         min_support: float = 0.0,
+        rerank: bool = True,
     ) -> None:
-        """Build the pipeline; ``min_support`` > 0 enables refusal on low confidence."""
+        """Build the pipeline.
+
+        ``min_support`` > 0 enables refusal on low confidence; ``rerank=False`` skips the
+        reranker stage (used by the staged ablation).
+        """
         self.chunker: Callable[[str, str], list[Chunk]] = (
             chunker if chunker is not None else (lambda text, doc_id: recursive(text, doc_id))
         )
-        self.retriever: HybridRetriever = retriever if retriever is not None else HybridRetriever()
-        self.reranker: Reranker | None = reranker if reranker is not None else LexicalReranker()
+        self.retriever: Retriever = retriever if retriever is not None else HybridRetriever()
+        self.reranker: Reranker | None = None
+        if rerank:
+            self.reranker = reranker if reranker is not None else LexicalReranker()
         self.generator: Generator = generator if generator is not None else ExtractiveGenerator()
         self.min_support = min_support
         self.indexed_chunks: list[Chunk] = []
