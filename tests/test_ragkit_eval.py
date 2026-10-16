@@ -3,6 +3,7 @@
 import math
 
 import pytest
+
 from ragkit.embed import HashingEmbedder
 from ragkit.eval import (
     answer_relevance,

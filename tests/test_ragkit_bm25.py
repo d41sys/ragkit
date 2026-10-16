@@ -3,6 +3,7 @@
 import math
 
 import pytest
+
 from ragkit.bm25 import BM25Index, tokenize
 from ragkit.chunking import Chunk
 

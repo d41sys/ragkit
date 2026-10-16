@@ -1,6 +1,7 @@
 """Tests for hybrid retrieval, RRF ordering, dense indexing, and lexical reranking."""
 
 import pytest
+
 from ragkit.chunking import Chunk
 from ragkit.dense import DenseIndex
 from ragkit.embed import HashingEmbedder

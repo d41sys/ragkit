@@ -21,3 +21,21 @@ ragkit = "ragkit.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ragkit"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+markers = ["slow: trains models / downloads data", "network: needs internet"]
+addopts = "-m 'not slow and not network'"

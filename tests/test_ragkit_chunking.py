@@ -1,6 +1,7 @@
 """Tests for RagKit chunking strategies: boundary invariants and text reconstruction."""
 
 import pytest
+
 from ragkit.chunking import Chunk, fixed, recursive, semantic, sentence
 from ragkit.embed import HashingEmbedder
 

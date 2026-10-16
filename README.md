@@ -21,8 +21,8 @@ Optional extras: `[st]` swaps in `all-MiniLM-L6-v2` embeddings and the `ms-marco
 
 ## Quickstart
 ```bash
-uv sync --all-packages
-uv run ragkit index packages/ragkit/src/ragkit/data/corpus     # writes .ragkit/index.json
+uv sync
+uv run ragkit index src/ragkit/data/corpus     # writes .ragkit/index.json
 uv run ragkit ask "What is imbalance settlement?" --index .ragkit/index.json
 uv run ragkit ask "What is imbalance settlement?"              # indexes the bundled corpus on the fly
 uv run ragkit eval --strategies all                             # or a subset: bm25,dense,hybrid,rerank

@@ -1,6 +1,7 @@
 """Tests for pipeline answering, citation generation, and query rewriters."""
 
 import pytest
+
 from ragkit.chunking import Chunk
 from ragkit.pipeline import ExtractiveGenerator, RAGPipeline
 from ragkit.rewrite import (
