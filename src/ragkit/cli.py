@@ -17,6 +17,7 @@ from ragkit.abstention import (
     SIGNALS,
     SignalTable,
     accept_counts,
+    auroc,
     auroc_ci,
     calibrate_threshold,
     collect_signals,
@@ -326,7 +327,7 @@ def _print_breakdown(ds: Dataset, cohort: str, table: SignalTable, names: Sequen
     ]
     words = [len(str(r["q"]).split()) for r in [*qa, *unans]]
     cols.append(("question_words", np.asarray(words, dtype=np.float64)))
-    groups: list[tuple[str, np.ndarray[Any, Any]]] = []
+    groups: list[tuple[str, np.ndarray[Any, Any]]] = [("all questions", np.ones_like(labels))]
     for kind, tag, records, offset in (
         ("answerable type", "type", qa, 0),
         ("unanswerable miss_type", "miss_type", unans, len(qa)),
@@ -335,20 +336,19 @@ def _print_breakdown(ds: Dataset, cohort: str, table: SignalTable, names: Sequen
             mask = np.zeros(len(labels), dtype=np.bool_)
             for i, r in enumerate(records):
                 mask[offset + i] = str(r.get(tag)) == value
-            other = ~labels if offset == 0 else labels
-            groups.append((f"{kind} = {value}", mask | other))
+            groups.append((f"{kind} = {value}", mask | (~labels if offset == 0 else labels)))
     print("Diagnostic AUROC by question group (each group against the whole other class;")
     print("bootstrap 95% CI; groups hold 7 to 20 questions, so these are descriptive):\n")
-    print("| Group | n (group / other class) | " + " | ".join(f"`{n}`" for n, _ in cols) + " |")
+    header = " | ".join(f"`{n}`" for n, _ in cols)
+    print(f"| Group | n (answerable / unanswerable) | {header} |")
     print("|---|---|" + "---|" * len(cols))
     for title, keep in groups:
-        n_group = int((keep & (labels == (title.startswith("answerable")))).sum())
-        n_other = int(keep.sum()) - n_group
+        n_pos, n_neg = int((keep & labels).sum()), int((keep & ~labels).sum())
         cells = []
         for _, scores in cols:
             a, lo, hi = auroc_ci(scores[keep], labels[keep])
             cells.append(f"{a:.3f} [{lo:.2f}, {hi:.2f}]")
-        print(f"| {title} | {n_group} / {n_other} | " + " | ".join(cells) + " |")
+        print(f"| {title} | {n_pos} / {n_neg} | " + " | ".join(cells) + " |")
     print()
 
 
@@ -427,6 +427,16 @@ def _cmd_abstention_signals(args: argparse.Namespace) -> int:
             sep = "yes (better)" if d[1] > 0 else "yes (worse)" if d[2] < 0 else "no"
         print(f"| `{name}` | {a:.3f} [{lo:.3f}, {hi:.3f}] | {chance} | {diff} | {sep} |")
     print(f"\n{above} of {len(names)} signals have an AUROC CI entirely above 0.5.\n")
+    if control:
+        matched = _collect_table(ds, args.cohort, scorers)
+        print("Matched minus mismatched context, paired AUROC difference (same questions):\n")
+        print("| Signal | matched AUROC | mismatched AUROC | difference |")
+        print("|---|---|---|---|")
+        for name in (n for n in names if n in MODEL_SIGNALS):
+            d = paired_auroc_ci(matched.scores[name], table.scores[name], labels)
+            a, c = auroc(matched.scores[name], labels), auroc(table.scores[name], labels)
+            print(f"| `{name}` | {a:.3f} | {c:.3f} | {_signed_ci(d)} |")
+        print()
     if args.breakdown:
         _print_breakdown(ds, args.cohort, table, names)
 

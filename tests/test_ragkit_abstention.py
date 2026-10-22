@@ -427,6 +427,9 @@ def test_cli_breakdown_and_control_with_fake_scorers(
     assert "| answerable type = direct | 3 / 6 |" in out
     assert "| answerable type = paraphrase | 3 / 6 |" in out
     assert "`question_words`" in out
+    assert "| all questions | 6 / 6 |" in out
+    assert "Matched minus mismatched context, paired AUROC difference" in out
+    assert "| `ce_top` | " in out.split("Matched minus mismatched")[1]
     assert "unanswerable miss_type" not in out  # the fixture has no miss_type tags
 
 
