@@ -123,43 +123,57 @@ class SignalTable:
         return int((~self.answerable).sum())
 
 
+def mismatched_order(n_answerable: int, n_total: int) -> list[int]:
+    """Index of the question whose chunks each question borrows in the mismatched-context control.
+
+    Every question takes the chunks retrieved for the next question of its own class, cyclically
+    (answerable among answerable, unanswerable among unanswerable), so the class mix of the
+    contexts is unchanged and only the question-chunk pairing is broken.
+    """
+    order = []
+    for lo, hi in ((0, n_answerable), (n_answerable, n_total)):
+        size = hi - lo
+        order += [lo + (i + 1) % size for i in range(size)]
+    return order
+
+
 def collect_signals(
     documents: Sequence[tuple[str, str]],
     qa_items: Sequence[dict[str, Any]],
     unanswerable: Sequence[str],
     scorers: ModelScorers | None = None,
+    mismatched_context: bool = False,
 ) -> SignalTable:
     """Index ``documents`` with the default pipeline and score every question.
 
     With ``scorers`` the table also holds the model signals (``MODEL_SIGNALS``), computed on the
-    same top-5 chunks as ``query_support``.
+    same top-5 chunks as ``query_support``. ``mismatched_context`` is a control: each question is
+    scored by the models against another question's chunks (see ``mismatched_order``), which
+    shows how much of a model signal comes from the question alone.
     """
     pipeline = RAGPipeline()
     pipeline.index_documents(documents)
-    names = list(SIGNALS) + (list(MODEL_SIGNALS) if scorers is not None else [])
-    rows: dict[str, list[float]] = {name: [] for name in names}
-
-    def add(query: str) -> SignalRow:
-        row = compute_signals(pipeline, query)
-        values = dict(row.values)
-        if scorers is not None:
-            values.update(scorers.signals(query, row.top_texts))
-        for name, value in values.items():
-            rows[name].append(value)
-        return row
-
-    miss: list[bool] = []
-    for item in qa_items:
-        row = add(str(item["q"]))
-        relevant = {str(d) for d in item["relevant_doc_ids"]}
-        miss.append(not relevant & set(row.top_doc_ids))
-    for q in unanswerable:
-        add(q)
-        miss.append(False)
-    n_ans = len(qa_items)
-    labels = np.array([True] * n_ans + [False] * len(unanswerable), dtype=np.bool_)
+    queries = [str(item["q"]) for item in qa_items] + list(unanswerable)
+    rows = [compute_signals(pipeline, q) for q in queries]
+    scores: dict[str, list[float]] = {name: [r.values[name] for r in rows] for name in SIGNALS}
+    if scorers is not None:
+        order = (
+            mismatched_order(len(qa_items), len(queries))
+            if mismatched_context
+            else list(range(len(queries)))
+        )
+        model_rows = [
+            scorers.signals(q, rows[j].top_texts) for q, j in zip(queries, order, strict=True)
+        ]
+        for name in MODEL_SIGNALS:
+            scores[name] = [m[name] for m in model_rows]
+    miss = [
+        not {str(d) for d in item["relevant_doc_ids"]} & set(row.top_doc_ids)
+        for item, row in zip(qa_items, rows[: len(qa_items)], strict=True)
+    ] + [False] * len(unanswerable)
+    labels = np.array([True] * len(qa_items) + [False] * len(unanswerable), dtype=np.bool_)
     return SignalTable(
-        scores={name: np.asarray(v, dtype=np.float64) for name, v in rows.items()},
+        scores={name: np.asarray(v, dtype=np.float64) for name, v in scores.items()},
         answerable=labels,
         retrieval_miss=np.array(miss, dtype=np.bool_),
     )

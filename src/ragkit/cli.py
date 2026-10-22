@@ -265,12 +265,19 @@ def cmd_abstention(args: argparse.Namespace) -> int:
 
 
 def _collect_table(
-    ds: Dataset, cohort: str = "all", scorers: ModelScorers | None = None
+    ds: Dataset,
+    cohort: str = "all",
+    scorers: ModelScorers | None = None,
+    mismatched_context: bool = False,
 ) -> SignalTable:
     """Score every question of a dataset with all abstention signals."""
     unanswerable = [str(u["q"]) for u in _read_unanswerable(ds, cohort)]
     return collect_signals(
-        _load_documents(ds.corpus_dir), _read_jsonl(ds.qa_path), unanswerable, scorers
+        _load_documents(ds.corpus_dir),
+        _read_jsonl(ds.qa_path),
+        unanswerable,
+        scorers,
+        mismatched_context,
     )
 
 
@@ -301,6 +308,50 @@ def _combined_groups(names: Sequence[str]) -> list[tuple[str, list[str]]]:
     return groups
 
 
+_BREAKDOWN_SIGNALS = ("query_support", "dense_top", "ce_top", "qa_answerable")
+
+
+def _print_breakdown(ds: Dataset, cohort: str, table: SignalTable, names: Sequence[str]) -> None:
+    """AUROC per answerable ``type`` and per unanswerable ``miss_type`` (diagnostic only).
+
+    Each answerable type is scored against all unanswerable questions, each ``miss_type``
+    against all answerable ones. ``question_words`` (more words = more answerable) is a
+    surface-feature control, not a candidate signal.
+    """
+    qa = _read_jsonl(ds.qa_path)
+    unans = _read_unanswerable(ds, cohort)
+    labels = table.answerable
+    cols: list[tuple[str, np.ndarray[Any, Any]]] = [
+        (n, table.scores[n]) for n in _BREAKDOWN_SIGNALS if n in names
+    ]
+    words = [len(str(r["q"]).split()) for r in [*qa, *unans]]
+    cols.append(("question_words", np.asarray(words, dtype=np.float64)))
+    groups: list[tuple[str, np.ndarray[Any, Any]]] = []
+    for kind, tag, records, offset in (
+        ("answerable type", "type", qa, 0),
+        ("unanswerable miss_type", "miss_type", unans, len(qa)),
+    ):
+        for value in sorted({str(r[tag]) for r in records if tag in r}):
+            mask = np.zeros(len(labels), dtype=np.bool_)
+            for i, r in enumerate(records):
+                mask[offset + i] = str(r.get(tag)) == value
+            other = ~labels if offset == 0 else labels
+            groups.append((f"{kind} = {value}", mask | other))
+    print("Diagnostic AUROC by question group (each group against the whole other class;")
+    print("bootstrap 95% CI; groups hold 7 to 20 questions, so these are descriptive):\n")
+    print("| Group | n (group / other class) | " + " | ".join(f"`{n}`" for n, _ in cols) + " |")
+    print("|---|---|" + "---|" * len(cols))
+    for title, keep in groups:
+        n_group = int((keep & (labels == (title.startswith("answerable")))).sum())
+        n_other = int(keep.sum()) - n_group
+        cells = []
+        for _, scores in cols:
+            a, lo, hi = auroc_ci(scores[keep], labels[keep])
+            cells.append(f"{a:.3f} [{lo:.2f}, {hi:.2f}]")
+        print(f"| {title} | {n_group} / {n_other} | " + " | ".join(cells) + " |")
+    print()
+
+
 def _cmd_abstention_signals(args: argparse.Namespace) -> int:
     """Compare abstention signals: AUROC, risk-coverage, CV and zero-shot thresholds."""
     ds = _resolve_dataset(args)
@@ -322,8 +373,9 @@ def _cmd_abstention_signals(args: argparse.Namespace) -> int:
         else None
     )
     synthetic = BUNDLED_DATASETS["synthetic"]
-    table = _collect_table(ds, args.cohort, scorers)
-    cal = _collect_table(synthetic, "all", scorers) if ds != synthetic else None
+    control = args.model_control == "mismatched"
+    table = _collect_table(ds, args.cohort, scorers, control)
+    cal = _collect_table(synthetic, "all", scorers, control) if ds != synthetic else None
     if scorers is not None:
         scorers.save()
     labels = table.answerable
@@ -351,6 +403,11 @@ def _cmd_abstention_signals(args: argparse.Namespace) -> int:
     print("fold never enters a fit.\n")
     if scorers is not None:
         print(f"Model scoring (device {args.model_device}): {scorers.stats()}.\n")
+    if control:
+        print("CONTROL `--model-control mismatched`: the model signals read another question's")
+        print(
+            "chunks (the next question of the same class), so only the question is informative.\n"
+        )
 
     print("AUROC, answerable vs unanswerable (stratified bootstrap 95% CI, 2000 resamples).")
     print("`vs chance`: CI above 0.5 = separates the classes. The paired difference vs the")
@@ -370,6 +427,8 @@ def _cmd_abstention_signals(args: argparse.Namespace) -> int:
             sep = "yes (better)" if d[1] > 0 else "yes (worse)" if d[2] < 0 else "no"
         print(f"| `{name}` | {a:.3f} [{lo:.3f}, {hi:.3f}] | {chance} | {diff} | {sep} |")
     print(f"\n{above} of {len(names)} signals have an AUROC CI entirely above 0.5.\n")
+    if args.breakdown:
+        _print_breakdown(ds, args.cohort, table, names)
 
     n = len(labels)
     n_miss = int(table.retrieval_miss.sum())
@@ -731,6 +790,17 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--model-cache",
         default=str(DEFAULT_CACHE),
         help="JSON cache of model scores (gitignored); pass '' to disable.",
+    )
+    p_abs.add_argument(
+        "--model-control",
+        choices=("none", "mismatched"),
+        default="none",
+        help="mismatched: score each question against another question's chunks (control).",
+    )
+    p_abs.add_argument(
+        "--breakdown",
+        action="store_true",
+        help="also print the AUROC per answerable type / unanswerable miss_type (diagnostic).",
     )
     p_abs.add_argument(
         "--model-device", default="cpu", help="torch device of the model signals (cpu, mps)."

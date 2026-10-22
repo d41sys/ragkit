@@ -398,6 +398,38 @@ def test_cli_model_signals_with_fake_scorers(
     assert "| `ce_top` | " in out.split("Zero-shot transfer")[1]
 
 
+def test_cli_breakdown_and_control_with_fake_scorers(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class Fake:
+        scorer_id = "fake@0"
+
+        def score(self, question: str, passages: Sequence[str]) -> list[float]:
+            q = set(question.lower().split())
+            return [float(len(q & set(p.lower().split()))) for p in passages]
+
+    def fake_loader(cache_path: Path | None, device: str) -> ModelScorers:
+        return ModelScorers(CachedScorer(Fake(), ScoreCache(None)), Fake())
+
+    monkeypatch.setattr("ragkit.cli.load_model_scorers", fake_loader)
+    args = _dataset(tmp_path)
+    qa = tmp_path / "qa.jsonl"
+    records = [json.loads(line) for line in qa.read_text(encoding="utf-8").splitlines()]
+    for i, record in enumerate(records):
+        record["type"] = "direct" if i < 3 else "paraphrase"
+    qa.write_text("\n".join(json.dumps(r) for r in records), encoding="utf-8")
+    argv = ["abstention", "--signals", "all", "--model-signals", "--breakdown", *args]
+    with pytest.raises(SystemExit) as ex:
+        main([*argv, "--model-control", "mismatched", "--model-cache", ""])
+    assert ex.value.code == 0
+    out = capsys.readouterr().out
+    assert "CONTROL `--model-control mismatched`" in out
+    assert "| answerable type = direct | 3 / 6 |" in out
+    assert "| answerable type = paraphrase | 3 / 6 |" in out
+    assert "`question_words`" in out
+    assert "unanswerable miss_type" not in out  # the fixture has no miss_type tags
+
+
 def test_cli_without_model_flag_never_loads_models(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:

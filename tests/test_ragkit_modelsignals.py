@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from ragkit.abstention import SIGNALS, collect_signals
+from ragkit.abstention import SIGNALS, collect_signals, mismatched_order
 from ragkit.modelsignals import (
     MODEL_SIGNALS,
     CachedScorer,
@@ -109,3 +109,36 @@ def test_collect_signals_with_fake_scorers_adds_model_columns() -> None:
     assert all(modelled.scores[name].shape == (3,) for name in MODEL_SIGNALS)
     assert modelled.scores["ce_top"][0] > modelled.scores["ce_top"][2]
     assert modelled.retrieval_miss.tolist() == plain.retrieval_miss.tolist()
+
+
+def test_mismatched_order_is_a_within_class_cycle() -> None:
+    assert mismatched_order(3, 5) == [1, 2, 0, 4, 3]
+    assert mismatched_order(1, 3) == [0, 2, 1]  # a class of one keeps its own chunks
+
+
+def test_mismatched_context_pairs_questions_with_other_chunks() -> None:
+    class Recording(FakeScorer):
+        def __init__(self) -> None:
+            super().__init__()
+            self.pairs: dict[str, list[str]] = {}
+
+        def score(self, question: str, passages: Sequence[str]) -> list[float]:
+            self.pairs[question] = list(passages)
+            return super().score(question, passages)
+
+    qa = [
+        {"q": "How is congestion relieved by redispatching?", "relevant_doc_ids": ["a"]},
+        {"q": "What does imbalance settlement charge?", "relevant_doc_ids": ["b"]},
+    ]
+    unanswerable = ["Who won the football final?", "How do I bake bread?"]
+    matched_rec, control_rec = Recording(), Recording()
+    matched = collect_signals(_DOCS, qa, unanswerable, ModelScorers(matched_rec, FakeScorer()))
+    control = collect_signals(
+        _DOCS, qa, unanswerable, ModelScorers(control_rec, FakeScorer()), mismatched_context=True
+    )
+    questions = [str(i["q"]) for i in qa] + unanswerable
+    for i, j in enumerate(mismatched_order(2, 4)):
+        assert control_rec.pairs[questions[i]] == matched_rec.pairs[questions[j]]
+    assert control_rec.pairs[questions[0]] != matched_rec.pairs[questions[0]]
+    for name in SIGNALS:  # the lexical signals ignore the control
+        assert control.scores[name].tolist() == matched.scores[name].tolist()
