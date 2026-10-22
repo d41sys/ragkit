@@ -19,7 +19,7 @@ flowchart LR
   S -->|yes| G[extractive generator with chunk_id citations]
   S -->|no| A[abstain]
 ```
-Optional extras: `[st]` swaps in `all-MiniLM-L6-v2` embeddings and the `ms-marco-MiniLM-L-6-v2` cross-encoder; `[llm]` adds `AnthropicLLM` (needs `ANTHROPIC_API_KEY`) for rewriting.
+Optional extras: `[st]` swaps in `all-MiniLM-L6-v2` embeddings and the `ms-marco-MiniLM-L-6-v2` cross-encoder, and enables the model-based abstention signals (`ce_top`, `qa_answerable`: `ms-marco-MiniLM-L-6-v2` and `deepset/roberta-base-squad2`); `[llm]` adds `AnthropicLLM` (needs `ANTHROPIC_API_KEY`) for rewriting.
 
 ## Quickstart
 ```bash
@@ -36,6 +36,7 @@ uv run ragkit ablation --corpus eu
 uv run ragkit abstention --corpus eu --signals all               # AUROC / risk-coverage / CV and zero-shot thresholds per signal, plus the combined logistic model (nested CV), on all 45 unanswerable questions
 uv run ragkit abstention --corpus eu --signals all --cohort original-12   # same on the 12 original unanswerable questions only (`--cohort expanded`: the 33 added ones)
 uv run ragkit abstention --corpus synthetic --signals all        # same table on the synthetic set, for contrast
+uv run ragkit abstention --corpus eu --signals all --model-signals   # + cross-encoder and SQuAD2 reader signals (needs `uv sync --extra st`; downloads two HF models once)
 # any of eval / abstention / ablation also take --corpus-dir, --qa-file, --unanswerable-file, --cohort
 ```
 
@@ -226,7 +227,7 @@ Question: is query-term coverage (the current `query_support`) a good abstention
 | `dense_top`, `dense_margin` | top hashing-embedder cosine; top1 minus top2 |
 | `rerank_top`, `rerank_margin` | top `LexicalReranker` score over the hybrid candidates; top1 minus top2 |
 
-The `[st]` cross-encoder was not run (not installed here), so no neural signal is compared.
+The model-based signals (`[st]` cross-encoder and a SQuAD2 reader) were not part of this nine-signal comparison; they were run afterwards under a separate pre-registered protocol, see [Model-based signals](#model-based-signals-cross-encoder-and-squad2-reader---model-signals).
 
 **Combined model (`combined`).** L2-regularised logistic regression on all nine signals (numpy only: Newton's method with backtracking, features standardised on the training fold, label = answerable, intercept not penalised). It is only ever scored out of fold, with 5-fold stratified nested CV by question. Inside each outer training fold an inner 5-fold stratified CV picks the ridge strength from {0.01, 0.1, 1, 10, 100} by out-of-fold log-loss (ties to the stronger penalty) and picks the answer/abstain threshold on the inner out-of-fold logits (maximising balanced accuracy, as for the single signals); the model is then refitted on the whole outer training fold and scores the held-out fold. The held-out fold never enters a fit, the ridge choice or the threshold: unit tests check that no fit's training indices intersect the indices it scores, that the inner fits stay inside the outer training fold, and that rewriting a held-out fold's features cannot change what its fold chose. The pooled held-out logits give one score per question, so AUROC, the paired difference and risk-coverage reuse the code of the single signals. Their bootstrap CIs treat those pooled scores as fixed, so they leave out the variance from refitting and are probably a little too narrow [INFERENCE]. Grid, folds and the primary seed (0) were fixed before the new questions were scored.
 
@@ -383,9 +384,122 @@ Inside the nested CV the inner loop chose ridge strengths 10, 10, 10, 100, 100 o
 - **One signal replicates.** `dense_top` and `bm25_top` tied for best on the original 12 (0.734; picked after seeing that table, so a post-hoc choice). On the 33 questions not used to pick them, `dense_top` is 0.659 [0.536, 0.778], the only signal of nine with a CI above 0.5, and `bm25_top` is 0.614 [0.476, 0.737]. On all 45 both are above chance (0.679 and 0.646) and both tie with `query_support` (+0.092 [-0.059, +0.252], +0.060 [-0.044, +0.174]). `dense_top` separates the classes weakly; 0.68 is far from a usable abstention rule.
 - **Risk-coverage does not improve.** Dropping the lowest 30% of questions by `query_support` leaves the unanswerable share at 0.508 (0.517 with no abstention); the best row, `dense_top` at 70% coverage, is 0.459, about 28 unanswerable among 61 answered. `combined` is 0.508.
 - **Thresholds.** Held-out balanced accuracy is 0.44 to 0.64 at seed 0; `combined` is 0.574 [range 0.561 to 0.607], answering 23/42 and abstaining on 27/45, about the same as `query_support` (0.586, answering 10/42 and abstaining on 42/45). `bm25_top` (0.642) and `dense_top` (0.637) are highest, but each answered-rate and abstain-rate CI is wide and choosing them now is selection on this table.
-- **Verdict: no usable abstention signal in these nine, alone or combined, on on-topic unanswerable questions.** [INFERENCE] Term coverage and the other cheap lexical and hashing-cosine signals measure how much the question looks like the corpus, which is high by construction for these 45 questions, and a linear combination of them cannot add the missing information (whether the corpus states the answer). A signal that reads the retrieved text against the question (an entailment model or a cross-encoder) is not run here.
+- **Verdict: no usable abstention signal in these nine, alone or combined, on on-topic unanswerable questions.** [INFERENCE] Term coverage and the other cheap lexical and hashing-cosine signals measure how much the question looks like the corpus, which is high by construction for these 45 questions, and a linear combination of them cannot add the missing information (whether the corpus states the answer). A signal that reads the retrieved text against the question was run afterwards: see the next section (`qa_answerable` does separate the classes).
 
 **Caveats.** The 33 added questions were drafted by one agent and reviewed by another; they were designed as near-misses, so these AUROCs describe near-miss unanswerable questions only (the synthetic set's mostly off-domain unanswerables give 0.987). The original 12 are 27% of the set, so conclusions rest on 45 questions and 42 answerable ones. The `miss_type` groups (7 to 9 questions each) are too small to compare. The bootstrap CIs do not include label noise or refit variance.
+
+### Model-based signals: cross-encoder and SQuAD2 reader (`--model-signals`)
+
+Question: the nine cheap signals read the question against the corpus's vocabulary, not against what the retrieved text says. Do two small neural models that do read the retrieved text separate the 42 answerable from the 45 unanswerable EU questions better than `query_support`?
+
+**Protocol, committed before any model was run on a ragkit question:** [`docs/model_signals_protocol.md`](docs/model_signals_protocol.md) (commit `042b1e8`; the code that computes the signals is `1d9c76f`, the later commits only add the control and the breakdown described below). It fixes the two models, the aggregation, the three primary comparisons and the decision rule. Two signals, both computed on the same top-5 chunks as `query_support` and aggregated by the maximum, higher = more likely answerable:
+
+| Signal | Model | HF revision | Licence | What it computes |
+|---|---|---|---|---|
+| `ce_top` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | `233902d2...bee0a` | Apache-2.0 | raw relevance logit of (question, chunk) |
+| `qa_answerable` | `deepset/roberta-base-squad2` | `adc3b06f...e3b4` | CC-BY-4.0 | best answer-span score minus the "no answer" score (SQuAD2 reader) |
+
+(Full commit hashes are in the protocol file and `src/ragkit/modelsignals.py`.) An NLI cross-encoder was considered and not run, so nothing is claimed about NLI.
+
+**Run it.** `uv sync --extra st`, then the commands below (the models are downloaded from the Hugging Face Hub once). Scores are cached in the gitignored `.ragkit/model_scores.json` (380 KB for everything below); `--model-cache ''` disables it, `--model-device mps` uses the Apple GPU.
+
+```bash
+uv run ragkit abstention --corpus eu --signals all --model-signals --breakdown               # all 45; CV seed 0 is the primary result
+uv run ragkit abstention --corpus eu --signals all --model-signals --cohort original-12      # the original 12
+uv run ragkit abstention --corpus eu --signals all --model-signals --cohort expanded         # the 33 added
+for s in 1 2 3 4; do uv run ragkit abstention --corpus eu --signals all --model-signals --cv-seed $s; done
+uv run ragkit abstention --corpus eu --signals all --model-signals --model-control mismatched --breakdown   # control, see below
+uv run ragkit abstention --corpus synthetic --signals all --model-signals
+```
+
+Without `--model-signals` the output is the nine-signal table above, unchanged. `combined` is still the nine lexical signals; `combined_model` is the logistic model on the two model signals and `combined_all` on all eleven, each with the same nested CV (5 folds, seed 0, ridge strength and threshold chosen inside each training fold).
+
+**Cost** (Apple silicon laptop, torch 2.14.1, transformers 5.20.0, sentence-transformers 6.1.0; `time` of the first, cold-cache command, which also scores the synthetic set for the zero-shot threshold): 715 (question, chunk) pairs = (87 + 56 questions) x 5 chunks. CPU: 8.7 s of model time for `ce_top`, 13.5 s for `qa_answerable`, 25.8 s wall for the whole command, about 0.06 s and 0.09 s per question. MPS (`--model-device mps`, separate cache): 6.2 s and 5.7 s, 14.1 s wall. The AUROC table and the threshold table of the MPS run are identical to the CPU run (`diff` of the two outputs).
+
+**AUROC, answerable (42) vs unanswerable (12 / 33 / 45).** The last column is the paired difference on all 45 (bootstrap 95% CI, 2000 resamples, same resampled questions for both signals):
+
+| Signal | 12 original | 33 added | all 45 | all 45 minus `query_support` |
+|---|---|---|---|---|
+| `query_support` | 0.642 [0.478, 0.796] | 0.566 [0.434, 0.684] | 0.587 [0.463, 0.702] | baseline |
+| `dense_top` (best of the nine) | 0.734 [0.569, 0.879] | 0.659 [0.536, 0.778] | 0.679 [0.558, 0.794] | +0.092 [-0.059, +0.252] |
+| `combined` (nine lexical) | 0.740 [0.595, 0.861] | 0.495 [0.357, 0.626] | 0.589 [0.467, 0.709] | +0.003 [-0.115, +0.134] |
+| `ce_top` | 0.796 [0.663, 0.905] | 0.698 [0.574, 0.807] | 0.724 [0.605, 0.826] | +0.137 [+0.068, +0.208] |
+| `qa_answerable` | 0.909 [0.812, 0.976] | 0.840 [0.745, 0.924] | 0.858 [0.772, 0.928] | +0.272 [+0.150, +0.393] |
+| `combined_model` | 0.905 [0.810, 0.972] | 0.787 [0.682, 0.885] | 0.836 [0.744, 0.913] | +0.249 [+0.138, +0.361] |
+| `combined_all` | 0.909 [0.802, 0.986] | 0.760 [0.641, 0.871] | 0.839 [0.744, 0.920] | +0.252 [+0.128, +0.380] |
+
+On the synthetic set (40 vs 16, for contrast) `ce_top` is 1.000 [1.000, 1.000] (+0.013 [+0.000, +0.049] over `query_support`, 0.987) and `qa_answerable` 0.964 [0.900, 1.000] (-0.023 [-0.095, +0.033]); neither differs from the baseline there.
+
+**Decision rule, applied as written in the protocol** (3 primary comparisons on all 45, CV seed 0; "usable" also needs held-out balanced accuracy of at least 0.70):
+
+| Primary comparison | improves on `query_support` (paired CI lower bound > 0) | separates (own CI lower bound > 0.5) | held-out balanced accuracy | usable |
+|---|---|---|---|---|
+| `ce_top` | yes (+0.068) | yes (0.605) | 0.642 | no |
+| `qa_answerable` | yes (+0.150) | yes (0.772) | 0.796 | yes |
+| `combined_all` | yes (+0.128) | yes (0.744) | 0.748 | yes |
+
+With three primary comparisons and no multiplicity correction, the lower bound closest to zero (`ce_top`, +0.068) is the only one a correction could plausibly move; I did not compute a corrected interval.
+
+**Robustness over CV seeds 0 to 4** (seeds 1 to 4 were run after the primary result and not used for selection). `combined_all` minus `query_support`: +0.252, +0.229, +0.249, +0.252, +0.261, the paired CI excludes 0 for 5 of 5 (AUROC 0.816 to 0.848); `combined_model`: +0.236 to +0.253, 5 of 5 (AUROC 0.822 to 0.840). Held-out balanced accuracy over the five seeds: `qa_answerable` 0.796 on every seed (its single-signal threshold, -3.41 median, does not move), `ce_top` 0.642 to 0.698, `combined_model` 0.726 to 0.783, `combined_all` 0.748 to 0.817, and the nine-signal `combined` 0.561 to 0.607.
+
+**Risk-coverage on all 45** (answer the top share of all 87 questions; "unanswerable share of answered / bad share of answered", bad = unanswerable or retrieval miss; at 100% every signal gives 0.517 / 0.586). `combined*` rows use held-out scores:
+
+| Signal | 90% | 80% | 70% |
+|---|---|---|---|
+| `query_support` | 0.500 / 0.560 | 0.519 / 0.567 | 0.508 / 0.557 |
+| `dense_top` | 0.500 / 0.577 | 0.486 / 0.571 | 0.459 / 0.541 |
+| `ce_top` | 0.513 / 0.577 | 0.486 / 0.557 | 0.443 / 0.508 |
+| `qa_answerable` | 0.462 / 0.538 | 0.414 / 0.500 | 0.344 / 0.443 |
+| `combined` | 0.526 / 0.603 | 0.514 / 0.571 | 0.508 / 0.541 |
+| `combined_model` | 0.462 / 0.538 | 0.429 / 0.514 | 0.377 / 0.459 |
+| `combined_all` | 0.474 / 0.551 | 0.443 / 0.529 | 0.361 / 0.459 |
+
+On the original 12 (unanswerable share of answered; 0.222 at 100%): `query_support` 0.214 / 0.233 / 0.202 at 90 / 80 / 70%, `ce_top` 0.184 / 0.163 / 0.132, `qa_answerable` 0.163 / 0.093 / 0.079, `combined_all` 0.143 / 0.093 / 0.053.
+
+**Held-out accept/abstain at the CV-chosen threshold** (threshold chosen on training folds only, CV seed 0; Wilson 95% CIs; "always answer" scores 0.500):
+
+| Signal | all 45: answered (of 42) | all 45: abstained (of 45) | balanced acc. | original 12: answered (of 42) | original 12: abstained (of 12) | balanced acc. |
+|---|---|---|---|---|---|---|
+| `query_support` | 10/42 [0.13, 0.39] | 42/45 [0.82, 0.98] | 0.586 | 20/42 [0.33, 0.62] | 8/12 [0.39, 0.86] | 0.571 |
+| `dense_top` | 18/42 [0.29, 0.58] | 38/45 [0.71, 0.92] | 0.637 | 27/42 [0.49, 0.77] | 7/12 [0.32, 0.81] | 0.613 |
+| `ce_top` | 25/42 [0.44, 0.73] | 31/45 [0.54, 0.80] | 0.642 | 24/42 [0.42, 0.71] | 10/12 [0.55, 0.95] | 0.702 |
+| `qa_answerable` | 37/42 [0.75, 0.95] | 32/45 [0.57, 0.82] | 0.796 | 34/42 [0.67, 0.90] | 8/12 [0.39, 0.86] | 0.738 |
+| `combined` | 23/42 [0.40, 0.69] | 27/45 [0.45, 0.73] | 0.574 | 24/42 [0.42, 0.71] | 9/12 [0.47, 0.91] | 0.661 |
+| `combined_model` | 34/42 [0.67, 0.90] | 32/45 [0.57, 0.82] | 0.760 | 31/42 [0.59, 0.85] | 10/12 [0.55, 0.95] | 0.786 |
+| `combined_all` | 32/42 [0.61, 0.87] | 33/45 [0.59, 0.84] | 0.748 | 35/42 [0.69, 0.92] | 11/12 [0.65, 0.99] | 0.875 |
+
+Zero-shot, a threshold set as the 5th percentile of the signal on the synthetic answerable set (no unanswerable data; the same recipe as `--min-support`) and applied unchanged to the 45: `qa_answerable` t = -2.793 answers 31/42 and abstains on 35/45 (balanced accuracy 0.758), `ce_top` t = 1.308 answers 27/42 and abstains on 33/45 (0.688), against 0.571 for `query_support` (t = 0.500, 20/42 and 30/45). The nine lexical signals are at 0.427 to 0.579 with this recipe.
+
+**Control and diagnostics (added after the primary result; they are descriptive and were not used to choose anything).** Because `qa_answerable` is much stronger than every cheap signal, I checked how much of it comes from the passage and how much from the question alone. `--model-control mismatched` scores every question against the top-5 chunks of the *next question of the same class* (cyclic, so the class mix of the contexts is unchanged and only the pairing is broken):
+
+| Signal (all 45) | matched context | mismatched context | matched minus mismatched (paired) |
+|---|---|---|---|
+| `ce_top` | 0.724 | 0.601 [0.472, 0.725] | +0.123 [-0.040, +0.284] |
+| `qa_answerable` | 0.858 | 0.752 [0.651, 0.845] | +0.106 [-0.015, +0.228] |
+
+On the original 12 the same control takes `ce_top` from 0.796 to 0.758 and `qa_answerable` from 0.909 to 0.792; on the 33 added, from 0.698 to 0.554 and from 0.840 to 0.756. `qa_answerable` with the wrong context is still above chance (0.752) and above `query_support` (+0.165 [+0.021, +0.322]), so a large share of its separation comes from how the question is phrased, and the part attributable to reading the passage (+0.106) is not resolved by 87 questions. `ce_top` falls to 0.601 [0.472, 0.725], which includes chance: it does read the passage.
+
+AUROC per question group, each group against the whole other class (`--breakdown`; 7 to 17 questions per group, so descriptive only; brackets are bootstrap 95% CIs; the last column is `qa_answerable` under the mismatched control):
+
+| Group (answerable / unanswerable) | `query_support` | `ce_top` | `qa_answerable` | `qa_answerable`, mismatched |
+|---|---|---|---|---|
+| answerable `direct` (17 / 45) | 0.843 [0.72, 0.94] | 0.976 [0.94, 1.00] | 0.957 [0.90, 0.99] | 0.753 [0.58, 0.90] |
+| answerable `multi-hop` (8 / 45) | 0.625 [0.45, 0.79] | 0.792 [0.63, 0.93] | 0.742 [0.56, 0.91] | 0.669 [0.44, 0.87] |
+| answerable `paraphrase` (17 / 45) | 0.312 [0.18, 0.46] | 0.439 [0.28, 0.60] | 0.814 [0.71, 0.91] | 0.790 [0.67, 0.89] |
+| unanswerable `absent_article` (42 / 8) | 0.463 [0.28, 0.64] | 0.619 [0.44, 0.79] | 0.824 [0.65, 0.96] | 0.637 [0.40, 0.85] |
+| unanswerable `missing_number` (42 / 9) | 0.434 [0.27, 0.60] | 0.608 [0.44, 0.75] | 0.868 [0.68, 0.99] | 0.802 [0.62, 0.95] |
+| unanswerable `national_rule` (42 / 7) | 0.687 [0.46, 0.89] | 0.799 [0.66, 0.92] | 0.738 [0.54, 0.91] | 0.694 [0.53, 0.85] |
+| unanswerable `wrong_regulation` (42 / 9) | 0.697 [0.51, 0.86] | 0.778 [0.62, 0.90] | 0.905 [0.79, 0.99] | 0.831 [0.69, 0.95] |
+
+`ce_top` is excellent on `direct` questions (0.976) and at or below chance on `paraphrase` ones (0.439 [0.28, 0.60]), the same pattern as `query_support` (0.843 and 0.312): the cross-encoder depends on the question sharing words with the chunk. `qa_answerable` has no such hole (0.814 on `paraphrase`) and separates every `miss_type` at 0.738 or more. A surface control, question length in words (more words = more answerable, sign set after the fact), gives 0.602 [0.48, 0.73] over all 45 questions, so length alone does not explain `qa_answerable`.
+
+**Findings, as measured.**
+- **Verdict: yes, a signal that reads the retrieved text separates these classes where the cheap signals did not, with qualifications.** `qa_answerable` passes all three protocol tests (0.858 [0.772, 0.928], +0.272 [+0.150, +0.393] over `query_support`, held-out balanced accuracy 0.796). The single-signal AUROC does not depend on the CV seed, and it is above chance on both cohorts: 0.909 on the original 12 and 0.840 on the 33 added questions, where `query_support` (0.566) and `combined` (0.495) were near chance. `ce_top` improves on the baseline (+0.137 [+0.068, +0.208]) but fails the "usable" test (0.642) and is a lexical-overlap reader (0.439 on paraphrases).
+- **Practical effect, and what is still wrong.** At the CV threshold `qa_answerable` answers 37/42 answerable questions and still answers 13/45 unanswerable ones (abstains on 32/45, Wilson [0.57, 0.82]). In risk-coverage terms the unanswerable share among answered questions falls from 0.517 to 0.344 at 70% coverage (about 21 of 61 answered). That is a clear improvement over the cheap signals and not a safe refusal rule.
+- **Combining does not beat the best single signal.** `combined_model` (0.836) and `combined_all` (0.839) are not above `qa_answerable` (0.858); the nine lexical signals add nothing visible. In-sample (description only, never scored) `combined_model` puts +1.42 on `qa_answerable` and +0.30 on `ce_top`.
+- **Much of `qa_answerable` is question phrasing, not passage reading.** With the chunks of an unrelated question it still scores 0.752; the matched-minus-mismatched gain is +0.106 [-0.015, +0.228]. [INFERENCE] The SQuAD2 reader was trained to detect adversarially written unanswerable questions, which resemble the near-miss questions here; it may be recognising a question style that the drafting agent produced, not only checking the corpus.
+
+**Caveats.** (1) [INFERENCE] The 33 added unanswerable questions were drafted and checked against BM25, dense and hybrid top-10 lists (see the review note above), so they were filtered against retrieval-style signals but not against neural readers; this favours the model signals and may overstate their advantage on questions written by other people. (2) No independent test set exists: all 87 questions were used for every number here, and the protocol fixed models, aggregation and rule in advance but cannot remove the one-set limitation. (3) Only two models and one aggregation (maximum over 5 chunks) were run; nothing else was tried and discarded. (4) Labels are agent-reviewed, not human-expert-reviewed; the CIs include question-sampling noise only. (5) The groups in the breakdown hold 7 to 17 questions; read them as descriptions. (6) Both models were trained on other domains (MS MARCO, SQuAD2/Wikipedia); behaviour on a different legal corpus is unmeasured beyond the synthetic set.
 
 ### Staged ablation: `ragkit ablation --corpus eu --cohort original-12`
 
@@ -409,7 +523,7 @@ Draft-label run, for comparison (recall@5 / MRR): BM25 0.845 / 0.650, + dense 0.
 - Labels are agent-drafted and second-pass reviewed by a separate agent; no human domain expert has reviewed them and single-annotator risk remains (see the note above and [`docs/qa_eu_review.md`](docs/qa_eu_review.md)); 42 answerable and 45 unanswerable questions (12 original, 33 added later).
 - English original texts only; not consolidated; amendments after 2019 are absent, so a question about current law may differ from what the corpus says.
 - Article-level documents are long (up to about 11k characters), so the 500-character chunks lose the article heading in most chunks; doc-level labels hide that.
-- Abstention-signal comparison: 45 unanswerable questions give AUROC CIs about 0.24 wide (0.30 to 0.39 with the original 12), so differences below roughly 0.05 to 0.15 AUROC remain unresolved (see that section); the combined model's CIs ignore refit variance; the cross-encoder signal was not run.
+- Abstention-signal comparison: 45 unanswerable questions give AUROC CIs about 0.24 wide (0.30 to 0.39 with the original 12), so differences below roughly 0.05 to 0.15 AUROC remain unresolved (see that section); the combined model's CIs ignore refit variance; the model-based signals are covered by the caveats of the model-signals section (no independent test set, two models only).
 - The hashing embedder and lexical reranker are the offline defaults. Neural embeddings (`[st]` extra) were not run, so "dense retrieval does not help" applies to the hashing embedder only.
 
 ## Design decisions
