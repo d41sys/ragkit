@@ -42,6 +42,7 @@ from ragkit.eval import (
     wilson_interval,
 )
 from ragkit.hybrid import HybridRetriever
+from ragkit.modelsignals import DEFAULT_CACHE, MODEL_SIGNALS, ModelScorers, load_model_scorers
 from ragkit.pipeline import DEFAULT_MIN_SUPPORT, RAGPipeline, query_support
 from ragkit.rerank import LexicalReranker
 from ragkit.rewrite import HyDERewriter, TemplateLLM
@@ -263,10 +264,14 @@ def cmd_abstention(args: argparse.Namespace) -> int:
     return 0
 
 
-def _collect_table(ds: Dataset, cohort: str = "all") -> SignalTable:
+def _collect_table(
+    ds: Dataset, cohort: str = "all", scorers: ModelScorers | None = None
+) -> SignalTable:
     """Score every question of a dataset with all abstention signals."""
     unanswerable = [str(u["q"]) for u in _read_unanswerable(ds, cohort)]
-    return collect_signals(_load_documents(ds.corpus_dir), _read_jsonl(ds.qa_path), unanswerable)
+    return collect_signals(
+        _load_documents(ds.corpus_dir), _read_jsonl(ds.qa_path), unanswerable, scorers
+    )
 
 
 def _signed_ci(t: tuple[float, float, float]) -> str:
@@ -279,35 +284,73 @@ def _rate_cell(hit: int, total: int) -> str:
 
 
 _COVERAGES = (1.0, 0.9, 0.8, 0.7)
+ALL_SIGNALS = {**SIGNALS, **MODEL_SIGNALS}
+
+
+def _combined_groups(names: Sequence[str]) -> list[tuple[str, list[str]]]:
+    """Feature sets of the combined logistic models: lexical, model-based, and both."""
+    lexical = [n for n in names if n in SIGNALS]
+    model = [n for n in names if n in MODEL_SIGNALS]
+    groups = []
+    if lexical:
+        groups.append(("combined", lexical))
+    if model:
+        groups.append(("combined_model", model))
+    if lexical and model:
+        groups.append(("combined_all", list(names)))
+    return groups
 
 
 def _cmd_abstention_signals(args: argparse.Namespace) -> int:
     """Compare abstention signals: AUROC, risk-coverage, CV and zero-shot thresholds."""
     ds = _resolve_dataset(args)
     if args.signals == "all":
-        names = list(SIGNALS)
+        names = list(SIGNALS) + (list(MODEL_SIGNALS) if args.model_signals else [])
     else:
         names = [s.strip() for s in args.signals.split(",") if s.strip()]
-        unknown = [s for s in names if s not in SIGNALS]
+        unknown = [s for s in names if s not in ALL_SIGNALS]
         if unknown:
-            print(f"Error: unknown signals {unknown}; choose from {list(SIGNALS)}", file=sys.stderr)
+            print(
+                f"Error: unknown signals {unknown}; choose from {list(ALL_SIGNALS)}",
+                file=sys.stderr,
+            )
             return 2
-    table = _collect_table(ds, args.cohort)
+    use_model = any(n in MODEL_SIGNALS for n in names)
+    scorers = (
+        load_model_scorers(Path(args.model_cache) if args.model_cache else None, args.model_device)
+        if use_model
+        else None
+    )
+    synthetic = BUNDLED_DATASETS["synthetic"]
+    table = _collect_table(ds, args.cohort, scorers)
+    cal = _collect_table(synthetic, "all", scorers) if ds != synthetic else None
+    if scorers is not None:
+        scorers.save()
     labels = table.answerable
     n_a, n_u = table.n_answerable, table.n_unanswerable
     baseline = table.scores["query_support"]
-    features = np.column_stack([table.scores[name] for name in names])
-    combined = nested_cv_logistic(features, labels, args.cv_folds, args.cv_seed)
-    columns = [(name, table.scores[name]) for name in names] + [("combined", combined.scores)]
+    combos = {
+        label: nested_cv_logistic(
+            np.column_stack([table.scores[n] for n in feats]), labels, args.cv_folds, args.cv_seed
+        )
+        for label, feats in _combined_groups(names)
+    }
+    columns = [(name, table.scores[name]) for name in names] + [
+        (label, res.scores) for label, res in combos.items()
+    ]
 
     print(f"\n### Abstention signals ({n_a} answerable vs {n_u} unanswerable questions)\n")
     for name in names:
-        print(f"- `{name}`: {SIGNALS[name]}")
+        print(f"- `{name}`: {ALL_SIGNALS[name]}")
     print("\nHigher = more likely answerable for every signal; the sign is fixed in advance.\n")
-    print("`combined` = L2 logistic regression on all signals above (numpy only), held-out scores")
-    print(f"only: {args.cv_folds}-fold stratified nested CV by question (seed {args.cv_seed}); the")
+    for label, feats in _combined_groups(names):
+        print(f"`{label}` = L2 logistic regression on {', '.join(feats)} (numpy only).")
+    print("Combined models are scored on held-out folds only:")
+    print(f"{args.cv_folds}-fold stratified nested CV by question (seed {args.cv_seed}); the")
     print("ridge strength and threshold are chosen inside each training fold, so the held-out")
     print("fold never enters a fit.\n")
+    if scorers is not None:
+        print(f"Model scoring (device {args.model_device}): {scorers.stats()}.\n")
 
     print("AUROC, answerable vs unanswerable (stratified bootstrap 95% CI, 2000 resamples).")
     print("`vs chance`: CI above 0.5 = separates the classes. The paired difference vs the")
@@ -315,22 +358,17 @@ def _cmd_abstention_signals(args: argparse.Namespace) -> int:
     print("| Signal | AUROC | vs chance | AUROC - baseline | separated from baseline |")
     print("|---|---|---|---|---|")
     above = 0
-    for name in names:
-        a, lo, hi = auroc_ci(table.scores[name], labels)
+    for name, scores in columns:
+        a, lo, hi = auroc_ci(scores, labels)
         chance = "above" if lo > 0.5 else "below" if hi < 0.5 else "no"
-        above += chance == "above"
+        above += chance == "above" and name in names
         if name == "query_support":
             diff, sep = "baseline", "-"
         else:
-            d = paired_auroc_ci(table.scores[name], baseline, labels)
+            d = paired_auroc_ci(scores, baseline, labels)
             diff = _signed_ci(d)
             sep = "yes (better)" if d[1] > 0 else "yes (worse)" if d[2] < 0 else "no"
         print(f"| `{name}` | {a:.3f} [{lo:.3f}, {hi:.3f}] | {chance} | {diff} | {sep} |")
-    a, lo, hi = auroc_ci(combined.scores, labels)
-    chance = "above" if lo > 0.5 else "below" if hi < 0.5 else "no"
-    d = paired_auroc_ci(combined.scores, baseline, labels)
-    sep = "yes (better)" if d[1] > 0 else "yes (worse)" if d[2] < 0 else "no"
-    print(f"| `combined` | {a:.3f} [{lo:.3f}, {hi:.3f}] | {chance} | {_signed_ci(d)} | {sep} |")
     print(f"\n{above} of {len(names)} signals have an AUROC CI entirely above 0.5.\n")
 
     n = len(labels)
@@ -364,24 +402,25 @@ def _cmd_abstention_signals(args: argparse.Namespace) -> int:
         bal = (ya / na + yu / nu) / 2.0
         t = float(np.median(cv.thresholds))
         print(f"| `{name}` | {_rate_cell(ya, na)} | {_rate_cell(yu, nu)} | {bal:.3f} | {t:.3g} |")
-    ya, na, yu, nu = accept_counts(combined.accepted, labels)
-    bal = (ya / na + yu / nu) / 2.0
-    t = float(np.median(combined.thresholds))
-    row = f"{_rate_cell(ya, na)} | {_rate_cell(yu, nu)} | {bal:.3f} | {t:.3g} (logit)"
-    print(f"| `combined` | {row} |")
+    for label, res in combos.items():
+        ya, na, yu, nu = accept_counts(res.accepted, labels)
+        bal = (ya / na + yu / nu) / 2.0
+        t = float(np.median(res.thresholds))
+        row = f"{_rate_cell(ya, na)} | {_rate_cell(yu, nu)} | {bal:.3f} | {t:.3g} (logit)"
+        print(f"| `{label}` | {row} |")
     print()
-    print(f"Combined model: ridge strength chosen per outer fold = {combined.l2}.")
-    chosen = float(np.median(combined.l2))
-    full = fit_logistic(features, labels, l2=chosen)
-    coefs = sorted(zip(names, full.weights, strict=True), key=lambda c: -abs(float(c[1])))
-    print(f"In-sample fit on all questions, description only, never scored (l2 = {chosen:g}):")
-    print("standardised coefficients " + ", ".join(f"{n} {w:+.2f}" for n, w in coefs) + ".\n")
+    for label, feats in _combined_groups(names):
+        res = combos[label]
+        print(f"`{label}`: ridge strength chosen per outer fold = {res.l2}.")
+        chosen = float(np.median(res.l2))
+        full = fit_logistic(np.column_stack([table.scores[n] for n in feats]), labels, l2=chosen)
+        coefs = sorted(zip(feats, full.weights, strict=True), key=lambda c: -abs(float(c[1])))
+        print(f"In-sample fit on all questions, description only, never scored (l2 = {chosen:g}):")
+        print("standardised coefficients " + ", ".join(f"{n} {w:+.2f}" for n, w in coefs) + ".\n")
 
-    synthetic = BUNDLED_DATASETS["synthetic"]
-    if ds == synthetic:
+    if cal is None:
         print("Zero-shot transfer: not applicable (this is the calibration set).\n")
         return 0
-    cal = _collect_table(synthetic)
     print("Zero-shot transfer: threshold = 5th percentile of each signal on the synthetic")
     print(
         "answerable set (as for `--min-support`; no unanswerable data used), applied unchanged.\n"
@@ -681,6 +720,20 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--signals",
         default=None,
         help="all, or comma-separated abstention signals: compare them by AUROC / risk-coverage.",
+    )
+    p_abs.add_argument(
+        "--model-signals",
+        action="store_true",
+        help="with --signals all: add the model-based signals ce_top and qa_answerable "
+        "(needs the [st] extra; names given explicitly to --signals also enable them).",
+    )
+    p_abs.add_argument(
+        "--model-cache",
+        default=str(DEFAULT_CACHE),
+        help="JSON cache of model scores (gitignored); pass '' to disable.",
+    )
+    p_abs.add_argument(
+        "--model-device", default="cpu", help="torch device of the model signals (cpu, mps)."
     )
     p_abs.add_argument("--cv-folds", type=int, default=5, help="Folds for threshold CV.")
     p_abs.add_argument("--cv-seed", type=int, default=0, help="Seed of the CV fold assignment.")

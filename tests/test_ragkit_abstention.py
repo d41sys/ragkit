@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -26,6 +28,7 @@ from ragkit.abstention import (
     stratified_folds,
 )
 from ragkit.cli import main
+from ragkit.modelsignals import MODEL_SIGNALS, CachedScorer, ModelScorers, ScoreCache
 from ragkit.pipeline import RAGPipeline
 
 # Answerable scores 0.9, 0.8, 0.4 vs unanswerable 0.7, 0.4, 0.2. Of the 9 (pos, neg) pairs:
@@ -358,6 +361,56 @@ def test_cli_abstention_signals_prints_all_tables(
     assert "unanswerable share of answered" in out
     assert "5-fold stratified CV" in out
     assert "Zero-shot transfer: threshold" in out
+
+
+def test_cli_model_signals_with_fake_scorers(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class Fake:
+        scorer_id = "fake@0"
+
+        def score(self, question: str, passages: Sequence[str]) -> list[float]:
+            q = set(question.lower().split())
+            return [float(len(q & set(p.lower().split()))) for p in passages]
+
+    seen: dict[str, Any] = {}
+
+    def fake_loader(cache_path: Path | None, device: str) -> ModelScorers:
+        seen.update(cache_path=cache_path, device=device)
+        cache = ScoreCache(cache_path)
+        return ModelScorers(CachedScorer(Fake(), cache), CachedScorer(Fake(), cache), cache)
+
+    monkeypatch.setattr("ragkit.cli.load_model_scorers", fake_loader)
+    cache_path = tmp_path / "cache" / "scores.json"
+    argv = ["abstention", "--signals", "all", "--model-signals", *_dataset(tmp_path)]
+    argv += ["--model-cache", str(cache_path)]
+    with pytest.raises(SystemExit) as ex:
+        main(argv)
+    assert ex.value.code == 0
+    out = capsys.readouterr().out
+    assert seen == {"cache_path": cache_path, "device": "cpu"}
+    assert cache_path.exists()
+    for name in [*SIGNALS, *MODEL_SIGNALS, "combined", "combined_model", "combined_all"]:
+        assert f"| `{name}` |" in out
+    assert "Model scoring (device cpu): ce: " in out
+    assert "11 signals" in out
+    assert "Zero-shot transfer: threshold" in out
+    assert "| `ce_top` | " in out.split("Zero-shot transfer")[1]
+
+
+def test_cli_without_model_flag_never_loads_models(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(*_: Any, **__: Any) -> ModelScorers:
+        raise AssertionError("models must not load without --model-signals")
+
+    monkeypatch.setattr("ragkit.cli.load_model_scorers", boom)
+    with pytest.raises(SystemExit) as ex:
+        main(["abstention", "--signals", "all", *_dataset(tmp_path)])
+    assert ex.value.code == 0
+    out = capsys.readouterr().out
+    assert "ce_top" not in out
+    assert "combined_all" not in out
 
 
 def test_cli_cohort_filters_unanswerable_questions(

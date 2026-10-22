@@ -19,6 +19,7 @@ from numpy.typing import NDArray
 from ragkit.bm25 import BM25Index, tokenize
 from ragkit.chunking import Chunk
 from ragkit.hybrid import HybridRetriever
+from ragkit.modelsignals import MODEL_SIGNALS, ModelScorers
 from ragkit.pipeline import STOPWORDS, RAGPipeline, query_support
 
 FloatArray = NDArray[np.float64]
@@ -46,6 +47,7 @@ class SignalRow:
 
     values: dict[str, float]
     top_doc_ids: list[str]
+    top_texts: list[str]  # retrieved chunk texts in rank order (input of the model signals)
 
 
 def _top2(scores: Sequence[float]) -> tuple[float, float]:
@@ -88,6 +90,7 @@ def compute_signals(pipeline: RAGPipeline, query: str, top_k: int = 5) -> Signal
             "rerank_margin": rr_top - rr_second,
         },
         top_doc_ids=list(dict.fromkeys(c.doc_id for c in chunks)),
+        top_texts=[c.text for c in chunks],
     )
 
 
@@ -124,21 +127,34 @@ def collect_signals(
     documents: Sequence[tuple[str, str]],
     qa_items: Sequence[dict[str, Any]],
     unanswerable: Sequence[str],
+    scorers: ModelScorers | None = None,
 ) -> SignalTable:
-    """Index ``documents`` with the default pipeline and score every question."""
+    """Index ``documents`` with the default pipeline and score every question.
+
+    With ``scorers`` the table also holds the model signals (``MODEL_SIGNALS``), computed on the
+    same top-5 chunks as ``query_support``.
+    """
     pipeline = RAGPipeline()
     pipeline.index_documents(documents)
-    rows: dict[str, list[float]] = {name: [] for name in SIGNALS}
+    names = list(SIGNALS) + (list(MODEL_SIGNALS) if scorers is not None else [])
+    rows: dict[str, list[float]] = {name: [] for name in names}
+
+    def add(query: str) -> SignalRow:
+        row = compute_signals(pipeline, query)
+        values = dict(row.values)
+        if scorers is not None:
+            values.update(scorers.signals(query, row.top_texts))
+        for name, value in values.items():
+            rows[name].append(value)
+        return row
+
     miss: list[bool] = []
     for item in qa_items:
-        row = compute_signals(pipeline, str(item["q"]))
+        row = add(str(item["q"]))
         relevant = {str(d) for d in item["relevant_doc_ids"]}
         miss.append(not relevant & set(row.top_doc_ids))
-        for name, value in row.values.items():
-            rows[name].append(value)
     for q in unanswerable:
-        for name, value in compute_signals(pipeline, q).values.items():
-            rows[name].append(value)
+        add(q)
         miss.append(False)
     n_ans = len(qa_items)
     labels = np.array([True] * n_ans + [False] * len(unanswerable), dtype=np.bool_)
