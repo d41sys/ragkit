@@ -38,6 +38,7 @@ uv run ragkit abstention --corpus eu --signals all --cohort original-12   # same
 uv run ragkit abstention --corpus synthetic --signals all        # same table on the synthetic set, for contrast
 uv run ragkit abstention --corpus eu --signals all --model-signals   # + cross-encoder and SQuAD2 reader signals (needs `uv sync --extra st`; downloads two HF models once)
 uv run ragkit lexical --corpus eu                                # model-free lexical retrieval comparison (no model is loaded); `--corpus synthetic` for the regression check
+uv run ragkit lexical --corpus eu --explain                      # post-hoc diagnosis of the A0 vs A4 top-5 changes (also model-free)
 # any of eval / abstention / ablation also take --corpus-dir, --qa-file, --unanswerable-file, --cohort
 ```
 
@@ -251,10 +252,43 @@ Decision rule, applied as written (A4 minus A0): EU dMRR +0.012 [-0.044, +0.066]
 
 What the numbers do and do not show:
 - **No separated gain on EU.** Every overall EU interval for A2 to A5 against A0 includes 0 on all three metrics (A2's Recall@5 interval touches it: [-0.131, +0.000]), and the paraphrase MRR moves from 0.400 to 0.412 (CI of the difference [-0.118, +0.141]). The expansion map did not close the paraphrase gap on this set.
-- **Recall@5 fell with the new chunking.** It drops by 0.060 as soon as the structured chunker is used (A2: 3 questions worse, none better), almost entirely in `paraphrase` questions (-0.118 for A2, -0.176 for A3 and A4). The A1 row rules out the article-level cutoff as the cause (A1 is +0.012). The cause was not investigated, and the parameters were not adjusted in response, because the protocol forbids tuning on these 42 questions. The structured chunks are larger (median 464 against 397 characters), so fewer chunks compete per article; whether that or the heading field is responsible was not isolated (A2 and A3 differ in the heading treatment and share the drop).
+- **Recall@5 fell with the new chunking.** It drops by 0.060 as soon as the structured chunker is used (A2: 3 questions worse, none better), almost entirely in `paraphrase` questions (-0.118 for A2, -0.176 for A3 and A4). The A1 row rules out the article-level cutoff as the cause (A1 is +0.012). The parameters were not adjusted in response, because the protocol forbids tuning on these 42 questions. The cause was investigated afterwards, without changing anything: see "Why it did not help" below.
 - **The synthetic gain is not evidence for EU.** On the synthetic set MRR improves by +0.044 from structure alone (A2), where the questions are close to the documents' wording (BM25 MRR 0.940 already); the improvement of A2 over A0 there has a CI that barely excludes 0 ([+0.002, +0.092]) and it is one of many paired intervals in this section.
 - **Cross-validated parameters (A5) add nothing.** Held-out A5 is within 0.001 of A4 on MRR, and the chosen (k1, b, heading weight) varies across folds and seeds (8 different points in 10 fold selections, 7 of them with k1 0.9), a sign that the 42 questions do not determine them.
 - **Caveats specific to this test.** The relevance labels were reviewed against BM25 and dense top-10 lists (see "Review status"), which can favour BM25-style retrieval and make any lexical change harder to show a gain on. The synonym map was written from the corpus vocabulary and domain knowledge without reading the questions (apart from the two first lines of `qa_eu.jsonl`, listed in the protocol), and the protocol commit precedes every scored run; that guarantees the map was not fitted to the questions, not that it is good. Not tried: RM3 pseudo-relevance feedback, stemming, other chunk sizes, field weights beyond the CV grid. Trying them now on these 42 questions would be tuning on the test set; they need new questions or a fresh protocol.
+
+#### Why it did not help (post-hoc diagnosis, nothing adopted or changed)
+
+```bash
+uv run ragkit lexical --corpus eu --explain > runs/lexical_explain_eu.txt   # model-free; code in src/ragkit/lexical_explain.py
+```
+
+This was written after the scored run and uses the same 42 questions, so the categories below were chosen after seeing which questions flipped: they describe, they do not test. The command follows each (question, relevant article) pair (52 of them) through A0, A1, a diagnostic stage S0 (structured chunks, body only, plain BM25; not a protocol configuration, it separates chunking from the heading effect that A2 mixes), A3 and A4, and reports every point where an article enters or leaves the top 5. It also prints the full detail for each flipped pair (chunks, per-term scores, heading and expansion terms, top-3 competitors under A4); the full output is in `runs/lexical_explain_eu.txt`.
+
+**What moved.** Top-5 membership differs between A0 and A4 for 4 of the 52 pairs: 3 relevant articles lost, 1 gained (the gain is half a question: Q25 is multi-hop). Those 4 questions account for the whole Recall@5 change (-0.060; the other 38 questions contribute +0.000). They also cost 0.008 MRR, while the other 38 questions add +0.019 MRR from reordering inside the top 5; the near-zero overall MRR change is that sum, not an absence of movement.
+
+**Cause table** (3 lost, 1 gained; the stage is where the pair crossed the top-5 line last):
+
+| Cause | Lost | Gained | Example (relevant article) |
+|---|---|---|---|
+| Heading field: a competitor's heading contains a query word | 1 | 0 | Q22: `reg_2017_1485_art158` ("FRR minimum technical requirements") gains +4.43 from the single word "technical" and passes the relevant article 25 ("Requirements for standard products"), whose heading shares only "for" with the question |
+| Heading field: the relevant article's heading matches nothing, and the field lowers idf of heading words | 1 | 0 | Q24: "General requirements" (article 38); its best-chunk score falls from 10.20 (S0, rank 5) to 9.09 (A3, rank 9) because "exchange", "capacity", "for", "of" occur in headings and the BM25F document frequency counts them there |
+| Structured chunking: relevant passage in a longer chunk | 1 | 0 | Q31: the match on "task" sits in a 448-character recursive chunk under A0 (score 7.95, 85% of the top article) but in a 996-character structured chunk (paragraphs 3 and 4 of the article, merged because paragraph 3 is under the 250-character minimum) under S0/A4: score 5.75, 61%, rank 11 |
+| Heading field: the relevant article's heading contains a query word | 0 | 1 | Q25: "Imbalance price" gains +0.63 from "price" and the article moves from rank 7 to 5 (3 after expansion) |
+| Query expansion | 0 | 0 | no relevant article crosses the top-5 line at this step |
+
+Counting every crossing, not only the net ones (relevant articles out / in): heading field 4 / 1, structured chunking 2 / 2, A0's top-10-chunk cut 0 / 1 (one pair, Q41's `reg_2019_943_art37`, is outside the pinned baseline's ten chunks, enters the top 5 once A1 uses the full chunk list, and leaves again under structured chunking), expansion 0 / 0. In the whole set, 32 articles enter a top 5 at the heading step and 32 leave it, so it reshuffles heavily; of those moves 4 take a relevant article out and 1 puts one in. The `max` versus `sum` of chunk scores is not the cause, since A0 and A4 both rank an article by its best chunk; as a counterfactual only, summing chunk scores would keep Q24's article in the top 5 (rank 3 under A0, 5 under A4) and not the other two lost ones (15 to 14, 6 to 10).
+
+**Why the losses cluster at rank 5 and in paraphrase questions.**
+- All three lost articles were at A0 rank exactly 5. Of the 4 relevant articles at A0 rank 5, 1 stays in the top 5 under A4; the 40 at ranks 1 to 4 all stay; the 2 at ranks 6 and 7 do not enter. A0 got these three by sitting on the line, and any reshuffle takes them off it.
+- The line is a coin flip on paraphrase questions because their scores are flat: the median score of the 10th article is 0.67 of the first (direct 0.46, multi-hop 0.45), and the gap between the 5th and 6th article is under 5% of the score on 14 of 17 paraphrase questions (9 of 17 direct, 4 of 8 multi-hop). In Q24 the S0 scores of ranks 5 and 6 are 10.20 and 10.16.
+- The heading field helps when the question reuses the article's own words and hurts when it does not. The relevant article's heading adds score on its best chunk in 14 of 19 direct pairs against 38 of 66 non-relevant top-5 articles, but in only 8 of 17 paraphrase pairs against 44 of 75 competitors (multi-hop: 9 of 16 against 22 of 27). Paraphrase questions are written without the article's words, so the heading field cannot reward the right article and still rewards competitors whose headings share a word. These counts are small and not tested.
+
+**Hypotheses that were checked and not supported.**
+- *Expansion favours definition articles:* the expansion map fires on 27 of 42 questions, mostly through generic words ("border", "network", "zonal", "operator"); it changes the article order in the top 10 on 23 and brings 8 articles into a top 5, none of them a "Definitions" article. Definition articles hold 16 of the 210 top-5 slots under A0 and 8 under A4: they are demoted, not promoted.
+- *Generic headings (act name and boilerplate) get boosted:* the heading step's top-5 entries are driven by a word of the article heading in 27 of 32 cases, by the act name alone in 3 and by idf or length shifts alone in 2; the heading field does not work mainly through boilerplate.
+
+**Hypothesis for future work (untested).** The loss comes mostly from the heading field, not from chunking or expansion (2 of the 3 lost pairs, 4 of 6 relevant crossings out). Computing document frequency from the body only (so heading words do not lower idf everywhere, the Q24 mechanism) and capping the heading contribution so that one rare heading word cannot lift an article by more than the typical rank-5 to rank-10 score gap (Q22's +4.43 against a gap of a few tenths) should remove the lost pairs without losing Q25's gain. Not run: it needs new questions or a fresh pre-registered protocol, since these 42 are now used for diagnosis.
 
 ### Abstention transfer: `ragkit abstention --corpus eu`
 

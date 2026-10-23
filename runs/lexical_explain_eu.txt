@@ -1,0 +1,130 @@
+
+### RagKit lexical diagnosis (model-free, post hoc; A0 vs A4 top-5 changes)
+
+52 (question, relevant article) pairs on 42 questions; top-5 membership differs between A0 and A4 for 4: 3 lost, 1 gained. Stages: A0 = pinned BM25, top-10 chunks; A1 = pinned BM25, full chunk list; A2 = structured + prepended heading, BM25; S0 = structured body only, BM25 (diagnostic); A3 = structured, BM25F heading field; A4 = A3 + synonym expansion
+
+- Recall@5 A4 minus A0 = -0.060: -0.060 from the 4 questions with a flipped pair, +0.000 from the other 38
+- MRR A4 minus A0 = +0.012: -0.008 from the 4 questions with a flipped pair, +0.019 from the other 38
+
+### Flipped pairs (A0 vs A4)
+
+#### Q22 (paraphrase): Which technical parameters define a harmonised balancing energy bid, for instance how quickly the resource must reach full output?
+- relevant: `reg_2017_2195_art25` ('Requirements for standard products'); top-5 membership lost (A0 -> A4)
+- rank: A0 5 | A1 5 | A2 5 | S0 4 | A3 6 | A4 6
+- crossed the top-5 line at S0 -> A3: heading field: competitors scored higher
+- A0: relevant best chunk reg_2017_2195_art25#rec_4 (499 chars, score 11.29, 80% of the top document); top terms [full 3.58, bid 3.53, balancing 2.06, energy 1.19]
+- A4: relevant best chunk reg_2017_2195_art25#struct_2 (389 chars, score 12.28, 85% of the top document); top terms [full 4.09, bid 4.02, balancing 1.82, energy 1.29]
+- relevant heading field effect on A3 (A3 minus S0, same chunk): [balancing -0.12, energy -0.08, for +0.07]; expansion adds to A4: [none]
+- documents that passed it at S0 -> A3:
+    - 3. reg_2017_2195_art24 ('Balancing energy gate closure time') 13.53, best chunk reg_2017_2195_art24#struct_3 (430 chars); heading field [energy +0.63, balancing +0.56]; expansion [none]
+    - 4. reg_2017_1485_art158 ('FRR minimum technical requirements') 13.45, best chunk reg_2017_1485_art158#struct_1 (893 chars); heading field [technical +4.43, for -0.11]; expansion [none]
+- sum-of-chunks article score (counterfactual, not shipped): rank A0 15 -> A4 14
+- top-3 competing articles under A4:
+    - 1. reg_2017_2195_art29 ('Activation of balancing energy bids from common merit order list') 14.49, best chunk reg_2017_2195_art29#struct_3 (300 chars); heading field [energy +0.42, balancing +0.30, for -0.10]; expansion [none]
+    - 2. reg_2017_2195_art2 ('Definitions') 13.86, best chunk reg_2017_2195_art2#struct_19 (467 chars); heading field [balancing -0.18, energy -0.07]; expansion [none]
+    - 3. reg_2017_2195_art24 ('Balancing energy gate closure time') 13.53, best chunk reg_2017_2195_art24#struct_3 (430 chars); heading field [energy +0.63, balancing +0.56]; expansion [none]
+
+#### Q24 (paraphrase): What options exist for setting aside border transmission capacity for the exchange of reserves?
+- relevant: `reg_2017_2195_art38` ('General requirements'); top-5 membership lost (A0 -> A4)
+- rank: A0 5 | A1 5 | A2 7 | S0 5 | A3 9 | A4 9
+- crossed the top-5 line at S0 -> A3: heading field: relevant doc scored lower
+- A0: relevant best chunk reg_2017_2195_art38#rec_4 (319 chars, score 10.35, 80% of the top document); top terms [reserves 4.27, exchange 2.43, for 1.78, capacity 1.60]
+- A4: relevant best chunk reg_2017_2195_art38#struct_5 (461 chars, score 9.09, 86% of the top document); top terms [exchange 2.60, reserves 2.17, capacity 1.64, transmission 1.51]
+- relevant heading field effect on A3 (A3 minus S0, same chunk): [exchange -0.36, for -0.28, capacity -0.23, of -0.12]; expansion adds to A4: [none]
+- documents that passed it at S0 -> A3:
+    - 5. reg_2017_2195_art35 ('Exchange of balancing services') 9.37, best chunk reg_2017_2195_art35#struct_2 (612 chars); heading field [for -0.31, reserves -0.15, capacity -0.15, of -0.11]; expansion [none]
+    - 6. reg_2017_2195_art33 ('Exchange of balancing capacity') 9.36, best chunk reg_2017_2195_art33#struct_6 (201 chars); heading field [exchange +0.39, for -0.23, capacity +0.17, reserves -0.15]; expansion [none]
+    - 7. reg_2017_2195_art42 ('Allocation process based on economic efficiency analysis') 9.24, best chunk reg_2017_2195_art42#struct_5 (502 chars); heading field [exchange -0.25, for -0.23, capacity -0.20, of -0.12]; expansion [none]
+- sum-of-chunks article score (counterfactual, not shipped): rank A0 3 -> A4 5
+- top-3 competing articles under A4:
+    - 1. reg_2019_943_art16 ('General principles of capacity allocation and congestion management') 10.52, best chunk reg_2019_943_art16#struct_17 (855 chars); heading field [capacity +0.26, for -0.20, of -0.06]; expansion [none]
+    - 2. reg_2017_2195_art41 ('Market-based allocation process') 9.52, best chunk reg_2017_2195_art41#struct_5 (261 chars); heading field [exchange -0.47, for -0.28, capacity -0.21, reserves -0.14]; expansion [none]
+    - 3. reg_2017_2195_art32 ('Procurement rules') 9.50, best chunk reg_2017_2195_art32#struct_0 (926 chars); heading field [capacity -0.21, for -0.19, exchange -0.18, of -0.12]; expansion [none]
+
+#### Q25 (multi-hop): If the price charged for deviations from schedule falls below zero, does a balance responsible party that ended up with a surplus receive money or have to pay?
+- relevant: `reg_2017_2195_art55` ('Imbalance price'); top-5 membership gained (A0 -> A4)
+- rank: A0 - | A1 8 | A2 6 | S0 7 | A3 5 | A4 3
+- crossed the top-5 line at S0 -> A3: heading field: relevant doc scored higher
+- A0: relevant article not ranked
+- A4: relevant best chunk reg_2017_2195_art55#struct_0 (348 chars, score 22.68, 73% of the top document); top terms [price 5.75, brp 4.59, zero 4.57, up 3.71]
+- relevant heading field effect on A3 (A3 minus S0, same chunk): [price +0.63, from -0.13, for -0.09]; expansion adds to A4: [brp +4.59]
+- documents that were passed by it at S0 -> A3:
+    - 6. dir_2019_944_art17 ('Demand response through aggregation') 17.83, best chunk dir_2019_944_art17#struct_4 (705 chars); heading field [for +0.13]; expansion [parties +1.71]
+    - 7. reg_2017_2195_art52 ('Imbalance settlement') 17.75, best chunk reg_2017_2195_art52#struct_0 (355 chars); heading field [for -0.10]; expansion [none]
+- sum-of-chunks article score (counterfactual, not shipped): rank A0 20 -> A4 6
+- top-3 competing articles under A4:
+    - 2. reg_2017_2195_art17 ('Role of balance responsible parties') 23.40, best chunk reg_2017_2195_art17#struct_1 (520 chars); heading field [balance +0.65, responsible +0.47, for -0.12]; expansion [parties +1.55]
+    - 4. reg_2017_2195_art2 ('Definitions') 21.25, best chunk reg_2017_2195_art2#struct_9 (338 chars); heading field [for -0.13, from -0.08]; expansion [none]
+    - 5. reg_2019_943_art5 ('Balance responsibility') 20.48, best chunk reg_2019_943_art5#struct_0 (465 chars); heading field [balance +0.45, for -0.12]; expansion [parties +1.16]
+
+#### Q31 (paraphrase): Whose task is it to collect the revenue generated by scarce interconnection capacity?
+- relevant: `dir_2019_944_art40` ('Tasks of transmission system operators'); top-5 membership lost (A0 -> A4)
+- rank: A0 5 | A1 5 | A2 11 | S0 11 | A3 11 | A4 11
+- crossed the top-5 line at A1 -> S0: structured chunking: relevant doc scored lower
+- A0: relevant best chunk dir_2019_944_art40#rec_13 (448 chars, score 7.95, 85% of the top document); top terms [task 6.21, by 1.22, to 0.43, the 0.09]
+- A4: relevant best chunk dir_2019_944_art40#struct_5 (996 chars, score 5.75, 61% of the top document); top terms [task 4.58, by 0.77, to 0.31, the 0.09]
+- relevant heading field effect on A3 (A3 minus S0, same chunk): [none]; expansion adds to A4: [none]
+- documents that passed it at A1 -> S0:
+    - 2. reg_2015_1222_art15 ('Capacity calculation regions') 8.65, best chunk reg_2015_1222_art15#struct_1 (631 chars); heading field [capacity +0.20]; expansion [none]
+    - 5. reg_2019_943_art19 ('Congestion income') 7.76, best chunk reg_2019_943_art19#struct_4 (789 chars); heading field [none]; expansion [none]
+    - 6. reg_2019_943_art2 ('Definitions') 7.52, best chunk reg_2019_943_art2#struct_8 (408 chars); heading field [capacity -0.12]; expansion [none]
+- sum-of-chunks article score (counterfactual, not shipped): rank A0 6 -> A4 10
+- top-3 competing articles under A4:
+    - 1. reg_2019_943_art16 ('General principles of capacity allocation and congestion management') 9.36, best chunk reg_2019_943_art16#struct_6 (274 chars); heading field [capacity -0.10, by -0.06]; expansion [none]
+    - 2. reg_2015_1222_art15 ('Capacity calculation regions') 8.84, best chunk reg_2015_1222_art15#struct_1 (631 chars); heading field [capacity +0.20]; expansion [none]
+    - 3. reg_2019_943_art13 ('Redispatching') 8.51, best chunk reg_2019_943_art13#struct_10 (481 chars); heading field [none]; expansion [none]
+
+### Cause table (a crossing is a relevant article entering or leaving the top 5 between two consecutive stages)
+
+| cause (stage: side that moved) | net lost A0->A4 | net gained A0->A4 | all crossings out | all crossings in |
+|---|---|---|---|---|
+| A0 top-10-chunk cut | 0 | 0 | 0 | 1 |
+| heading field: competitors scored higher | 1 | 0 | 2 | 0 |
+| heading field: relevant doc scored higher | 0 | 1 | 0 | 1 |
+| heading field: relevant doc scored lower | 1 | 0 | 2 | 0 |
+| structured chunking: competitors scored higher | 0 | 0 | 1 | 0 |
+| structured chunking: competitors scored lower | 0 | 0 | 0 | 2 |
+| structured chunking: relevant doc scored lower | 1 | 0 | 1 | 0 |
+| **total** | 3 | 1 | 6 | 4 |
+
+### Crossings by stage
+
+| transition | relevant out (by type) | relevant in (by type) | all articles out of / into a top 5 | of those, relevant out / in |
+|---|---|---|---|---|
+| A0 -> A1 (A0 top-10-chunk cut) | 0 (-) | 1 (multi-hop 1) | 0 / 10 | 0 / 1 |
+| A1 -> S0 (structured chunking) | 2 (multi-hop 1, paraphrase 1) | 2 (multi-hop 1, paraphrase 1) | 53 / 53 | 2 / 2 |
+| S0 -> A3 (heading field) | 4 (multi-hop 1, paraphrase 3) | 1 (multi-hop 1) | 32 / 32 | 4 / 1 |
+| A3 -> A4 (query expansion) | 0 (-) | 0 (-) | 8 / 8 | 0 / 0 |
+
+### Where the relevant articles sat under A0
+
+| A0 rank of the relevant article | pairs | in the top 5 under A4 |
+|---|---|---|
+| 1-3 | 36 | 36 |
+| 4 | 4 | 4 |
+| 5 | 4 | 1 |
+| 6-7 | 2 | 0 |
+| 8-10 | 0 | 0 |
+| not in A0's top-10 chunks | 6 | 1 |
+
+### How flat the scores are near the top-5 line (A1 document scores)
+
+| type | questions | median score of rank 10 / rank 1 | median gap rank 5 -> 6 | questions with that gap under 5% |
+|---|---|---|---|---|
+| direct | 17 | 0.46 | 4.0% | 9 |
+| multi-hop | 8 | 0.45 | 3.7% | 4 |
+| paraphrase | 17 | 0.67 | 2.2% | 14 |
+
+### Who enters the top 5 at the heading and expansion steps
+
+- Heading step (S0 -> A3): 32 article entries into a top 5 over 42 questions; the term gaining most from the heading is: article-heading term 27, act-name term only 3, no heading term gains (idf / length shift only) 2
+- Expansion fires on 27 of 42 questions and changes the top-10 article order on 23; 8 articles enter a top 5 because of it, 0 of them definition articles.
+- Definition articles ('Definitions' heading; 2 of 94 articles) in the top-5 slots of the 42 questions (210 slots): A0 16, S0 13, A3 10, A4 8
+
+### Does the heading field match the question? (A3 top 5)
+
+| type | relevant articles with a heading match | non-relevant top-5 articles with a heading match |
+|---|---|---|
+| direct | 14 of 19 | 38 of 66 |
+| multi-hop | 9 of 16 | 22 of 27 |
+| paraphrase | 8 of 17 | 44 of 75 |
