@@ -45,6 +45,8 @@ from ragkit.eval import (
 from ragkit.hybrid import HybridRetriever
 from ragkit.lexical import evaluate as evaluate_lexical
 from ragkit.lexical import questions_from_records, render_decision_inputs, render_report
+from ragkit.lexical_explain import explain as explain_lexical
+from ragkit.lexical_explain import render_explanation
 from ragkit.modelsignals import DEFAULT_CACHE, MODEL_SIGNALS, ModelScorers, load_model_scorers
 from ragkit.pipeline import DEFAULT_MIN_SUPPORT, RAGPipeline, query_support
 from ragkit.rerank import LexicalReranker
@@ -741,7 +743,12 @@ def cmd_lexical(args: argparse.Namespace) -> int:
         print(f"Error: QA benchmark file not found at {ds.qa_path}", file=sys.stderr)
         return 1
     questions = questions_from_records(_read_jsonl(ds.qa_path))
-    report = evaluate_lexical(_load_documents(ds.corpus_dir), questions)
+    documents = _load_documents(ds.corpus_dir)
+    if args.explain:
+        print("\n### RagKit lexical diagnosis (model-free, post hoc; A0 vs A4 top-5 changes)\n")
+        print(render_explanation(explain_lexical(documents, questions)))
+        return 0
+    report = evaluate_lexical(documents, questions)
     print("\n### RagKit lexical retrieval (model-free; dense and hybrid are not run)\n")
     print(render_report(report))
     print(render_decision_inputs(report))
@@ -857,6 +864,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     _add_dataset_args(p_lex, questions=False)
     p_lex.add_argument("--qa-file", default=None, help="Override the answerable QA jsonl.")
+    p_lex.add_argument(
+        "--explain",
+        action="store_true",
+        help="Print the post-hoc diagnosis of the A0 vs A4 Recall@5 changes instead of the report.",
+    )
 
     # Fetch-EU command
     p_fetch = subparsers.add_parser(
