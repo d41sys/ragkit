@@ -101,6 +101,12 @@ def test_rank_documents_dedupes_by_first_occurrence_and_limits() -> None:
     assert rank_documents(chunks, limit=None) == ["a", "b", "c"]
 
 
+def test_win_loss_counts() -> None:
+    from ragkit.lexical import _win_loss
+
+    assert _win_loss([1.0, 0.5, 0.2, 0.3], [0.5, 0.5, 0.4, 0.1]) == "2 / 1 / 1"
+
+
 def test_score_question_metrics() -> None:
     scores = score_question(["x", "a", "b"], ["a", "b"])
     assert scores["r5"] == 1.0
@@ -182,6 +188,7 @@ def test_evaluate_runs_every_configuration_on_a_toy_corpus() -> None:
     # Expansion reaches the TSO article from the spelled-out question; the baseline cannot.
     assert report.scores["A4"]["mrr"][0] > report.scores["A3"]["mrr"][0]
     text = render_report(report)
+    assert "better / worse / tied" in text
     assert "| A4 +expansion |" in text and "paraphrase (n=1)" in text
 
 

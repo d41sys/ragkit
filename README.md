@@ -37,6 +37,7 @@ uv run ragkit abstention --corpus eu --signals all               # AUROC / risk-
 uv run ragkit abstention --corpus eu --signals all --cohort original-12   # same on the 12 original unanswerable questions only (`--cohort expanded`: the 33 added ones)
 uv run ragkit abstention --corpus synthetic --signals all        # same table on the synthetic set, for contrast
 uv run ragkit abstention --corpus eu --signals all --model-signals   # + cross-encoder and SQuAD2 reader signals (needs `uv sync --extra st`; downloads two HF models once)
+uv run ragkit lexical --corpus eu                                # model-free lexical retrieval comparison (no model is loaded); `--corpus synthetic` for the regression check
 # any of eval / abstention / ablation also take --corpus-dir, --qa-file, --unanswerable-file, --cohort
 ```
 
@@ -184,6 +185,76 @@ What this does and does not show, as measured:
 - With n=42 the CIs are wide (about ±0.1 on recall), so differences under roughly 0.1 should be read as ties. The "+HyDE" rows measure the constant-prefix `TemplateLLM`, not real HyDE (see above).
 - Dense retrieval with the hashing embedder collapses on the reworded paraphrase questions (recall 0.353, MRR 0.197), which is where the lexical overlap was removed.
 - Multi-hop MRR is higher than recall because MRR only needs the first relevant article, while recall@5 needs both.
+
+### Model-free lexical retrieval: `ragkit lexical --corpus eu`
+
+Can the paraphrase gap of BM25 be narrowed without any model? Three lexical changes were tried: structure-aware chunking with the heading, BM25F with a heading field, and a hand-written EU synonym/acronym map for query expansion; plus one cross-validated parameter variant. The protocol, parameters, decision rule and the synonym map were committed before anything was scored ([`docs/lexical_protocol.md`](docs/lexical_protocol.md), commit `d605d3e`; the code was committed in `a0d27a4`, still before the first scored run; after that run only the "better / worse / tied" counts were added to the printed report, and the numbers of the other columns were identical before and after).
+
+**Result: the headline configuration A4 is not adopted.** Its paired MRR gain over the pinned BM25 is small and its CI includes 0, and Recall@5 went down (point estimate -0.060, CI includes 0). The pre-registered rule needed an MRR CI above 0 and a non-negative Recall@5 difference; both failed on the EU set.
+
+**What was and was not run.** `ragkit lexical` builds `BM25Index` / `BM25FIndex` only: no embedder, cross-encoder or dense/hybrid index, and no model is loaded (`tests/test_ragkit_lexical.py::test_lexical_command_loads_no_model` runs the command in a subprocess and checks that `sentence_transformers`, `torch` and `transformers` are never imported). `ragkit eval` itself never instantiates `STEmbedder` either (it builds a `HashingEmbedder`), but the dense and hybrid rows were not re-run for this section; their numbers above are unchanged. The baseline A0 is the existing `BM25Index()` on 500-character recursive chunks, not a rewrite, and its row reproduces the BM25 / None row of `ragkit eval` (0.857 / 0.676 / 0.702).
+
+```bash
+uv run ragkit lexical --corpus eu        > runs/lexical_eu.txt          # 42 questions
+uv run ragkit lexical --corpus synthetic > runs/lexical_synthetic.txt   # 40 questions, regression check
+```
+
+| id | configuration (all parameters frozen in the protocol) |
+|---|---|
+| A0 | existing BM25 (k1 1.5, b 0.75), 500-char recursive chunks, top-10 chunks then deduplicated to articles |
+| A1 | A0 but articles ranked from the full chunk list (control for the cutoff change in A2 to A5) |
+| A2 | `structured` chunks (paragraph/point units, 250 to 1000 chars, heading prepended), plain BM25 |
+| A3 | structured chunks, BM25F with the heading as a field (weight 2, body 1) |
+| A4 | A3 + query expansion from the synonym map (expanded terms weighted 0.4) |
+| A5 | A4 with (k1, b, heading weight) chosen by stratified 2-fold CV (5 seeds, grid of 4 x 3 x 3), as an extra |
+
+The structured chunker gives 585 chunks (median 464 characters, max 999) against 934 for the recursive one (median 397, max 552), and every chunk keeps its article heading.
+
+EU, 42 questions, mean [bootstrap 95% CI over questions, 2000 resamples]:
+
+| Config | Recall@5 | MRR | nDCG@10 |
+|---|---|---|---|
+| A0 bm25-pinned | 0.857 [0.750, 0.952] | 0.676 [0.560, 0.791] | 0.702 [0.600, 0.800] |
+| A1 +doc-depth | 0.869 [0.762, 0.952] | 0.678 [0.564, 0.792] | 0.720 [0.621, 0.812] |
+| A2 +structure | 0.798 [0.679, 0.905] | 0.678 [0.561, 0.792] | 0.708 [0.602, 0.802] |
+| A3 +bm25f | 0.798 [0.679, 0.905] | 0.672 [0.550, 0.787] | 0.705 [0.600, 0.800] |
+| A4 +expansion | 0.798 [0.679, 0.905] | 0.687 [0.566, 0.799] | 0.717 [0.613, 0.813] |
+| A5 +cv-params | 0.798 [0.686, 0.900] | 0.687 [0.569, 0.796] | 0.718 [0.613, 0.813] |
+
+Paired difference against A0 (same questions; CI of the per-question mean difference), and how many of the 42 questions got better / worse / tied:
+
+| Config | dRecall@5 | dMRR | dnDCG@10 | questions better / worse / tied (R@5; MRR) |
+|---|---|---|---|---|
+| A1 +doc-depth | +0.012 [+0.000, +0.036] | +0.002 [+0.000, +0.007] | +0.017 [+0.000, +0.039] | 1 / 0 / 41; 1 / 0 / 41 |
+| A2 +structure | -0.060 [-0.131, +0.000] | +0.002 [-0.039, +0.045] | +0.005 [-0.038, +0.045] | 0 / 3 / 39; 6 / 4 / 32 |
+| A3 +bm25f | -0.060 [-0.143, +0.012] | -0.004 [-0.061, +0.048] | +0.003 [-0.050, +0.053] | 1 / 3 / 38; 7 / 7 / 28 |
+| A4 +expansion | -0.060 [-0.143, +0.012] | +0.012 [-0.044, +0.066] | +0.014 [-0.040, +0.064] | 1 / 3 / 38; 7 / 7 / 28 |
+| A5 +cv-params | -0.060 [-0.140, +0.007] | +0.011 [-0.035, +0.056] | +0.016 [-0.031, +0.060] | 1 / 5 / 36; 8 / 7 / 27 |
+
+By question type, A0 against A4 (mean [95% CI]; paired A4 minus A0 below each metric; all configurations and all three metrics are in `runs/lexical_eu.txt`):
+
+| Metric | Config | direct (n=17) | multi-hop (n=8) | paraphrase (n=17) |
+|---|---|---|---|---|
+| Recall@5 | A0 | 1.000 [1.000, 1.000] | 0.750 [0.562, 0.938] | 0.765 [0.529, 0.941] |
+| Recall@5 | A4 | 1.000 [1.000, 1.000] | 0.812 [0.625, 0.938] | 0.588 [0.353, 0.824] |
+| Recall@5 | A4 - A0 | +0.000 [+0.000, +0.000] | +0.062 [+0.000, +0.188] | -0.176 [-0.353, +0.000] |
+| MRR | A0 | 0.828 [0.691, 0.941] | 0.938 [0.812, 1.000] | 0.400 [0.226, 0.579] |
+| MRR | A4 | 0.855 [0.718, 0.971] | 0.917 [0.750, 1.000] | 0.412 [0.245, 0.585] |
+| MRR | A4 - A0 | +0.026 [-0.009, +0.088] | -0.021 [-0.062, +0.000] | +0.012 [-0.118, +0.141] |
+| nDCG@10 | A0 | 0.867 [0.768, 0.957] | 0.808 [0.690, 0.916] | 0.488 [0.322, 0.655] |
+| nDCG@10 | A4 | 0.891 [0.788, 0.978] | 0.813 [0.667, 0.942] | 0.497 [0.335, 0.659] |
+| nDCG@10 | A4 - A0 | +0.024 [-0.005, +0.072] | +0.006 [-0.085, +0.110] | +0.008 [-0.103, +0.114] |
+
+Synthetic corpus (40 questions, regression check, `runs/lexical_synthetic.txt`): Recall@5 is 1.000 for every configuration; MRR goes from 0.940 [0.877, 0.988] (A0) to 0.981 [0.944, 1.000] (A4), paired dMRR +0.042 [+0.000, +0.092] (3 questions better, none worse). No regression there, so condition 3 of the decision rule held.
+
+Decision rule, applied as written (A4 minus A0): EU dMRR +0.012 [-0.044, +0.066], lower bound not above 0 (fails); EU dRecall@5 -0.060, point estimate below 0 (fails); synthetic dMRR +0.042 and dRecall@5 +0.000 (passes). **A4 is not adopted.**
+
+What the numbers do and do not show:
+- **No separated gain on EU.** Every overall EU interval for A2 to A5 against A0 includes 0 on all three metrics (A2's Recall@5 interval touches it: [-0.131, +0.000]), and the paraphrase MRR moves from 0.400 to 0.412 (CI of the difference [-0.118, +0.141]). The expansion map did not close the paraphrase gap on this set.
+- **Recall@5 fell with the new chunking.** It drops by 0.060 as soon as the structured chunker is used (A2: 3 questions worse, none better), almost entirely in `paraphrase` questions (-0.118 for A2, -0.176 for A3 and A4). The A1 row rules out the article-level cutoff as the cause (A1 is +0.012). The cause was not investigated, and the parameters were not adjusted in response, because the protocol forbids tuning on these 42 questions. The structured chunks are larger (median 464 against 397 characters), so fewer chunks compete per article; whether that or the heading field is responsible was not isolated (A2 and A3 differ in the heading treatment and share the drop).
+- **The synthetic gain is not evidence for EU.** On the synthetic set MRR improves by +0.044 from structure alone (A2), where the questions are close to the documents' wording (BM25 MRR 0.940 already); the improvement of A2 over A0 there has a CI that barely excludes 0 ([+0.002, +0.092]) and it is one of many paired intervals in this section.
+- **Cross-validated parameters (A5) add nothing.** Held-out A5 is within 0.001 of A4 on MRR, and the chosen (k1, b, heading weight) varies across folds and seeds (8 different points in 10 fold selections, 7 of them with k1 0.9), a sign that the 42 questions do not determine them.
+- **Caveats specific to this test.** The relevance labels were reviewed against BM25 and dense top-10 lists (see "Review status"), which can favour BM25-style retrieval and make any lexical change harder to show a gain on. The synonym map was written from the corpus vocabulary and domain knowledge without reading the questions (apart from the two first lines of `qa_eu.jsonl`, listed in the protocol), and the protocol commit precedes every scored run; that guarantees the map was not fitted to the questions, not that it is good. Not tried: RM3 pseudo-relevance feedback, stemming, other chunk sizes, field weights beyond the CV grid. Trying them now on these 42 questions would be tuning on the test set; they need new questions or a fresh protocol.
 
 ### Abstention transfer: `ragkit abstention --corpus eu`
 

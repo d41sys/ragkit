@@ -298,6 +298,12 @@ def _subset(values: Sequence[float], idx: Sequence[int]) -> list[float]:
     return [values[i] for i in idx]
 
 
+def _win_loss(a: Sequence[float], b: Sequence[float]) -> str:
+    better = sum(1 for x, y in zip(a, b, strict=True) if x > y + 1e-9)
+    worse = sum(1 for x, y in zip(a, b, strict=True) if x < y - 1e-9)
+    return f"{better} / {worse} / {len(a) - better - worse}"
+
+
 def render_report(report: LexicalReport) -> str:
     """Markdown tables: overall, paired vs A0, by type, and the cross-validated choices."""
     ids = list(report.scores)
@@ -316,6 +322,14 @@ def render_report(report: LexicalReport) -> str:
         if cid == BASELINE_ID:
             continue
         cells = " | ".join(_delta(report.scores[cid][m], base[m]) for m in METRICS)
+        lines.append(f"| {cid} {report.names[cid]} | {cells} |")
+
+    lines += ["", f"Questions better / worse / tied than {BASELINE_ID} (per question):", ""]
+    lines += ["| Config | Recall@5 | MRR | nDCG@10 |", "|---|---|---|---|"]
+    for cid in ids:
+        if cid == BASELINE_ID:
+            continue
+        cells = " | ".join(_win_loss(report.scores[cid][m], base[m]) for m in METRICS)
         lines.append(f"| {cid} {report.names[cid]} | {cells} |")
 
     types = report.types
