@@ -43,6 +43,8 @@ from ragkit.eval import (
     wilson_interval,
 )
 from ragkit.hybrid import HybridRetriever
+from ragkit.lexical import evaluate as evaluate_lexical
+from ragkit.lexical import questions_from_records, render_decision_inputs, render_report
 from ragkit.modelsignals import DEFAULT_CACHE, MODEL_SIGNALS, ModelScorers, load_model_scorers
 from ragkit.pipeline import DEFAULT_MIN_SUPPORT, RAGPipeline, query_support
 from ragkit.rerank import LexicalReranker
@@ -729,6 +731,23 @@ def _count(items: Sequence[dict[str, Any]], qtype: str) -> int:
     return sum(1 for item in items if item.get("type") == qtype)
 
 
+def cmd_lexical(args: argparse.Namespace) -> int:
+    """Model-free lexical retrieval comparison (docs/lexical_protocol.md).
+
+    Builds BM25 / BM25F indexes only: no embedder, no cross-encoder, no dense or hybrid index.
+    """
+    ds = _resolve_dataset(args)
+    if not ds.qa_path.is_file():
+        print(f"Error: QA benchmark file not found at {ds.qa_path}", file=sys.stderr)
+        return 1
+    questions = questions_from_records(_read_jsonl(ds.qa_path))
+    report = evaluate_lexical(_load_documents(ds.corpus_dir), questions)
+    print("\n### RagKit lexical retrieval (model-free; dense and hybrid are not run)\n")
+    print(render_report(report))
+    print(render_decision_inputs(report))
+    return 0
+
+
 def cmd_fetch_eu(args: argparse.Namespace) -> int:
     """Download the EU legal acts and rebuild the article-level corpus (needs network)."""
     doc_ids = build_corpus(
@@ -832,6 +851,13 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     _add_dataset_args(p_eval)
 
+    # Lexical command
+    p_lex = subparsers.add_parser(
+        "lexical", help="Model-free lexical retrieval comparison (structure, BM25F, expansion)."
+    )
+    _add_dataset_args(p_lex, questions=False)
+    p_lex.add_argument("--qa-file", default=None, help="Override the answerable QA jsonl.")
+
     # Fetch-EU command
     p_fetch = subparsers.add_parser(
         "fetch-eu", help="Download EUR-Lex acts and rebuild the article-level EU corpus."
@@ -854,6 +880,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_ask(parsed))
     elif parsed.subcommand == "eval":
         sys.exit(cmd_eval(parsed))
+    elif parsed.subcommand == "lexical":
+        sys.exit(cmd_lexical(parsed))
     elif parsed.subcommand == "abstention":
         sys.exit(cmd_abstention(parsed))
     elif parsed.subcommand == "ablation":

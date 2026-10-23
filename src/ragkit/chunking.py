@@ -1,7 +1,7 @@
 """Chunking strategies for document indexing.
 
-Provides fixed-window, recursive-character, sentence-based, and semantic chunking.
-Every strategy returns a list of Chunk objects with exact character spans.
+Provides fixed-window, recursive-character, sentence-based, semantic and structure-aware
+chunking. Every strategy returns a list of Chunk objects with exact character spans.
 """
 
 from __future__ import annotations
@@ -17,13 +17,18 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class Chunk:
-    """A bounded passage extracted from a document with exact character offsets."""
+    """A bounded passage extracted from a document with exact character offsets.
+
+    ``title`` is the heading of the enclosing document or article when the chunker knows it
+    (``structured``); it is empty otherwise. ``start``/``end`` always locate the body text.
+    """
 
     id: str
     doc_id: str
     text: str
     start: int
     end: int
+    title: str = ""
 
     def __post_init__(self) -> None:
         if self.start < 0:
@@ -269,6 +274,106 @@ def recursive(
                 )
             )
 
+    return chunks
+
+
+_HEADING = re.compile(r"[ \t\r\n]*#[ \t]+([^\n]*?)[ \t]*(?:\n|$)")
+_LINE = r"[^\n]*\S[^\n]*"
+_BLOCK = re.compile(rf"{_LINE}(?:\n{_LINE})*")
+_PARAGRAPH_START = re.compile(r"(?:\d+\.|\(\d+\))\s")
+
+
+def structured(
+    text: str,
+    doc_id: str,
+    min_chars: int = 250,
+    max_chars: int = 1000,
+    prepend_heading: bool = True,
+) -> list[Chunk]:
+    """Split an article along its paragraph/point structure and keep its heading.
+
+    The leading ``# `` line is the heading. The body is cut into blank-line separated blocks;
+    a block starting with ``N.`` or ``(N)`` opens a new paragraph unit and every other block
+    (``(a)`` points, continuation lines) stays with the unit it follows. Units shorter than
+    ``min_chars`` are merged with the following ones, a chunk closes once it reaches
+    ``min_chars`` or the next unit would push it past ``max_chars``. A unit longer than
+    ``max_chars`` is split at block (point) boundaries, and a single block longer than that
+    falls back to ``recursive``.
+
+    ``start``/``end`` are exact spans of the body in ``text`` (the heading is outside them).
+    ``title`` is the heading; with ``prepend_heading`` the chunk text is the heading, a blank
+    line and the body, otherwise just the body.
+    """
+    if min_chars <= 0 or max_chars < min_chars:
+        raise ValueError("require 0 < min_chars <= max_chars")
+
+    heading = _HEADING.match(text)
+    title = heading.group(1) if heading else ""
+    body_start = heading.end() if heading else 0
+    blocks = [(m.start(), m.end()) for m in _BLOCK.finditer(text, body_start)]
+
+    units: list[list[tuple[int, int]]] = []
+    for span in blocks:
+        if not units or _PARAGRAPH_START.match(text, span[0]):
+            units.append([span])
+        else:
+            units[-1].append(span)
+
+    pieces: list[tuple[int, int]] = []
+    for unit in units:
+        if unit[-1][1] - unit[0][0] <= max_chars:
+            pieces.append((unit[0][0], unit[-1][1]))
+            continue
+        start = end = -1
+        for b_start, b_end in unit:
+            if b_end - b_start > max_chars:
+                if start >= 0:
+                    pieces.append((start, end))
+                    start = end = -1
+                pieces.extend(
+                    (b_start + c.start, b_start + c.end)
+                    for c in recursive(text[b_start:b_end], doc_id, chunk_size=max_chars, overlap=0)
+                )
+            elif start < 0:
+                start, end = b_start, b_end
+            elif b_end - start <= max_chars:
+                end = b_end
+            else:
+                pieces.append((start, end))
+                start, end = b_start, b_end
+        if start >= 0:
+            pieces.append((start, end))
+
+    spans: list[tuple[int, int]] = []
+    current: tuple[int, int] | None = None
+    for p_start, p_end in pieces:
+        if current is None:
+            current = (p_start, p_end)
+        elif p_end - current[0] > max_chars:
+            spans.append(current)
+            current = (p_start, p_end)
+        else:
+            current = (current[0], p_end)
+        if current[1] - current[0] >= min_chars:
+            spans.append(current)
+            current = None
+    if current is not None:
+        spans.append(current)
+
+    chunks: list[Chunk] = []
+    for idx, (s, e) in enumerate(spans):
+        body = text[s:e]
+        chunk_text = f"{title}\n\n{body}" if prepend_heading and title else body
+        chunks.append(
+            Chunk(
+                id=f"{doc_id}#struct_{idx}",
+                doc_id=doc_id,
+                text=chunk_text,
+                start=s,
+                end=e,
+                title=title,
+            )
+        )
     return chunks
 
 
