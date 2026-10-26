@@ -39,6 +39,8 @@ uv run ragkit abstention --corpus synthetic --signals all        # same table on
 uv run ragkit abstention --corpus eu --signals all --model-signals   # + cross-encoder and SQuAD2 reader signals (needs `uv sync --extra st`; downloads two HF models once)
 uv run ragkit lexical --corpus eu                                # model-free lexical retrieval comparison (no model is loaded); `--corpus synthetic` for the regression check
 uv run ragkit lexical --corpus eu --explain                      # post-hoc diagnosis of the A0 vs A4 top-5 changes (also model-free)
+uv run ragkit beir --dataset scifact                              # BEIR test set, model-free; `--dataset all` for the six datasets below, `--ladder` for the BM25-vs-Pyserini ladder
+uv run ragkit legalbench                                          # LegalBench-RAG-mini (776 queries, 72 contracts), official character-overlap metric
 # any of eval / abstention / ablation also take --corpus-dir, --qa-file, --unanswerable-file, --cohort
 ```
 
@@ -630,6 +632,144 @@ Draft-label run, for comparison (recall@5 / MRR): BM25 0.845 / 0.650, + dense 0.
 - Article-level documents are long (up to about 11k characters), so the 500-character chunks lose the article heading in most chunks; doc-level labels hide that.
 - Abstention-signal comparison: 45 unanswerable questions give AUROC CIs about 0.24 wide (0.30 to 0.39 with the original 12), so differences below roughly 0.05 to 0.15 AUROC remain unresolved (see that section); the combined model's CIs ignore refit variance; the model-based signals are covered by the caveats of the model-signals section (no independent test set, two models only).
 - The hashing embedder and lexical reranker are the offline defaults. Neural embeddings (`[st]` extra) were not run, so "dense retrieval does not help" applies to the hashing embedder only.
+
+## Comparison with SOTA
+
+Question: how far is a model-free lexical stack from published state of the art on the same public benchmarks? Two benchmarks, protocols committed before scoring ([`docs/beir_protocol.md`](docs/beir_protocol.md), [`docs/legalbench_protocol.md`](docs/legalbench_protocol.md)). Raw command output: [`docs/sota-runs/`](docs/sota-runs/). Survey of the field, 2023 to 2026: [`docs/sota-review.md`](docs/sota-review.md). Every published number, with the URL, table and date I read it from: [`docs/beir-published-numbers.md`](docs/beir-published-numbers.md), [`docs/legalbench-rag-published-numbers.md`](docs/legalbench-rag-published-numbers.md).
+
+No model was run or downloaded for this section. Published rows are copied, not reproduced. A published number sits in the main tables only if dataset, split, metric and cutoff are identical; everything else is in the "not comparable" table.
+
+```bash
+uv run ragkit beir --dataset all          # downloads ~117 MB of BEIR zips into data/raw/beir (gitignored), then scores
+uv run ragkit beir --dataset scifact --ladder   # L0..L5 steps from ragkit BM25 to Lucene-matched BM25
+uv run ragkit legalbench                  # downloads the 91 MB benchmark zip into data/raw/ once
+```
+
+### BEIR (test split, nDCG@10, Recall@100)
+
+Six of the seven datasets in the Pyserini table: SciFact (300 queries), NFCorpus (323), FiQA-2018 (648), ArguAna (1406), TREC-COVID (50), Quora (10,000). SCIDOCS was not run (142 MB zip, disk budget). One BEIR document is one retrieval unit, no chunking. nDCG is trec_eval's linear-gain `ndcg_cut`; relevant means qrels score above 0; a hit whose id equals the query id is dropped (Pyserini `--remove-query`). The mean is over the six datasets, not the seven of the published sheet.
+
+Our systems (bold), all model-free:
+
+- `bm25-ragkit`: ragkit's default BM25 (k1 1.5, b 0.75, lowercase word tokens, no stemming).
+- `bm25-lucene`: BM25 with Lucene's English analyzer (Porter stemming, Lucene stop list), Lucene's one-byte length norm, k1 0.9, b 0.4. These are Anserini's defaults, not tuned on test. Title and text concatenated, which is Pyserini's "flat" index.
+- `bm25-mf-lucene`: the same, title and text as two fields with scores summed (Pyserini "multifield"). Only for datasets that have titles.
+- `rerank-*`: ragkit's lexical reranker over the top 100 of the matching BM25.
+
+| System | SciFact | NFCorpus | FiQA | ArguAna | TREC-COVID | Quora | Mean |
+|---|---|---|---|---|---|---|---|
+| **ragkit bm25-ragkit** | 0.664 | 0.310 | 0.234 | 0.466 | 0.590 | 0.742 | 0.501 |
+| **ragkit bm25-lucene** | 0.678 | 0.320 | 0.235 | 0.404 | 0.595 | 0.789 | 0.503 |
+| **ragkit bm25-mf-lucene** | 0.665 | 0.325 | n/a | 0.420 | 0.658 | n/a | n/a |
+| **ragkit rerank-ragkit** | 0.608 | 0.283 | 0.168 | 0.344 | 0.356 | 0.634 | 0.399 |
+| **ragkit rerank-lucene** | 0.622 | 0.302 | 0.168 | 0.250 | 0.410 | 0.708 | 0.410 |
+| Pyserini BM25 flat | 0.679 | 0.322 | 0.236 | 0.397 | 0.595 | 0.789 | 0.503 |
+| Pyserini BM25 multifield | 0.665 | 0.325 | 0.236 | 0.414 | 0.656 | 0.789 | 0.514 |
+| BM25 + MiniLM cross-encoder (BEIR paper) | 0.688 | 0.350 | 0.347 | 0.311 | 0.757 | 0.825 | 0.546 |
+| Contriever FT MS MARCO (Pyserini) | 0.677 | 0.328 | 0.329 | 0.446 | 0.596 | 0.865 | 0.540 |
+| ColBERTv2 (paper) | 0.693 | 0.338 | 0.356 | 0.463 | 0.738 | 0.852 | 0.573 |
+| SPLADE++ ED (Pyserini) | 0.704 | 0.347 | 0.347 | 0.526 | 0.727 | 0.834 | 0.581 |
+| SPLADE-v3 (Anserini regression) | 0.714 | 0.363 | 0.380 | 0.484 | 0.730 | 0.814 | 0.581 |
+| BGE-base-en-v1.5 (Pyserini) | 0.741 | 0.373 | 0.406 | 0.636 | 0.781 | 0.889 | 0.638 |
+| bge-large-en-v1.5 (MTEB) | 0.746 | 0.381 | 0.450 | 0.645 | 0.747 | 0.891 | 0.643 |
+| gte-base-en-v1.5 (MTEB) | 0.768 | 0.359 | 0.486 | 0.635 | 0.731 | 0.884 | 0.644 |
+| NV-Embed-v2 (MTEB) | 0.801 | 0.450 | 0.657 | 0.701 | 0.888 | 0.890 | 0.731 |
+| Qwen3-Embedding-8B (MTEB) | 0.785 | 0.414 | 0.646 | 0.768 | 0.950 | 0.889 | 0.742 |
+
+| Recall@100 | SciFact | NFCorpus | FiQA | ArguAna | TREC-COVID | Quora | Mean |
+|---|---|---|---|---|---|---|---|
+| **ragkit bm25-ragkit** | 0.886 | 0.235 | 0.507 | 0.952 | 0.099 | 0.949 | 0.605 |
+| **ragkit bm25-lucene** | 0.925 | 0.246 | 0.538 | 0.933 | 0.109 | 0.973 | 0.621 |
+| **ragkit bm25-mf-lucene** | 0.908 | 0.250 | n/a | 0.945 | 0.115 | n/a | n/a |
+| Pyserini BM25 flat | 0.925 | 0.246 | 0.539 | 0.932 | 0.109 | 0.973 | 0.621 |
+| Pyserini BM25 multifield | 0.908 | 0.250 | 0.539 | 0.943 | 0.114 | 0.973 | 0.621 |
+| SPLADE++ ED (Pyserini) | 0.935 | 0.285 | 0.631 | 0.983 | 0.128 | 0.986 | 0.658 |
+| Contriever FT MS MARCO (Pyserini) | 0.947 | 0.301 | 0.656 | 0.977 | 0.091 | 0.994 | 0.661 |
+| SPLADE-v3 (Anserini regression) | 0.936 | 0.298 | 0.667 | 0.979 | 0.141 | 0.986 | 0.668 |
+| BGE-base-en-v1.5 (Pyserini) | 0.967 | 0.337 | 0.742 | 0.992 | 0.141 | 0.997 | 0.696 |
+| bge-large-en-v1.5 (MTEB) | 0.952 | 0.365 | 0.770 | 0.989 | 0.130 | 0.997 | 0.701 |
+| gte-base-en-v1.5 (MTEB) | 0.965 | 0.329 | 0.818 | 0.994 | 0.136 | 0.997 | 0.707 |
+| NV-Embed-v2 (MTEB) | 0.987 | 0.436 | 0.912 | 0.996 | 0.180 | 0.997 | 0.751 |
+| Qwen3-Embedding-8B (MTEB) | 0.977 | 0.395 | 0.925 | 0.996 | 0.206 | 0.997 | 0.749 |
+
+Rerank rows have the Recall@100 of their first stage by construction (depth 100) and are omitted. ColBERTv2 and BM25 + cross-encoder have no uncapped Recall@100 in their sources.
+
+Sources: Pyserini rows from the [Pyserini BEIR 2CR page](https://castorini.github.io/pyserini/2cr/beir.html) (read 2026-10-26; the page shows no date of its own, its HTTP Last-Modified is 2026-10-25). BM25 + cross-encoder: BEIR paper, [arXiv 2104.08663](https://arxiv.org/abs/2104.08663) v4 (2021-10-21), Table 2. ColBERTv2: [arXiv 2112.01488](https://arxiv.org/abs/2112.01488) v3 (2022-07-10). SPLADE-v3: Anserini ONNX regression docs, master read 2026-10-26 (the [SPLADE-v3 paper](https://arxiv.org/abs/2403.06789), 2024-03-11, reports nDCG\* on judged documents only, so it is not used). MTEB rows: [results repo](https://github.com/embeddings-benchmark/results) at commit `7818c6f` (2026-10-24), `scores.test[0].ndcg_at_10` / `recall_at_100`. Table and page for each cell are in the published-numbers sheet.
+
+Statistical resolution: bootstrap 95% CIs over queries are in `docs/sota-runs/beir_*.txt`. The `bm25-ragkit` half-widths are about ±0.047 on SciFact, ±0.036 on NFCorpus, ±0.075 on TREC-COVID (50 queries), ±0.018 on ArguAna and ±0.007 on Quora. Differences below those widths are not findings.
+
+### Is our BM25 the same as Pyserini's?
+
+Yes, after matching three things. The check was fixed in advance: if `bm25-lucene` differs from Pyserini by more than 0.01 nDCG@10 on any dataset, investigate.
+
+| Dataset | bm25-lucene | Pyserini flat | Δ | bm25-mf-lucene | Pyserini MF | Δ |
+|---|---|---|---|---|---|---|
+| SciFact | 0.678 | 0.679 | −0.001 | 0.665 | 0.665 | 0.000 |
+| NFCorpus | 0.320 | 0.322 | −0.002 | 0.325 | 0.325 | 0.000 |
+| FiQA | 0.235 | 0.236 | −0.001 | n/a | 0.236 | n/a |
+| ArguAna | 0.404 | 0.397 | +0.007 | 0.420 | 0.414 | +0.006 |
+| TREC-COVID | 0.595 | 0.595 | 0.000 | 0.658 | 0.656 | +0.002 |
+| Quora | 0.789 | 0.789 | 0.000 | n/a | 0.789 | n/a |
+
+The largest gap is +0.007 (ArguAna), inside the threshold, so no further investigation was run. Recall@100 differs by at most 0.002. The residual on ArguAna is unexplained; it may come from tokenisation edge cases or tie-breaking, not tested.
+
+Where the gap between `bm25-ragkit` and Pyserini comes from, nDCG@10, one change added per step (`--ladder`):
+
+| Step | SciFact | NFCorpus | FiQA | ArguAna | TREC-COVID | Quora |
+|---|---|---|---|---|---|---|
+| L0 ragkit default | 0.664 | 0.310 | 0.234 | 0.466 | 0.590 | 0.742 |
+| L1 + Lucene tokenisation | 0.666 | 0.311 | 0.231 | 0.466 | 0.594 | 0.743 |
+| L2 + stop words | 0.669 | 0.310 | 0.234 | 0.479 | 0.596 | 0.750 |
+| L3 + Porter stemming | 0.688 | 0.325 | 0.253 | 0.493 | 0.631 | 0.806 |
+| L4 + k1 0.9, b 0.4 | 0.678 | 0.320 | 0.235 | 0.404 | 0.595 | 0.789 |
+| L5 + Lucene length norm | 0.679 | 0.321 | 0.235 | 0.401 | 0.592 | 0.789 |
+
+Porter stemming is the main lever (+0.01 to +0.06 per dataset). Anserini's k1 0.9, b 0.4 is worse than ragkit's 1.5 / 0.75 on every dataset once stemming is on (ArguAna −0.089, Quora −0.017, FiQA −0.018, SciFact −0.010, NFCorpus −0.005, TREC-COVID −0.036). That is an observation on test data, not adopted as a default. Lucene's length norm moves results by at most 0.003.
+
+### LegalBench-RAG-mini (character-overlap Recall@k and Precision@k, %)
+
+776 queries over 72 contracts (PrivacyQA 7, ContractNLI 18, MAUD 18, CUAD 29; 8,682,104 characters), the official mini sampler reproduced exactly and checked against the paper's Table 3. Metric: overlap of retrieved and gold character spans, as in the paper. ALL is the equal-weight mean of the four sources. Chunks: 500 characters, no overlap, `naive` fixed-size.
+
+Paper rows are from Pipitone and Alami, [arXiv 2408.10343](https://arxiv.org/abs/2408.10343), Table 4 (naive 500-character chunks, OpenAI text-embedding-3-large, dense). Table 4's printed ALL row disagrees with its own four dataset rows, so the paper row below is my mean of the four printed dataset rows.
+
+| Recall@k | 1 | 2 | 4 | 8 | 16 | 32 | 64 |
+|---|---|---|---|---|---|---|---|
+| **ragkit bm25-naive500** | 2.36 | 3.66 | 6.28 | 9.89 | 16.49 | 23.60 | 32.05 |
+| **ragkit bm25-lucene-naive500** | 2.45 | 4.92 | 8.08 | 13.37 | 19.52 | 26.22 | 35.14 |
+| **ragkit rerank-naive500** | 1.65 | 3.03 | 4.57 | 7.84 | 11.80 | 17.51 | 26.17 |
+| Paper dense, text-embedding-3-large | 8.48 | 13.55 | 20.78 | 31.86 | 40.84 | 51.72 | 63.49 |
+
+| Precision@k | 1 | 2 | 4 | 8 | 16 | 32 | 64 |
+|---|---|---|---|---|---|---|---|
+| Paper dense, text-embedding-3-large | 9.23 | 8.20 | 6.78 | 5.25 | 3.63 | 2.47 | 1.60 |
+
+Our Precision@8 is 1.30 (`bm25-naive500`), 1.93 (`bm25-lucene-naive500`) and 1.07 (`rerank-naive500`); the other precision cutoffs are in `docs/sota-runs/legalbench_mini.txt`. Per-source Recall@8, `bm25-naive500` vs the paper: PrivacyQA 8.49 vs 32.38, ContractNLI 22.37 vs 45.59, MAUD 1.33 vs 8.75, CUAD 7.40 vs 40.70. The paper's recursive-splitter rows (Table 5, ALL Recall@8 26.30, Precision@8 4.36; with Cohere rerank, Table 7, 24.34 and 5.02) are only partly comparable to our `recursive500` rows (different splitter implementation); see the published-numbers sheet. Our `recursive500` rows are in the raw output.
+
+Independent cross-check: a 2026-10-19 preprint, [StrucChunk, arXiv 2610.26313v1](https://arxiv.org/abs/2610.26313) (not peer-reviewed; I did not check how its chunker is configured), reports BM25-only Recall@8 of 10.10 ALL on the same mini benchmark; ours is 9.89. Per source the two agree within about one point. This is evidence the harness is right, not a head-to-head row.
+
+### Not comparable, and why
+
+| Published number | Why it is not in the tables |
+|---|---|
+| SPLADE-v3 paper BEIR table (arXiv 2403.06789) | nDCG\* counts only judged documents on some datasets; the Anserini regression run of the same model uses standard nDCG@10 and is used instead |
+| BEIR paper TREC-COVID Recall@100 (BM25 0.498) | capped recall; uncapped BM25 is 0.109 to 0.114 |
+| RankGPT / monoT5 / Cohere rerank of BM25 top-100 (arXiv 2304.09542) | cover 3 of our 6 datasets; their BM25 first stage differs on NFCorpus (0.307 vs 0.322), and the rerankers are two-stage, so a first-stage row would be unfair to us and a reranker row is not our task |
+| voyage-3-m-exp, inf-retriever-v1 (MTEB) | their model metadata lists these datasets as training data, so not zero-shot |
+| Conan-embedding-v2 (MTEB) | far above every other unflagged model on 5 of 7 datasets; its training-data metadata could not be verified |
+| MTEB leaderboard means and ranks | different task sets; the MTEB mean is not the six-dataset mean here |
+| LegalBench-RAG: SAC, PAKTON, Embedding-Free RAG, OpenContracts, docinsights | different sample, oracle documents, different metric or cutoff; reasons per row in `docs/legalbench-rag-published-numbers.md` |
+| UAEval4RAG, sufficient-context abstention rates | different corpora and unanswerable-question construction from ragkit's EU abstention set; see `docs/sota-review.md` section 7 |
+
+### Verdict
+
+1. **Our BM25 is correct.** `bm25-lucene` matches Pyserini flat and multifield within 0.007 nDCG@10 on all six datasets. `bm25-ragkit` ties it on the mean (0.501 vs 0.503), but that hides opposite per-dataset gaps: −0.047 on Quora and −0.015 on SciFact (no stemming) against +0.069 on ArguAna (Anserini's b 0.4 hurts there, see the ladder).
+2. **We lose to every neural system on aggregate.** Mean nDCG@10: ours 0.50, Contriever 0.54, ColBERTv2 0.57, SPLADE++ 0.58, BGE-base 0.64, NV-Embed-v2 0.73, Qwen3-Embedding-8B 0.74. The gap is largest on FiQA (0.235 vs 0.65 for the 7B to 8B models, 0.41 for BGE-base), TREC-COVID (0.595 vs 0.95) and ArguAna against the best models (0.40 to 0.47 vs 0.77). It is smallest on SciFact and NFCorpus against Contriever (0.678 vs 0.677, 0.320 vs 0.328): there our BM25 ties.
+3. **Wins are few.** `bm25-ragkit` on ArguAna (0.466) is level with ColBERTv2 (0.463; our CI is [0.448, 0.484]) and above Contriever (0.446), Pyserini BM25 (0.397) and the BEIR cross-encoder rerank (0.311). Nothing beats BGE-base, SPLADE or the large embedders on any dataset. Touché-2020, where BM25 is known to beat dense models, was not run, so that known BM25 win is not shown here.
+4. **Recall is less bad than ranking.** Mean Recall@100: ours 0.62, BGE-base 0.70, Qwen3-Embedding-8B 0.75. The BM25 top 100 contains much of what a stronger ranker would need, but our reranker cannot use it.
+5. **Our lexical reranker makes results worse.** It lowers nDCG@10 by 0.09 to 0.10 on average relative to its own BM25 first stage (0.399 vs 0.501, 0.410 vs 0.503); the BEIR paper's cross-encoder raises BM25 by 0.03 to 0.05 over the same six datasets (BM25+CE 0.546 vs Pyserini multifield 0.514 and the paper's own BM25 0.498). A post-hoc diagnostic (not in the protocol, SciFact and NFCorpus only, `rerank-lucene` with one component at a time): pool-local BM25 alone gives 0.661 / 0.305 against 0.678 / 0.320 for full-index BM25, so pool-local IDF costs about 0.015; coverage alone gives 0.616 / 0.305; proximity alone gives 0.092 / 0.261; the default mix gives 0.622 / 0.302. Proximity is the term that fails on SciFact. Nothing was changed because of this.
+6. **On LegalBench-RAG-mini we lose by roughly 2x to 3.5x on recall.** `bm25-naive500` has Recall@8 9.89 against 31.86 for the paper's dense baseline (Recall@1 2.36 vs 8.48, Recall@64 32.05 vs 63.49), and Precision@8 1.30 against 5.25. Lucene-matched BM25 improves to 13.37 and 1.93 and still loses at every cutoff on ALL and on every source at Recall@8. Rerank is worse than BM25 again (7.84).
+
+What this says about ragkit: the value of the project is the measurement discipline and the model-free ablations, not retrieval quality. For corpora like those above, a dense or learned-sparse retriever is the baseline to use. Abstention is a separate result: ragkit's EU-regulation answerability work (signals compared in the sections above) sits next to UAEval4RAG and sufficient-context in `docs/sota-review.md` section 7, but those papers use different corpora and generators, so there is no head-to-head number.
 
 ## Design decisions
 - **Protocols for every model boundary** (`Embedder`, `Reranker`, `LLM`, `Generator`): offline defaults keep tests deterministic, and neural models plug in through extras.

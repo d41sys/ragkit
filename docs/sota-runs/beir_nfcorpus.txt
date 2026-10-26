@@ -1,0 +1,24 @@
+
+### ragkit beir: nfcorpus (test, model-free)
+
+323 test queries, 3633 documents; mean [bootstrap 95% CI over queries]
+
+| System | nDCG@10 | Recall@100 | s |
+|---|---|---|---|
+| bm25-ragkit | 0.310 [0.275, 0.347] | 0.235 [0.206, 0.266] | 1 |
+| bm25-lucene | 0.320 [0.285, 0.357] | 0.246 [0.217, 0.276] | 4 |
+| bm25-mf-lucene | 0.325 [0.290, 0.362] | 0.250 [0.220, 0.279] | 4 |
+| bm25f-ragkit | 0.308 [0.274, 0.345] | 0.236 [0.207, 0.267] | 0 |
+| bm25f-lucene | 0.321 [0.286, 0.358] | 0.247 [0.218, 0.277] | 2 |
+| rerank-ragkit | 0.283 [0.247, 0.319] | 0.235 [0.206, 0.266] | 1 |
+| rerank-lucene | 0.302 [0.267, 0.336] | 0.246 [0.217, 0.276] | 20 |
+
+Published, same dataset/split/metrics (Pyserini BEIR 2CR table, https://castorini.github.io/pyserini/2cr/beir.html):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.322 | 0.246 |
+| Pyserini BM25 multifield | 0.325 | 0.250 |
+| Pyserini SPLADE++ ED | 0.347 | 0.285 |
+| Pyserini Contriever-msmarco | 0.328 | 0.301 |
+| Pyserini BGE-base-en-v1.5 | 0.373 | 0.337 |

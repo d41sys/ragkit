@@ -1,0 +1,23 @@
+
+### ragkit beir: fiqa (test, model-free)
+
+648 test queries, 57638 documents; mean [bootstrap 95% CI over queries]
+
+| System | nDCG@10 | Recall@100 | s |
+|---|---|---|---|
+| bm25-ragkit | 0.234 [0.210, 0.257] | 0.507 [0.476, 0.538] | 3 |
+| bm25-lucene | 0.235 [0.211, 0.259] | 0.538 [0.507, 0.569] | 22 |
+| rerank-ragkit | 0.168 [0.149, 0.190] | 0.507 [0.476, 0.538] | 8 |
+| rerank-lucene | 0.168 [0.147, 0.190] | 0.538 [0.507, 0.569] | 56 |
+
+Published, same dataset/split/metrics (Pyserini BEIR 2CR table, https://castorini.github.io/pyserini/2cr/beir.html):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.236 | 0.539 |
+| Pyserini BM25 multifield | 0.236 | 0.539 |
+| Pyserini SPLADE++ ED | 0.347 | 0.631 |
+| Pyserini Contriever-msmarco | 0.329 | 0.656 |
+| Pyserini BGE-base-en-v1.5 | 0.406 | 0.742 |
+
+(no document titles in fiqa; skipped: bm25-mf-lucene, bm25f-ragkit, bm25f-lucene)

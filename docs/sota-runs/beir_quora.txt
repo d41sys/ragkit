@@ -1,0 +1,23 @@
+
+### ragkit beir: quora (test, model-free)
+
+10000 test queries, 522931 documents; mean [bootstrap 95% CI over queries]
+
+| System | nDCG@10 | Recall@100 | s |
+|---|---|---|---|
+| bm25-ragkit | 0.742 [0.736, 0.749] | 0.949 [0.945, 0.953] | 41 |
+| bm25-lucene | 0.789 [0.783, 0.795] | 0.973 [0.971, 0.976] | 39 |
+| rerank-ragkit | 0.634 [0.626, 0.642] | 0.949 [0.945, 0.953] | 53 |
+| rerank-lucene | 0.708 [0.701, 0.715] | 0.973 [0.971, 0.976] | 67 |
+
+Published, same dataset/split/metrics (Pyserini BEIR 2CR table, https://castorini.github.io/pyserini/2cr/beir.html):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.789 | 0.973 |
+| Pyserini BM25 multifield | 0.789 | 0.973 |
+| Pyserini SPLADE++ ED | 0.834 | 0.986 |
+| Pyserini Contriever-msmarco | 0.865 | 0.994 |
+| Pyserini BGE-base-en-v1.5 | 0.889 | 0.997 |
+
+(no document titles in quora; skipped: bm25-mf-lucene, bm25f-ragkit, bm25f-lucene)

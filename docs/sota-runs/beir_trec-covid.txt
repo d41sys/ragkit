@@ -1,0 +1,24 @@
+
+### ragkit beir: trec-covid (test, model-free)
+
+50 test queries, 171332 documents; mean [bootstrap 95% CI over queries]
+
+| System | nDCG@10 | Recall@100 | s |
+|---|---|---|---|
+| bm25-ragkit | 0.590 [0.516, 0.666] | 0.099 [0.084, 0.116] | 14 |
+| bm25-lucene | 0.595 [0.525, 0.664] | 0.109 [0.092, 0.127] | 81 |
+| bm25-mf-lucene | 0.658 [0.587, 0.722] | 0.115 [0.099, 0.131] | 70 |
+| bm25f-ragkit | 0.627 [0.555, 0.701] | 0.099 [0.084, 0.116] | 15 |
+| bm25f-lucene | 0.611 [0.535, 0.682] | 0.110 [0.093, 0.128] | 69 |
+| rerank-ragkit | 0.356 [0.288, 0.430] | 0.099 [0.084, 0.116] | 10 |
+| rerank-lucene | 0.410 [0.338, 0.488] | 0.109 [0.092, 0.127] | 66 |
+
+Published, same dataset/split/metrics (Pyserini BEIR 2CR table, https://castorini.github.io/pyserini/2cr/beir.html):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.595 | 0.109 |
+| Pyserini BM25 multifield | 0.656 | 0.114 |
+| Pyserini SPLADE++ ED | 0.727 | 0.128 |
+| Pyserini Contriever-msmarco | 0.596 | 0.091 |
+| Pyserini BGE-base-en-v1.5 | 0.781 | 0.141 |

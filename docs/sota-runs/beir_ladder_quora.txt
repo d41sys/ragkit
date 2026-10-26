@@ -1,0 +1,23 @@
+
+### ragkit beir: quora (test, model-free)
+
+10000 test queries, 522931 documents; mean [bootstrap 95% CI over queries]
+
+| System | nDCG@10 | Recall@100 | s |
+|---|---|---|---|
+| L0 default | 0.742 [0.736, 0.749] | 0.949 [0.945, 0.953] | 41 |
+| L1 +lucene tokens | 0.743 [0.736, 0.750] | 0.949 [0.946, 0.953] | 46 |
+| L2 +stop words | 0.750 [0.744, 0.757] | 0.953 [0.949, 0.956] | 26 |
+| L3 +Porter | 0.806 [0.800, 0.812] | 0.977 [0.975, 0.980] | 37 |
+| L4 k1=0.9 b=0.4 | 0.789 [0.783, 0.795] | 0.973 [0.971, 0.976] | 36 |
+| L5 +Lucene length norm | 0.789 [0.783, 0.795] | 0.973 [0.971, 0.976] | 35 |
+
+Published, same dataset/split/metrics (Pyserini BEIR 2CR table, https://castorini.github.io/pyserini/2cr/beir.html):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.789 | 0.973 |
+| Pyserini BM25 multifield | 0.789 | 0.973 |
+| Pyserini SPLADE++ ED | 0.834 | 0.986 |
+| Pyserini Contriever-msmarco | 0.865 | 0.994 |
+| Pyserini BGE-base-en-v1.5 | 0.889 | 0.997 |

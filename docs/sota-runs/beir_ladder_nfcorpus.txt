@@ -1,0 +1,23 @@
+
+### ragkit beir: nfcorpus (test, model-free)
+
+323 test queries, 3633 documents; mean [bootstrap 95% CI over queries]
+
+| System | nDCG@10 | Recall@100 | s |
+|---|---|---|---|
+| L0 default | 0.310 [0.275, 0.347] | 0.235 [0.206, 0.266] | 0 |
+| L1 +lucene tokens | 0.311 [0.276, 0.348] | 0.236 [0.207, 0.267] | 0 |
+| L2 +stop words | 0.310 [0.275, 0.346] | 0.236 [0.207, 0.267] | 0 |
+| L3 +Porter | 0.325 [0.290, 0.362] | 0.247 [0.217, 0.277] | 2 |
+| L4 k1=0.9 b=0.4 | 0.320 [0.285, 0.357] | 0.246 [0.217, 0.276] | 2 |
+| L5 +Lucene length norm | 0.321 [0.286, 0.358] | 0.246 [0.217, 0.276] | 5 |
+
+Published, same dataset/split/metrics (Pyserini BEIR 2CR table, https://castorini.github.io/pyserini/2cr/beir.html):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.322 | 0.246 |
+| Pyserini BM25 multifield | 0.325 | 0.250 |
+| Pyserini SPLADE++ ED | 0.347 | 0.285 |
+| Pyserini Contriever-msmarco | 0.328 | 0.301 |
+| Pyserini BGE-base-en-v1.5 | 0.373 | 0.337 |

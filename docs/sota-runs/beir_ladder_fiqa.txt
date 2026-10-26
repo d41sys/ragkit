@@ -1,0 +1,23 @@
+
+### ragkit beir: fiqa (test, model-free)
+
+648 test queries, 57638 documents; mean [bootstrap 95% CI over queries]
+
+| System | nDCG@10 | Recall@100 | s |
+|---|---|---|---|
+| L0 default | 0.234 [0.210, 0.257] | 0.507 [0.476, 0.538] | 6 |
+| L1 +lucene tokens | 0.231 [0.207, 0.254] | 0.507 [0.476, 0.538] | 4 |
+| L2 +stop words | 0.234 [0.210, 0.257] | 0.515 [0.484, 0.547] | 5 |
+| L3 +Porter | 0.253 [0.229, 0.279] | 0.555 [0.524, 0.586] | 22 |
+| L4 k1=0.9 b=0.4 | 0.235 [0.211, 0.259] | 0.538 [0.507, 0.569] | 19 |
+| L5 +Lucene length norm | 0.235 [0.212, 0.260] | 0.538 [0.507, 0.568] | 16 |
+
+Published, same dataset/split/metrics (Pyserini BEIR 2CR table, https://castorini.github.io/pyserini/2cr/beir.html):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.236 | 0.539 |
+| Pyserini BM25 multifield | 0.236 | 0.539 |
+| Pyserini SPLADE++ ED | 0.347 | 0.631 |
+| Pyserini Contriever-msmarco | 0.329 | 0.656 |
+| Pyserini BGE-base-en-v1.5 | 0.406 | 0.742 |

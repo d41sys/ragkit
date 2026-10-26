@@ -1,0 +1,23 @@
+
+### ragkit beir: scifact (test, model-free)
+
+300 test queries, 5183 documents; mean [bootstrap 95% CI over queries]
+
+| System | nDCG@10 | Recall@100 | s |
+|---|---|---|---|
+| L0 default | 0.664 [0.617, 0.710] | 0.886 [0.847, 0.920] | 1 |
+| L1 +lucene tokens | 0.666 [0.619, 0.712] | 0.886 [0.847, 0.920] | 1 |
+| L2 +stop words | 0.669 [0.621, 0.715] | 0.886 [0.847, 0.920] | 1 |
+| L3 +Porter | 0.688 [0.643, 0.731] | 0.928 [0.896, 0.955] | 6 |
+| L4 k1=0.9 b=0.4 | 0.678 [0.632, 0.722] | 0.925 [0.893, 0.953] | 3 |
+| L5 +Lucene length norm | 0.679 [0.634, 0.723] | 0.925 [0.893, 0.953] | 3 |
+
+Published, same dataset/split/metrics (Pyserini BEIR 2CR table, https://castorini.github.io/pyserini/2cr/beir.html):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.679 | 0.925 |
+| Pyserini BM25 multifield | 0.665 | 0.908 |
+| Pyserini SPLADE++ ED | 0.704 | 0.935 |
+| Pyserini Contriever-msmarco | 0.677 | 0.947 |
+| Pyserini BGE-base-en-v1.5 | 0.741 | 0.967 |

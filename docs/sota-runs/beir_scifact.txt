@@ -1,0 +1,24 @@
+
+### ragkit beir: scifact (test, model-free)
+
+300 test queries, 5183 documents; mean [bootstrap 95% CI over queries]
+
+| System | nDCG@10 | Recall@100 | s |
+|---|---|---|---|
+| bm25-ragkit | 0.664 [0.617, 0.710] | 0.886 [0.847, 0.920] | 0 |
+| bm25-lucene | 0.678 [0.632, 0.722] | 0.925 [0.893, 0.953] | 3 |
+| bm25-mf-lucene | 0.665 [0.620, 0.710] | 0.908 [0.873, 0.938] | 3 |
+| bm25f-ragkit | 0.672 [0.625, 0.718] | 0.883 [0.842, 0.917] | 1 |
+| bm25f-lucene | 0.684 [0.639, 0.729] | 0.929 [0.896, 0.955] | 3 |
+| rerank-ragkit | 0.608 [0.561, 0.655] | 0.886 [0.847, 0.920] | 2 |
+| rerank-lucene | 0.622 [0.575, 0.667] | 0.925 [0.893, 0.953] | 19 |
+
+Published, same dataset/split/metrics (Pyserini BEIR 2CR table, https://castorini.github.io/pyserini/2cr/beir.html):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.679 | 0.925 |
+| Pyserini BM25 multifield | 0.665 | 0.908 |
+| Pyserini SPLADE++ ED | 0.704 | 0.935 |
+| Pyserini Contriever-msmarco | 0.677 | 0.947 |
+| Pyserini BGE-base-en-v1.5 | 0.741 | 0.967 |
