@@ -53,6 +53,9 @@ from ragkit.eval import (
     wilson_interval,
 )
 from ragkit.hybrid import HybridRetriever
+from ragkit.legalbench import DEFAULT_LEGALBENCH_ZIP, load_mini, render_legalbench_report
+from ragkit.legalbench import SYSTEMS as LEGAL_SYSTEMS
+from ragkit.legalbench import evaluate_system as evaluate_legal
 from ragkit.lexical import evaluate as evaluate_lexical
 from ragkit.lexical import questions_from_records, render_decision_inputs, render_report
 from ragkit.lexical_explain import explain as explain_lexical
@@ -794,6 +797,26 @@ def cmd_beir(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_legalbench(args: argparse.Namespace) -> int:
+    """Model-free retrievers on LegalBench-RAG-mini (docs/legalbench_protocol.md)."""
+    by_name = {s.name: s for s in LEGAL_SYSTEMS}
+    if args.systems == "all":
+        specs = list(LEGAL_SYSTEMS)
+    else:
+        unknown = [n for n in args.systems.split(",") if n not in by_name]
+        if unknown:
+            print(
+                f"Error: unknown systems {unknown}; choose from {sorted(by_name)}", file=sys.stderr
+            )
+            return 2
+        specs = [by_name[n] for n in args.systems.split(",")]
+    bench = load_mini(Path(args.data_zip), download=not args.no_download)
+    results = [evaluate_legal(s, bench, max_queries=args.max_queries) for s in specs]
+    print()
+    print(render_legalbench_report(bench, results))
+    return 0
+
+
 def cmd_fetch_eu(args: argparse.Namespace) -> int:
     """Download the EU legal acts and rebuild the article-level corpus (needs network)."""
     doc_ids = build_corpus(
@@ -936,6 +959,26 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--max-queries", type=int, default=None, help="Score only the first N queries (smoke test)."
     )
 
+    # LegalBench-RAG command
+    p_lbr = subparsers.add_parser(
+        "legalbench",
+        help="Model-free retrievers on LegalBench-RAG-mini: character precision/recall at k.",
+    )
+    p_lbr.add_argument(
+        "--systems",
+        default="all",
+        help="all, or comma-separated system ids from docs/legalbench_protocol.md.",
+    )
+    p_lbr.add_argument(
+        "--data-zip",
+        default=str(DEFAULT_LEGALBENCH_ZIP),
+        help="The authors' Dropbox archive (downloaded when missing, gitignored).",
+    )
+    p_lbr.add_argument("--no-download", action="store_true", help="Fail if the zip is missing.")
+    p_lbr.add_argument(
+        "--max-queries", type=int, default=None, help="Score only N queries per source (smoke)."
+    )
+
     # Fetch-EU command
     p_fetch = subparsers.add_parser(
         "fetch-eu", help="Download EUR-Lex acts and rebuild the article-level EU corpus."
@@ -962,6 +1005,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_lexical(parsed))
     elif parsed.subcommand == "beir":
         sys.exit(cmd_beir(parsed))
+    elif parsed.subcommand == "legalbench":
+        sys.exit(cmd_legalbench(parsed))
     elif parsed.subcommand == "abstention":
         sys.exit(cmd_abstention(parsed))
     elif parsed.subcommand == "ablation":
