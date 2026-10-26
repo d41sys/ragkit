@@ -140,7 +140,10 @@ def load_beir(
         qrels: dict[str, dict[str, int]] = {}
         with zf.open(f"{name}/qrels/{split}.tsv") as handle:
             for i, raw in enumerate(handle):
-                parts = raw.decode("utf-8").rstrip("\n").split("\t")
+                line = raw.decode("utf-8").strip()  # some BEIR qrels files use CRLF
+                if not line:
+                    continue
+                parts = line.split("\t")
                 if i == 0 and parts[-1] == "score":
                     continue
                 qid, did, score = parts[0], parts[1], int(parts[2])

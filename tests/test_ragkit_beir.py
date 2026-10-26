@@ -40,7 +40,7 @@ def _make_zip(root: Path, name: str = "tiny") -> None:
         for q, t in [("q1", "domestic animals"), ("q2", "stock market"), ("q3", "nothing")]
     )
     rows = ["q1\td1\t1", "q1\td2\t1", "q2\td3\t2", "q2\td4\t1", "q2\td1\t0", "q3\td1\t0"]
-    qrels = "\n".join(["query-id\tcorpus-id\tscore", *rows]) + "\n"
+    qrels = "\r\n".join(["query-id\tcorpus-id\tscore", *rows]) + "\r\n"
     with zipfile.ZipFile(root / f"{name}.zip", "w") as zf:
         zf.writestr(f"{name}/corpus.jsonl", corpus)
         zf.writestr(f"{name}/queries.jsonl", queries)
