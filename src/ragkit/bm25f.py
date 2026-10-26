@@ -6,7 +6,9 @@ import math
 from collections import Counter
 from collections.abc import Callable, Sequence
 
-from ragkit.bm25 import tokenize
+import numpy as np
+
+from ragkit.bm25 import tokenize, top_k_indices
 from ragkit.chunking import Chunk
 
 
@@ -49,6 +51,8 @@ class BM25FIndex:
         self.postings: dict[str, list[tuple[int, int, int]]] = {}
         self.avg_title_len = 0.0
         self.avg_body_len = 0.0
+        self._arrays: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
+        self._norms: tuple[float, np.ndarray, np.ndarray] | None = None
 
     def add(self, chunks: Sequence[Chunk]) -> None:
         """Add chunks to the index and update corpus statistics."""
@@ -66,6 +70,8 @@ class BM25FIndex:
         n = max(1, len(self.chunks))
         self.avg_title_len = sum(self.title_lens) / n
         self.avg_body_len = sum(self.body_lens) / n
+        self._arrays = {}
+        self._norms = None
 
     def idf(self, term: str) -> float:
         """Robertson/Spärck Jones IDF with +1 smoothing."""
@@ -85,28 +91,44 @@ class BM25FIndex:
         """
         if not self.chunks:
             return []
-        terms = [(t, 1.0) for t in self.analyzer(query)] if isinstance(query, str) else list(query)
+        return [(self.chunks[i], s) for i, s in top_k_indices(self.score_all(query), k)]
 
-        scores = [0.0] * len(self.chunks)
+    def score_all(self, query: str | Sequence[tuple[str, float]]) -> np.ndarray:
+        """BM25F score of every indexed chunk (zeros for chunks sharing no query term)."""
+        terms = [(t, 1.0) for t in self.analyzer(query)] if isinstance(query, str) else list(query)
+        scores = np.zeros(len(self.chunks), dtype=np.float64)
+        if not self.chunks:
+            return scores
+        if self._norms is None or self._norms[0] != self.b:  # ``b`` may be reassigned
+            title_len = np.asarray(self.title_lens, dtype=np.float64)
+            body_len = np.asarray(self.body_lens, dtype=np.float64)
+            # A zero norm needs b == 1 and an empty field; its term frequency is 0 anyway.
+            title_norm = 1.0 - self.b + self.b * title_len / (self.avg_title_len or 1.0)
+            body_norm = 1.0 - self.b + self.b * body_len / (self.avg_body_len or 1.0)
+            self._norms = (
+                self.b,
+                np.where(title_norm > 0.0, title_norm, 1.0),
+                np.where(body_norm > 0.0, body_norm, 1.0),
+            )
+        _, title_norm, body_norm = self._norms
         for term, q_weight in terms:
             term_idf = self.idf(term)
             if term_idf == 0.0 or q_weight == 0.0:
                 continue
-            for idx, title_tf, body_tf in self.postings.get(term, ()):
-                tf = self._combined_tf(idx, title_tf, body_tf)
-                if tf > 0.0:
-                    scores[idx] += q_weight * term_idf * (self.k1 + 1.0) * tf / (self.k1 + tf)
-
-        ranked = [(self.chunks[i], s) for i, s in enumerate(scores) if s > 0.0]
-        ranked.sort(key=lambda item: item[1], reverse=True)
-        return ranked[:k]
-
-    def _combined_tf(self, idx: int, title_tf: int, body_tf: int) -> float:
-        total = 0.0
-        if title_tf:
-            norm = 1.0 - self.b + self.b * self.title_lens[idx] / (self.avg_title_len or 1.0)
-            total += self.title_weight * title_tf / norm
-        if body_tf:
-            norm = 1.0 - self.b + self.b * self.body_lens[idx] / (self.avg_body_len or 1.0)
-            total += self.body_weight * body_tf / norm
-        return total
+            arrays = self._arrays.get(term)
+            if arrays is None:
+                post = self.postings[term]
+                arrays = (
+                    np.asarray([p[0] for p in post], dtype=np.int64),
+                    np.asarray([p[1] for p in post], dtype=np.float64),
+                    np.asarray([p[2] for p in post], dtype=np.float64),
+                )
+                self._arrays[term] = arrays
+            idx, title_tf, body_tf = arrays
+            tf = self.title_weight * title_tf / title_norm[idx]
+            tf = tf + self.body_weight * body_tf / body_norm[idx]
+            positive = tf > 0.0
+            if not positive.all():
+                idx, tf = idx[positive], tf[positive]
+            scores[idx] += q_weight * term_idf * (self.k1 + 1.0) * tf / (self.k1 + tf)
+        return scores

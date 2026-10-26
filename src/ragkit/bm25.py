@@ -46,7 +46,7 @@ class BM25Index:
         self.avgdl: float = 0.0
         # term -> (chunk indices, term frequencies), in chunk order
         self._postings: dict[str, tuple[list[int], list[int]]] = {}
-        self._norm: np.ndarray | None = None
+        self._norm: tuple[float, np.ndarray] | None = None
         self._arrays: dict[str, tuple[np.ndarray, np.ndarray]] = {}
 
     def add(self, chunks: Sequence[Chunk]) -> None:
@@ -77,13 +77,13 @@ class BM25Index:
         return math.log((n - df_val + 0.5) / (df_val + 0.5) + 1.0)
 
     def _length_norms(self) -> np.ndarray:
-        if self._norm is None:
+        if self._norm is None or self._norm[0] != self.b:  # ``b`` may be reassigned
             lens = self.doc_lens
             if self.length_fn is not None:
                 lens = [self.length_fn(n) for n in lens]
             dl = np.asarray(lens, dtype=np.float64)
-            self._norm = 1.0 - self.b + self.b * (dl / (self.avgdl or 1.0))
-        return self._norm
+            self._norm = (self.b, 1.0 - self.b + self.b * (dl / (self.avgdl or 1.0)))
+        return self._norm[1]
 
     def _posting_arrays(self, term: str) -> tuple[np.ndarray, np.ndarray]:
         cached = self._arrays.get(term)

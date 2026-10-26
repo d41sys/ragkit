@@ -27,6 +27,16 @@ from ragkit.abstention import (
     paired_auroc_ci,
     risk_at_coverage,
 )
+from ragkit.beir import (
+    BEIR_DATASETS,
+    DEFAULT_BEIR_DIR,
+    LADDER,
+    SYSTEMS,
+    SystemSpec,
+    evaluate_system,
+    load_beir,
+    render_beir_report,
+)
 from ragkit.bm25 import BM25Index
 from ragkit.chunking import Chunk, fixed, recursive, semantic, sentence
 from ragkit.dense import DenseIndex
@@ -755,6 +765,35 @@ def cmd_lexical(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_beir(args: argparse.Namespace) -> int:
+    """Model-free retrievers on a BEIR test set (docs/beir_protocol.md); nDCG@10 and Recall@100."""
+    names = list(BEIR_DATASETS) if args.dataset == "all" else [args.dataset]
+    by_name = {spec.name: spec for spec in SYSTEMS}
+    if args.systems == "all":
+        specs: list[SystemSpec] = list(SYSTEMS)
+    else:
+        unknown = [n for n in args.systems.split(",") if n not in by_name]
+        if unknown:
+            print(
+                f"Error: unknown systems {unknown}; choose from {sorted(by_name)}", file=sys.stderr
+            )
+            return 2
+        specs = [by_name[n] for n in args.systems.split(",")]
+    if args.ladder:
+        specs = list(LADDER)
+    for name in names:
+        data = load_beir(name, Path(args.data_dir), split="test", download=not args.no_download)
+        runnable = [s for s in specs if data.has_titles or not s.needs_titles]
+        skipped = [s.name for s in specs if s not in runnable]
+        results = [evaluate_system(s, data, max_queries=args.max_queries) for s in runnable]
+        title = f"ragkit beir: {name} (test, model-free)"
+        print()
+        print(render_beir_report(data, results, title=title))
+        if skipped:
+            print(f"\n(no document titles in {name}; skipped: {', '.join(skipped)})")
+    return 0
+
+
 def cmd_fetch_eu(args: argparse.Namespace) -> int:
     """Download the EU legal acts and rebuild the article-level corpus (needs network)."""
     doc_ids = build_corpus(
@@ -870,6 +909,33 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="Print the post-hoc diagnosis of the A0 vs A4 Recall@5 changes instead of the report.",
     )
 
+    # BEIR command
+    p_beir = subparsers.add_parser(
+        "beir",
+        help="Model-free retrievers on a BEIR test set: nDCG@10 and Recall@100 vs Pyserini.",
+    )
+    p_beir.add_argument(
+        "--dataset",
+        default="scifact",
+        choices=[*BEIR_DATASETS, "all"],
+        help="BEIR dataset (test split); the zip is downloaded to --data-dir when missing.",
+    )
+    p_beir.add_argument(
+        "--systems",
+        default="all",
+        help="all, or comma-separated system ids from docs/beir_protocol.md.",
+    )
+    p_beir.add_argument(
+        "--ladder",
+        action="store_true",
+        help="run the analyzer / k1,b diagnostic ladder L0-L5 instead of the systems.",
+    )
+    p_beir.add_argument("--data-dir", default=str(DEFAULT_BEIR_DIR), help="Gitignored zip cache.")
+    p_beir.add_argument("--no-download", action="store_true", help="Fail if the zip is missing.")
+    p_beir.add_argument(
+        "--max-queries", type=int, default=None, help="Score only the first N queries (smoke test)."
+    )
+
     # Fetch-EU command
     p_fetch = subparsers.add_parser(
         "fetch-eu", help="Download EUR-Lex acts and rebuild the article-level EU corpus."
@@ -894,6 +960,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_eval(parsed))
     elif parsed.subcommand == "lexical":
         sys.exit(cmd_lexical(parsed))
+    elif parsed.subcommand == "beir":
+        sys.exit(cmd_beir(parsed))
     elif parsed.subcommand == "abstention":
         sys.exit(cmd_abstention(parsed))
     elif parsed.subcommand == "ablation":
