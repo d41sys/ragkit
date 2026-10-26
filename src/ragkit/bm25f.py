@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from ragkit.bm25 import tokenize
 from ragkit.chunking import Chunk
@@ -32,6 +32,7 @@ class BM25FIndex:
         b: float = 0.75,
         title_weight: float = 2.0,
         body_weight: float = 1.0,
+        analyzer: Callable[[str], list[str]] = tokenize,
     ) -> None:
         if title_weight < 0.0 or body_weight < 0.0:
             raise ValueError("field weights must be non-negative")
@@ -39,6 +40,7 @@ class BM25FIndex:
         self.b = b
         self.title_weight = title_weight
         self.body_weight = body_weight
+        self.analyzer = analyzer
         self.chunks: list[Chunk] = []
         self.title_lens: list[int] = []
         self.body_lens: list[int] = []
@@ -52,8 +54,8 @@ class BM25FIndex:
         """Add chunks to the index and update corpus statistics."""
         for chunk in chunks:
             idx = len(self.chunks)
-            title_tf = Counter(tokenize(chunk.title))
-            body_tf = Counter(tokenize(chunk.text))
+            title_tf = Counter(self.analyzer(chunk.title))
+            body_tf = Counter(self.analyzer(chunk.text))
             self.chunks.append(chunk)
             self.title_lens.append(sum(title_tf.values()))
             self.body_lens.append(sum(body_tf.values()))
@@ -83,7 +85,7 @@ class BM25FIndex:
         """
         if not self.chunks:
             return []
-        terms = [(t, 1.0) for t in tokenize(query)] if isinstance(query, str) else list(query)
+        terms = [(t, 1.0) for t in self.analyzer(query)] if isinstance(query, str) else list(query)
 
         scores = [0.0] * len(self.chunks)
         for term, q_weight in terms:

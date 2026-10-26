@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import Protocol, runtime_checkable
 
 from ragkit.bm25 import tokenize
@@ -40,7 +40,9 @@ class LexicalReranker:
         weight_bm25: float = 0.3,
         k1: float = 1.5,
         b: float = 0.75,
+        analyzer: Callable[[str], list[str]] = tokenize,
     ) -> None:
+        self.analyzer = analyzer
         self.w_cov = weight_coverage
         self.w_prox = weight_proximity
         self.w_bm25 = weight_bm25
@@ -100,14 +102,14 @@ class LexicalReranker:
         if not candidates:
             return []
 
-        q_token_list = tokenize(query)
+        q_token_list = self.analyzer(query)
         q_terms = set(q_token_list)
         if not q_terms:
             return list(candidates[:top_k])
 
         # Compute corpus statistics across the candidate pool for local BM25
         n = len(candidates)
-        tokenized_pool = [tokenize(c.text) for c, _ in candidates]
+        tokenized_pool = [self.analyzer(c.text) for c, _ in candidates]
         lens = [len(toks) for toks in tokenized_pool]
         avgdl = sum(lens) / max(1, n)
 
