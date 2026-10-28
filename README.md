@@ -39,6 +39,7 @@ uv run ragkit abstention --corpus synthetic --signals all        # same table on
 uv run ragkit abstention --corpus eu --signals all --model-signals   # + cross-encoder and SQuAD2 reader signals (needs `uv sync --extra st`; downloads two HF models once)
 uv run ragkit lexical --corpus eu                                # model-free lexical retrieval comparison (no model is loaded); `--corpus synthetic` for the regression check
 uv run ragkit lexical --corpus eu --explain                      # post-hoc diagnosis of the A0 vs A4 top-5 changes (also model-free)
+uv run ragkit ctxprefix --protocol                               # model-free context prefix on every chunk: fresh questions, old 42 (tainted), synthetic guard, decision rule
 uv run ragkit beir --dataset scifact                              # BEIR test set, model-free; `--dataset all` for the six datasets below, `--ladder` for the BM25-vs-Pyserini ladder
 uv run ragkit legalbench                                          # LegalBench-RAG-mini (776 queries, 72 contracts), official character-overlap metric
 # any of eval / abstention / ablation also take --corpus-dir, --qa-file, --unanswerable-file, --cohort
@@ -291,6 +292,62 @@ Counting every crossing, not only the net ones (relevant articles out / in): hea
 - *Generic headings (act name and boilerplate) get boosted:* the heading step's top-5 entries are driven by a word of the article heading in 27 of 32 cases, by the act name alone in 3 and by idf or length shifts alone in 2; the heading field does not work mainly through boilerplate.
 
 **Hypothesis for future work (untested).** The loss comes mostly from the heading field, not from chunking or expansion (2 of the 3 lost pairs, 4 of 6 relevant crossings out). Computing document frequency from the body only (so heading words do not lower idf everywhere, the Q24 mechanism) and capping the heading contribution so that one rare heading word cannot lift an article by more than the typical rank-5 to rank-10 score gap (Q22's +4.43 against a gap of a few tenths) should remove the lost pairs without losing Q25's gain. Not run: it needs new questions or a fresh pre-registered protocol, since these 42 are now used for diagnosis.
+
+### Model-free context prefix: `ragkit ctxprefix --protocol`
+
+Does prepending `<act title> — Article N: <article heading>` to **every** chunk, in both the BM25 text and the hashing-dense text, fix the wrong-document failure across near-identical articles? This is a model-free version of contextual retrieval (Anthropic's contextual retrieval; arXiv 2510.06999): the context string is the article's own heading, so nothing is generated. The recursive 500/50 chunks are unchanged apart from the prefix (a leading `# heading` line is replaced by it, so the first chunk does not carry the heading twice); queries are never modified. Retrievers are pinned to `BM25Index` and `HybridRetriever(BM25Index, DenseIndex(HashingEmbedder))`, the two rows of `ragkit eval`, with no reranker and no sentence-transformers model (`tests/test_ragkit_ctxprefix.py` runs both the single-set command and `--protocol` in a subprocess and checks that `sentence_transformers`, `torch` and `transformers` are never imported).
+
+**Result: the prefix is not adopted, for BM25 or for the hybrid.** On the fresh question set its paired MRR gain has a CI that includes 0 for both retrievers (BM25 +0.032 [-0.017, +0.095], hybrid +0.000 [-0.072, +0.072]); the synthetic guard did not regress, so the only failed condition was the gain.
+
+**Order of work** (`git log`): fresh questions (`2662cea`, 29 questions; that commit message says 30, a miscount), adversarial review pass (`e9b2741`), protocol and decision rule (`284b957`, [`docs/ctxprefix_protocol.md`](docs/ctxprefix_protocol.md)), code (`ac086c0`), then the first scored run (`runs/ctxprefix_protocol.txt`). No prefix variant was run on any question before the protocol commit.
+
+**Fresh set.** The 42 questions of `qa_eu.jsonl` were used in earlier diagnosis, so they cannot decide this. `src/ragkit/data/qa_eu_fresh.jsonl` holds 29 new answerable questions with provenance, aimed at the failure the prefix targets: 14 `near-duplicate` (sibling articles with near-identical text, such as the four European platform articles 19/20/21/22 of Regulation 2017/2195, or DSO versus TSO storage ownership), 8 `cross-act` (the same topic in another act: congestion income, firmness, bidding zone review) and 7 `paraphrase`. An agent drafted them (`status: draft-agent`) after reading the cited articles; a separate agent then reviewed each one adversarially (answer support, one reading, grep for other articles that also answer) without running any retriever, fixing 6 and adding 2 relevant ids ([`docs/qa_eu_fresh_review.md`](docs/qa_eu_fresh_review.md)). **No human reviewed them**, and both agents are probably the same model family. Two questions were rewritten in review to name their act (`2015/1222`, `Regulation 2017/2195`); that can only help the prefix, so a non-gating sensitivity row drops them.
+
+Decision rule, committed before scoring: adopt a retriever's prefix iff the fresh-set paired MRR CI lower bound is above 0 and the synthetic paired MRR is at least -0.02 with a CI upper bound that is not below 0. The old 42 questions are reported, labelled tainted, and never gate.
+
+```bash
+uv run ragkit ctxprefix --protocol > runs/ctxprefix_protocol.txt   # fresh, old 42, synthetic, sensitivity
+uv run ragkit ctxprefix --corpus eu --qa-file my_questions.jsonl   # one set, any questions
+```
+
+Fresh EU set (29 questions; mean [bootstrap 95% CI over questions, 2000 resamples]; paired difference = prefix minus base on the same questions):
+
+| Retriever | Chunk text | Recall@5 | MRR | nDCG@10 | wrong-act top-1 |
+|---|---|---|---|---|---|
+| BM25 | base | 0.948 [0.862, 1.000] | 0.891 [0.793, 0.977] | 0.897 [0.806, 0.974] | 3 / 29 |
+| BM25 | prefix | 0.948 [0.862, 1.000] | 0.922 [0.828, 1.000] | 0.927 [0.838, 0.994] | 2 / 29 |
+| BM25 | paired | +0.000 [+0.000, +0.000] | +0.032 [-0.017, +0.095] | +0.031 [-0.007, +0.080] | 2 fixed / 1 broken |
+| Hybrid | base | 0.948 [0.862, 1.000] | 0.905 [0.807, 0.983] | 0.910 [0.825, 0.975] | 1 / 29 |
+| Hybrid | prefix | 0.948 [0.862, 1.000] | 0.905 [0.810, 0.983] | 0.907 [0.814, 0.975] | 2 / 29 |
+| Hybrid | paired | +0.000 [+0.000, +0.000] | +0.000 [-0.072, +0.072] | -0.003 [-0.057, +0.051] | 0 fixed / 1 broken |
+
+"Wrong-act" counts questions whose top-1 article belongs to an act none of the relevant articles belong to. Questions better / worse / tied on MRR: BM25 2 / 1 / 26, hybrid 2 / 2 / 25. Recall@5 did not change for any question. Without the two act-named questions (27 questions, sensitivity, never gates) the BM25 paired MRR is +0.015 [-0.028, +0.074] and the hybrid +0.000 [-0.077, +0.077].
+
+Old 42 questions (**tainted**, secondary; the BM25 base row reproduces the published 0.857 / 0.676 / 0.702):
+
+| Retriever | Chunk text | Recall@5 | MRR | nDCG@10 | wrong-act top-1 |
+|---|---|---|---|---|---|
+| BM25 | base | 0.857 [0.750, 0.952] | 0.676 [0.560, 0.791] | 0.702 [0.600, 0.800] | 9 / 42 |
+| BM25 | prefix | 0.810 [0.690, 0.905] | 0.655 [0.537, 0.770] | 0.679 [0.576, 0.773] | 8 / 42 |
+| BM25 | paired | -0.048 [-0.119, +0.000] | -0.021 [-0.064, +0.020] | -0.023 [-0.059, +0.010] | 1 fixed / 0 broken |
+| Hybrid | base | 0.786 [0.667, 0.893] | 0.636 [0.518, 0.742] | 0.676 [0.581, 0.767] | 9 / 42 |
+| Hybrid | prefix | 0.726 [0.595, 0.845] | 0.588 [0.472, 0.696] | 0.625 [0.532, 0.711] | 12 / 42 |
+| Hybrid | paired | -0.060 [-0.131, +0.000] | -0.048 [-0.115, +0.016] | -0.052 [-0.095, -0.015] | 0 fixed / 3 broken |
+
+Synthetic guard (40 questions): paired MRR +0.017 [+0.000, +0.046] for BM25 and +0.013 [+0.000, +0.037] for the hybrid, Recall@5 1.000 throughout, so no regression there. All three sets, the by-type breakdown and the sensitivity set are in `runs/ctxprefix_protocol.txt`.
+
+Decision rule, applied as written:
+
+| Retriever | fresh dMRR | gain on fresh | synthetic dMRR | synthetic ok | verdict |
+|---|---|---|---|---|---|
+| BM25 | +0.032 [-0.017, +0.095] | no | +0.017 [+0.000, +0.046] | yes | not adopted (no evidence) |
+| Hybrid | +0.000 [-0.072, +0.072] | no | +0.013 [+0.000, +0.037] | yes | not adopted (no evidence) |
+
+What the numbers do and do not show:
+- **No separated gain, and little room for one.** The base BM25 already gets MRR 0.891 and Recall@5 0.948 on the fresh set, and only 3 of 29 (BM25) or 1 of 29 (hybrid) top-1 hits are in the wrong act, so the failure the prefix targets is rare on these questions. The BM25 gain of +0.032 comes from 2 questions improving and 1 getting worse, which 29 questions cannot tell from noise. This is a CI that includes 0, not evidence that the prefix does nothing. The ceiling was seen only after scoring; the set was not made harder, because that would be tuning on the result.
+- **Where it moved.** For BM25 the by-type pattern on the fresh set (near-duplicate +0.048, cross-act +0.062, paraphrase -0.036) matches the mechanism, but each interval touches 0 and the subgroups were not pre-registered as tests. For the hybrid the signs are mixed (near-duplicate +0.065, cross-act -0.021, paraphrase -0.107).
+- **The hybrid is hurt on the tainted set.** On the old 42 the hybrid prefix loses 0.052 nDCG@10 (CI excludes 0), loses 0.123 MRR on paraphrase questions (CI excludes 0) and has 3 questions flipped to a wrong-act top-1 and none fixed. This cannot change the verdict (it was already "not adopted") and the set is tainted, but it is a second reason not to adopt for the hybrid. A plausible cause, untested: the prefix adds the same long string to every chunk of an article, which makes the character-n-gram vectors of one article's chunks more alike and of different articles' chunks that share act-title words more alike.
+- **Caveats.** Labels on the fresh set come from agents only. The two retrievers are two tests with no multiplicity correction. The existing A2 result (heading prepended to structured chunks) already showed no separated gain, so this is the second time the same heading text has been tried without a measurable benefit. Not tried: a shuffled-prefix control, a prefix on structured chunks, a prefix in only one of the two indexes, and model-generated chunk context (the real contextual retrieval), which would need a model.
 
 ### Abstention transfer: `ragkit abstention --corpus eu`
 
