@@ -11,6 +11,7 @@ import pytest
 from ragkit.cli import (
     BUNDLED_DATASETS,
     EU_CORPUS_DIR,
+    EU_FRESH_QA_PATH,
     EU_QA_PATH,
     EU_UNANSWERABLE_PATH,
     _load_documents,
@@ -121,3 +122,24 @@ def test_eu_unanswerable_cohorts_keep_the_original_twelve_identifiable() -> None
     assert {item["miss_type"] for item in expanded} == _MISS_TYPES
     for kind in _MISS_TYPES:
         assert sum(item["miss_type"] == kind for item in expanded) >= 5
+
+
+def test_fresh_eu_questions_are_wellformed_disjoint_from_the_old_set(docs: dict[str, str]) -> None:
+    fresh = _jsonl(EU_FRESH_QA_PATH)
+    old = {str(item["q"]) for item in _jsonl(EU_QA_PATH)}
+    assert len(fresh) == 29
+    questions = [str(item["q"]) for item in fresh]
+    assert len(set(questions)) == len(questions)
+    assert not set(questions) & old
+    assert {item["type"] for item in fresh} == {"near-duplicate", "cross-act", "paraphrase"}
+    for item in fresh:
+        assert item["status"] == "reviewed-agent"
+        relevant = item["relevant_doc_ids"]
+        assert isinstance(relevant, list)
+        assert relevant and set(relevant) <= docs.keys(), item["q"]
+        provenance = item["provenance"]
+        assert isinstance(provenance, list)
+        assert {p.split("#")[0] for p in provenance} == set(relevant), item["q"]
+        source = _norm(" ".join(docs[d] for d in relevant))
+        for quote in _QUOTE.findall(str(item["answer"])):
+            assert _norm(quote) in source, (item["q"], quote)

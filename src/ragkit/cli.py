@@ -39,6 +39,10 @@ from ragkit.beir import (
 )
 from ragkit.bm25 import BM25Index
 from ragkit.chunking import Chunk, fixed, recursive, semantic, sentence
+from ragkit.ctxprefix import evaluate_set as evaluate_ctxprefix
+from ragkit.ctxprefix import render_protocol as render_ctxprefix_protocol
+from ragkit.ctxprefix import render_set as render_ctxprefix_set
+from ragkit.ctxprefix import without_act_named
 from ragkit.dense import DenseIndex
 from ragkit.embed import HashingEmbedder
 from ragkit.eurlex import EU_ACTS, build_corpus, strip_metadata_comment
@@ -71,6 +75,7 @@ DEFAULT_QA_PATH = DEFAULT_DATA_DIR / "qa.jsonl"
 DEFAULT_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable.jsonl"
 EU_CORPUS_DIR = DEFAULT_DATA_DIR / "corpus_eu"
 EU_QA_PATH = DEFAULT_DATA_DIR / "qa_eu.jsonl"
+EU_FRESH_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_fresh.jsonl"
 EU_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable_eu.jsonl"
 COHORTS = ("all", "original-12", "expanded")
 
@@ -768,6 +773,43 @@ def cmd_lexical(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ctxprefix(args: argparse.Namespace) -> int:
+    """Model-free context-prefix experiment (docs/ctxprefix_protocol.md).
+
+    Builds BM25Index, HashingEmbedder, DenseIndex and HybridRetriever only: no sentence-
+    transformers embedder, cross-encoder or reranker. ``--protocol`` runs the three bundled
+    question sets of the protocol; otherwise one set is scored.
+    """
+    if args.protocol:
+        eu_docs = _load_documents(EU_CORPUS_DIR)
+        fresh = questions_from_records(_read_jsonl(EU_FRESH_QA_PATH))
+        old = questions_from_records(_read_jsonl(EU_QA_PATH))
+        synthetic = questions_from_records(_read_jsonl(DEFAULT_QA_PATH))
+        print("\n### RagKit context prefix (model-free; BM25 and hashing hybrid only)\n")
+        print(
+            render_ctxprefix_protocol(
+                evaluate_ctxprefix(eu_docs, fresh, "fresh EU set (qa_eu_fresh.jsonl)"),
+                evaluate_ctxprefix(eu_docs, old, "old EU set (qa_eu.jsonl)"),
+                evaluate_ctxprefix(
+                    _load_documents(DEFAULT_CORPUS_DIR), synthetic, "synthetic set (qa.jsonl)"
+                ),
+                evaluate_ctxprefix(
+                    eu_docs, without_act_named(fresh), "fresh EU set without act-named questions"
+                ),
+            )
+        )
+        return 0
+    ds = _resolve_dataset(args)
+    if not ds.qa_path.is_file():
+        print(f"Error: QA benchmark file not found at {ds.qa_path}", file=sys.stderr)
+        return 1
+    questions = questions_from_records(_read_jsonl(ds.qa_path))
+    result = evaluate_ctxprefix(_load_documents(ds.corpus_dir), questions, ds.qa_path.name)
+    print("\n### RagKit context prefix (model-free; BM25 and hashing hybrid only)\n")
+    print(render_ctxprefix_set(result))
+    return 0
+
+
 def cmd_beir(args: argparse.Namespace) -> int:
     """Model-free retrievers on a BEIR test set (docs/beir_protocol.md); nDCG@10 and Recall@100."""
     names = list(BEIR_DATASETS) if args.dataset == "all" else [args.dataset]
@@ -932,6 +974,19 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="Print the post-hoc diagnosis of the A0 vs A4 Recall@5 changes instead of the report.",
     )
 
+    # Context prefix command
+    p_ctx = subparsers.add_parser(
+        "ctxprefix",
+        help="Model-free context prefix (act title and article heading on every chunk).",
+    )
+    _add_dataset_args(p_ctx, questions=False)
+    p_ctx.add_argument("--qa-file", default=None, help="Override the answerable QA jsonl.")
+    p_ctx.add_argument(
+        "--protocol",
+        action="store_true",
+        help="Run the protocol's three bundled question sets and print the decision rule.",
+    )
+
     # BEIR command
     p_beir = subparsers.add_parser(
         "beir",
@@ -1003,6 +1058,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_eval(parsed))
     elif parsed.subcommand == "lexical":
         sys.exit(cmd_lexical(parsed))
+    elif parsed.subcommand == "ctxprefix":
+        sys.exit(cmd_ctxprefix(parsed))
     elif parsed.subcommand == "beir":
         sys.exit(cmd_beir(parsed))
     elif parsed.subcommand == "legalbench":
