@@ -105,13 +105,14 @@ def test_client_drops_temperature_when_the_api_rejects_it(tmp_path: Path) -> Non
             raise RuntimeError("API error 400: temperature is not supported")
         return {"content": [{"type": "text", "text": "{}"}], "usage": USAGE}
 
-    client = CachedMessages(tmp_path / "c.jsonl", api_key="k", transport=transport)
+    client = CachedMessages(tmp_path / "c.jsonl", api_key="k", transport=transport, temperature=0.0)
     client.complete("GEN", SYSTEM, "q", 10)
     assert "temperature" in sent[0] and "temperature" not in sent[1]
     record = next(iter(client.records.values()))
     assert record["temperature_dropped"] is True
     # the same request replays from the key of the payload that was asked for
-    assert CachedMessages(tmp_path / "c.jsonl").complete("GEN", SYSTEM, "q", 10).cached
+    replay = CachedMessages(tmp_path / "c.jsonl", temperature=0.0)
+    assert replay.complete("GEN", SYSTEM, "q", 10).cached
 
 
 def test_client_enforces_call_and_cost_budgets(tmp_path: Path) -> None:

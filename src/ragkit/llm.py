@@ -88,7 +88,7 @@ class CachedMessages:
         *,
         api_key: str = "",
         model: str = MODEL,
-        temperature: float | None = 0.0,
+        temperature: float | None = None,
         max_calls: int = MAX_CALLS,
         max_cost_usd: float = MAX_COST_USD,
         transport: Transport | None = None,
