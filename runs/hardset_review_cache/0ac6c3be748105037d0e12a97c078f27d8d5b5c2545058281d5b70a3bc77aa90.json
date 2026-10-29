@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "May a netting arrangement that offsets simultaneous opposite reserve activations between control areas move more power than the area would itself need to activate to bring its control error to zero?",
+ "gold": [
+  "reg_2017_1485_art146"
+ ],
+ "usage": {
+  "input_tokens": 167,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 187,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 146(6) states that TSOs shall implement the imbalance netting power interchange of an LFC area in a way that does not exceed the actual FRR activation necessary to regulate that area's FRCE to zero without netting. This matches the reference answer exactly.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question paraphrases the imbalance netting process and the cap in Article 146(6). Other articles do not contain this limit.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 146(6) states that TSOs shall implement the imbalance netting power interchange of an LFC area in a way that does not exceed the actual FRR activation necessary to regulate that area's FRCE to zero without netting. This matches the reference answer exactly.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question paraphrases the imbalance netting process and the cap in Article 146(6). Other articles do not contain this limit.",
+  "suggested_fix": ""
+ }
+}

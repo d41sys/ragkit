@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "If cross-border capacity was set aside for exchanging reserve capacity but turned out not to be used for the associated energy exchange, what can it be released for?",
+ "gold": [
+  "reg_2017_2195_art38"
+ ],
+ "usage": {
+  "input_tokens": 126,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 317,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 38(9) of Regulation 2017/2195 states that cross-zonal capacity allocated for exchange of balancing capacity or sharing of reserves, if not used for the associated balancing energy exchange, shall be released for balancing energy exchange with shorter activation times or for operating the imbalance netting process. This matches the reference answer exactly.\", \"other_articles\": [{\"doc_id\": \"reg_2019_943_art17\", \"answers\": \"partially\", \"why\": \"Article 17(3) says capacity available after intraday gate closure is used for balancing energy exchange or imbalance netting. This concerns capacity left after gate closure, not capacity allocated for balancing capacity that went unused, and it does not mention shorter activation times.\"}], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question closely tracks Article 38(9) and has one clear answer.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 38(9) of Regulation 2017/2195 states that cross-zonal capacity allocated for exchange of balancing capacity or sharing of reserves, if not used for the associated balancing energy exchange, shall be released for balancing energy exchange with shorter activation times or for operating the imbalance netting process. This matches the reference answer exactly.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2019_943_art17",
+    "answers": "partially",
+    "why": "Article 17(3) says capacity available after intraday gate closure is used for balancing energy exchange or imbalance netting. This concerns capacity left after gate closure, not capacity allocated for balancing capacity that went unused, and it does not mention shorter activation times."
+   }
+  ],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question closely tracks Article 38(9) and has one clear answer.",
+  "suggested_fix": ""
+ }
+}

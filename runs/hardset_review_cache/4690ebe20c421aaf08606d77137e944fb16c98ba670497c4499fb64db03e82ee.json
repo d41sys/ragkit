@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "If voltage deterioration threatens to cause a voltage collapse, may a transmission operator tell the distribution grids and large users connected to it to switch off the automatic regulation of their transformers?",
+ "gold": [
+  "reg_2017_1485_art22"
+ ],
+ "usage": {
+  "input_tokens": 192,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 271,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 22(1)(c)(iv) lets a TSO instruct transmission-connected DSOs and significant grid users to block automatic voltage and reactive power control of transformers where voltage deterioration jeopardises operational security or threatens a voltage collapse. The reference answer quotes this correctly.\", \"other_articles\": [{\"doc_id\": \"reg_2017_1485_art23\", \"answers\": \"partially\", \"why\": \"Article 23(4) says affected transmission-connected SGUs and DSOs must execute TSO remedial-action instructions, but it does not mention blocking transformer control.\"}], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps directly onto Article 22(1)(c)(iv).\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 22(1)(c)(iv) lets a TSO instruct transmission-connected DSOs and significant grid users to block automatic voltage and reactive power control of transformers where voltage deterioration jeopardises operational security or threatens a voltage collapse. The reference answer quotes this correctly.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2017_1485_art23",
+    "answers": "partially",
+    "why": "Article 23(4) says affected transmission-connected SGUs and DSOs must execute TSO remedial-action instructions, but it does not mention blocking transformer control."
+   }
+  ],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps directly onto Article 22(1)(c)(iv).",
+  "suggested_fix": ""
+ }
+}

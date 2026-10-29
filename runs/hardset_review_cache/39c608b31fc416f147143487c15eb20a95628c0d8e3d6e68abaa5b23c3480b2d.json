@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "In a system where the operator itself schedules plants, how far before real time can the gate closure for scheduling bids be set at most?",
+ "gold": [
+  "reg_2017_2195_art24"
+ ],
+ "usage": {
+  "input_tokens": 117,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 232,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 24(5)(b) of Regulation 2017/2195 requires TSOs applying a central dispatching model to set at least one integrated scheduling process gate closure time that is no longer than eight hours before real-time. This matches the reference answer.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question paraphrases \\\"central dispatching model\\\" and \\\"integrated scheduling process bids\\\" loosely, but the intended provision is still identifiable. Article 24(2) and the balancing energy gate closure time are a possible distraction, but they set no eight-hour limit.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 24(5)(b) of Regulation 2017/2195 requires TSOs applying a central dispatching model to set at least one integrated scheduling process gate closure time that is no longer than eight hours before real-time. This matches the reference answer.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question paraphrases \"central dispatching model\" and \"integrated scheduling process bids\" loosely, but the intended provision is still identifiable. Article 24(2) and the balancing energy gate closure time are a possible distraction, but they set no eight-hour limit.",
+  "suggested_fix": ""
+ }
+}

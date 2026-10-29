@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "How soon after delivery must grid operators publish the current balance of their area and the estimated imbalance prices?",
+ "gold": [
+  "reg_2019_943_art6"
+ ],
+ "usage": {
+  "input_tokens": 107,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 213,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 6(13) of Regulation 2019/943 says TSOs or their delegated operators shall publish the system balance of their scheduling areas, estimated imbalance prices and estimated balancing energy prices as close to real time as possible, with a delay after delivery of no more than 30 minutes. This matches the reference answer.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question says 'grid operators', but the provision covers TSOs or their delegated operators, not distribution system operators. This does not change the answer.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 6(13) of Regulation 2019/943 says TSOs or their delegated operators shall publish the system balance of their scheduling areas, estimated imbalance prices and estimated balancing energy prices as close to real time as possible, with a delay after delivery of no more than 30 minutes. This matches the reference answer.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question says 'grid operators', but the provision covers TSOs or their delegated operators, not distribution system operators. This does not change the answer.",
+  "suggested_fix": ""
+ }
+}

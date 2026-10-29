@@ -1,0 +1,43 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Besides an emergency and the impossibility of redispatching or countertrading, what further condition must be met before a TSO may cut capacity already allocated on an interconnector as one of its grid-security countermeasures?",
+ "gold": [
+  "reg_2017_1485_art22"
+ ],
+ "usage": {
+  "input_tokens": 184,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 462,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 22(1)(i) of Regulation 2017/1485 lists curtailment of already allocated cross-zonal capacity as a remedial action. It requires an emergency where using the capacity endangers operational security, agreement of all TSOs at the given interconnector, and that re-dispatching or countertrading is not possible. The reference answer matches this text.\", \"other_articles\": [{\"doc_id\": \"reg_2015_1222_art72\", \"answers\": \"partially\", \"why\": \"Art 72(1) allows curtailment in force majeure or emergency when redispatching or countertrading is not possible, and requires coordination with all directly concerned TSOs. It does not list this as a remedial action and does not use the 'agree' wording.\"}, {\"doc_id\": \"reg_2019_943_art16\", \"answers\": \"partially\", \"why\": \"Art 16(2) limits transaction curtailment to emergencies where redispatching or countertrading is not possible. It adds no condition about agreement among TSOs.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The wording 'one of its grid-security countermeasures' points to the remedial-actions list, which is Art 22. Art 72 of Reg 2015/1222 could be read as an alternative, but it gives a different further condition (coordination or liaison) rather than agreement.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 22(1)(i) of Regulation 2017/1485 lists curtailment of already allocated cross-zonal capacity as a remedial action. It requires an emergency where using the capacity endangers operational security, agreement of all TSOs at the given interconnector, and that re-dispatching or countertrading is not possible. The reference answer matches this text.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2015_1222_art72",
+    "answers": "partially",
+    "why": "Art 72(1) allows curtailment in force majeure or emergency when redispatching or countertrading is not possible, and requires coordination with all directly concerned TSOs. It does not list this as a remedial action and does not use the 'agree' wording."
+   },
+   {
+    "doc_id": "reg_2019_943_art16",
+    "answers": "partially",
+    "why": "Art 16(2) limits transaction curtailment to emergencies where redispatching or countertrading is not possible. It adds no condition about agreement among TSOs."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The wording 'one of its grid-security countermeasures' points to the remedial-actions list, which is Art 22. Art 72 of Reg 2015/1222 could be read as an alternative, but it gives a different further condition (coordination or liaison) rather than agreement.",
+  "suggested_fix": ""
+ }
+}

@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "How long after the regulators approve the methodology and assumptions of a price zone review must the participating TSOs submit their joint proposal to amend or maintain the zone configuration?",
+ "gold": [
+  "reg_2019_943_art14"
+ ],
+ "usage": {
+  "input_tokens": 121,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 331,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 14(6) of Regulation 2019/943 requires the participating TSOs to submit the joint proposal to amend or maintain the bidding zone configuration no later than 12 months after the methodology and assumptions are approved under paragraph 5. The reference answer matches this.\", \"other_articles\": [{\"doc_id\": \"reg_2015_1222_art32\", \"answers\": \"partially\", \"why\": \"Article 32(4)(b)(iii) sets a 15-month deadline for the joint proposal, but it runs from the decision to launch the review, not from approval of the methodology. It answers a different question.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"Two regimes set different deadlines: 12 months from approval of the methodology under 2019/943, and 15 months from the decision to launch the review under 2015/1222. The question's wording ('after approval of methodology and assumptions') points to 2019/943.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 14(6) of Regulation 2019/943 requires the participating TSOs to submit the joint proposal to amend or maintain the bidding zone configuration no later than 12 months after the methodology and assumptions are approved under paragraph 5. The reference answer matches this.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2015_1222_art32",
+    "answers": "partially",
+    "why": "Article 32(4)(b)(iii) sets a 15-month deadline for the joint proposal, but it runs from the decision to launch the review, not from approval of the methodology. It answers a different question."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "Two regimes set different deadlines: 12 months from approval of the methodology under 2019/943, and 15 months from the decision to launch the review under 2015/1222. The question's wording ('after approval of methodology and assumptions') points to 2019/943.",
+  "suggested_fix": ""
+ }
+}

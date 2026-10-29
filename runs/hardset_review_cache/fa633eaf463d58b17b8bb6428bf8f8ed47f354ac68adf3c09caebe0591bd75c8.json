@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "For battery storage owned by a distribution grid operator, up to which date must the final investment decision have been taken for the battery to keep running for its usual depreciation period despite the phase-out rule?",
+ "gold": [
+  "dir_2019_944_art36"
+ ],
+ "usage": {
+  "input_tokens": 178,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 248,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 36(4) exempts new battery storage facilities with a final investment decision until 4 July 2019 from the phase-out in paragraph 3 for their usual depreciation period. The conditions are: connected within two years, integrated into the distribution system, used only for reactive instantaneous restoration of network security, and not used to buy or sell electricity, including balancing. The reference answer matches this.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question clearly refers to a distribution system operator, so Article 36 applies. Article 54 is the transmission analogue, with a 2024 date, and does not answer a question about distribution.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 36(4) exempts new battery storage facilities with a final investment decision until 4 July 2019 from the phase-out in paragraph 3 for their usual depreciation period. The conditions are: connected within two years, integrated into the distribution system, used only for reactive instantaneous restoration of network security, and not used to buy or sell electricity, including balancing. The reference answer matches this.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question clearly refers to a distribution system operator, so Article 36 applies. Article 54 is the transmission analogue, with a 2024 date, and does not answer a question about distribution.",
+  "suggested_fix": ""
+ }
+}

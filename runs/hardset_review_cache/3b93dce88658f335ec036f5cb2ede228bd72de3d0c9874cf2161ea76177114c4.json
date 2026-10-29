@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Which Europe-wide balancing platform pools the opposite imbalances of the participating TSOs without ranking energy bids on common merit order lists?",
+ "gold": [
+  "reg_2017_2195_art22"
+ ],
+ "usage": {
+  "input_tokens": 190,
+  "cache_creation_input_tokens": 99476,
+  "cache_read_input_tokens": 0,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 99476,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 311,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 22(2) of Regulation 2017/2195 says the imbalance netting platform consists of the imbalance netting process function and the TSO-TSO settlement function and applies a multilateral TSO-TSO model. Articles 19(2), 20(2) and 21(2) give the other platforms an activation optimisation function and common merit order lists, so the contrast in the reference answer is supported.\", \"other_articles\": [{\"doc_id\": \"reg_2017_1485_art146\", \"answers\": \"partially\", \"why\": \"Describes the imbalance netting process (reducing simultaneous counteracting FRR activations) but does not describe a Europe-wide platform or contrast it with merit order lists.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question wording is a paraphrase, but the imbalance netting platform is the only one that fits.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 22(2) of Regulation 2017/2195 says the imbalance netting platform consists of the imbalance netting process function and the TSO-TSO settlement function and applies a multilateral TSO-TSO model. Articles 19(2), 20(2) and 21(2) give the other platforms an activation optimisation function and common merit order lists, so the contrast in the reference answer is supported.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2017_1485_art146",
+    "answers": "partially",
+    "why": "Describes the imbalance netting process (reducing simultaneous counteracting FRR activations) but does not describe a Europe-wide platform or contrast it with merit order lists."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question wording is a paraphrase, but the imbalance netting platform is the only one that fits.",
+  "suggested_fix": ""
+ }
+}

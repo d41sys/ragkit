@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "What does it mean to give a power plant dispatch priority when the system operator dispatches centrally?",
+ "gold": [
+  "reg_2019_943_art2"
+ ],
+ "usage": {
+  "input_tokens": 140,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 207,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 2(20) of Regulation 2019/943 defines priority dispatch for the central dispatch model as dispatch based on criteria different from the economic order of bids and from network constraints, giving priority to particular generation technologies. This matches the reference answer exactly.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps directly to the definition of priority dispatch under the central dispatching model in Article 2(20). Article 12 only sets the conditions for priority dispatch and does not define it.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 2(20) of Regulation 2019/943 defines priority dispatch for the central dispatch model as dispatch based on criteria different from the economic order of bids and from network constraints, giving priority to particular generation technologies. This matches the reference answer exactly.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps directly to the definition of priority dispatch under the central dispatching model in Article 2(20). Article 12 only sets the conditions for priority dispatch and does not define it.",
+  "suggested_fix": ""
+ }
+}

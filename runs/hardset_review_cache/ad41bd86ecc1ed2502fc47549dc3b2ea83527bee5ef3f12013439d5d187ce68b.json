@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "When cross-border capacity is calculated, must corrective measures that cost nothing to apply be reflected in the calculation?",
+ "gold": [
+  "reg_2015_1222_art25"
+ ],
+ "usage": {
+  "input_tokens": 114,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 173,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 25(5) of Regulation 2015/1222 states that each TSO shall take into account remedial actions without costs in capacity calculation, which is exactly what the reference answer says.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question is a direct paraphrase of Article 25(5), with 'corrective measures that cost nothing' mapping to 'remedial actions without costs'.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 25(5) of Regulation 2015/1222 states that each TSO shall take into account remedial actions without costs in capacity calculation, which is exactly what the reference answer says.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question is a direct paraphrase of Article 25(5), with 'corrective measures that cost nothing' mapping to 'remedial actions without costs'.",
+  "suggested_fix": ""
+ }
+}

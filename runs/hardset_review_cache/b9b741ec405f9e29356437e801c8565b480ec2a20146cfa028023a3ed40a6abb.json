@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "May a customer who generates their own power hand the running of their installation (installation, operation, data handling and maintenance) to a third party, and does that third party then count as an active customer?",
+ "gold": [
+  "dir_2019_944_art15"
+ ],
+ "usage": {
+  "input_tokens": 137,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 171,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 15(2)(d) entitles active customers to delegate management of the installations required for their activities (installation, operation, data handling and maintenance) to a third party, without that third party being considered an active customer. This matches the reference answer exactly.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps directly to Article 15(2)(d), and no other article addresses delegation of installation management.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 15(2)(d) entitles active customers to delegate management of the installations required for their activities (installation, operation, data handling and maintenance) to a third party, without that third party being considered an active customer. This matches the reference answer exactly.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps directly to Article 15(2)(d), and no other article addresses delegation of installation management.",
+  "suggested_fix": ""
+ }
+}

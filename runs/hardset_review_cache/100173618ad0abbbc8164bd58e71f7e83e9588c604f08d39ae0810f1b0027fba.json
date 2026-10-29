@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Once the priority purposes for cross-border scarcity revenue have been adequately met, what may happen to what is left over, and where must any residual sit in the meantime?",
+ "gold": [
+  "reg_2019_943_art19"
+ ],
+ "usage": {
+  "input_tokens": 163,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 200,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 19(3) says that once the priority objectives in paragraph 2 are adequately fulfilled, revenues may be taken into account by regulatory authorities when approving or fixing network tariffs. It also says the residual revenues go on a separate internal account line until they can be spent for the paragraph 2 purposes. This matches the reference answer.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question is a close paraphrase of Article 19(3) and has one clear answer.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 19(3) says that once the priority objectives in paragraph 2 are adequately fulfilled, revenues may be taken into account by regulatory authorities when approving or fixing network tariffs. It also says the residual revenues go on a separate internal account line until they can be spent for the paragraph 2 purposes. This matches the reference answer.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question is a close paraphrase of Article 19(3) and has one clear answer.",
+  "suggested_fix": ""
+ }
+}

@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Day-ahead or intraday cross-border capacity sold in an explicit auction is cut because the TSO invokes an emergency, not force majeure. What compensation are the holders entitled to?",
+ "gold": [
+  "reg_2015_1222_art72"
+ ],
+ "usage": {
+  "input_tokens": 199,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 305,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 72(3)(c) gives compensation equal to the price difference between the bidding zones concerned in an emergency with explicit allocation. Article 72(3)(d) gives reimbursement of the price paid where a bidding zone price is not calculated in at least one of the two zones. The reference answer states both correctly.\", \"other_articles\": [{\"doc_id\": \"reg_2019_943_art16\", \"answers\": \"partially\", \"why\": \"Article 16(2) says market participants allocated capacity must be compensated for curtailment in emergencies, but gives no amount or method.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question says 'day-ahead or intraday' without naming the regulation. Reg 2016/1719 art 53 covers long-term rights curtailment, which is a different time-frame, so it does not compete.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 72(3)(c) gives compensation equal to the price difference between the bidding zones concerned in an emergency with explicit allocation. Article 72(3)(d) gives reimbursement of the price paid where a bidding zone price is not calculated in at least one of the two zones. The reference answer states both correctly.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2019_943_art16",
+    "answers": "partially",
+    "why": "Article 16(2) says market participants allocated capacity must be compensated for curtailment in emergencies, but gives no amount or method."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question says 'day-ahead or intraday' without naming the regulation. Reg 2016/1719 art 53 covers long-term rights curtailment, which is a different time-frame, so it does not compete.",
+  "suggested_fix": ""
+ }
+}

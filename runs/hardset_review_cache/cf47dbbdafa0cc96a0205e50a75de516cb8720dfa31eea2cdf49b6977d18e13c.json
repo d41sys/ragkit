@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Which method for allocating cross-border capacity to the exchange of reserves is meant for contracts longer than one day that are concluded more than a week before delivery?",
+ "gold": [
+  "reg_2017_2195_art42"
+ ],
+ "usage": {
+  "input_tokens": 155,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 269,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 42(1) states that the methodology based on an economic efficiency analysis applies to the exchange of balancing capacity or sharing of reserves with a contracting period of more than one day and where contracting is done more than one week in advance. This matches the reference answer.\", \"other_articles\": [{\"doc_id\": \"reg_2017_2195_art38\", \"why\": \"It lists the three allocation processes, including the one based on economic efficiency analysis, but gives no timing conditions, so it does not answer the question.\", \"answers\": \"partially\"}], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question matches Article 42(1) directly, and the other allocation processes in Articles 40 and 41 cover shorter contracting periods.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 42(1) states that the methodology based on an economic efficiency analysis applies to the exchange of balancing capacity or sharing of reserves with a contracting period of more than one day and where contracting is done more than one week in advance. This matches the reference answer.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2017_2195_art38",
+    "why": "It lists the three allocation processes, including the one based on economic efficiency analysis, but gives no timing conditions, so it does not answer the question.",
+    "answers": "partially"
+   }
+  ],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question matches Article 42(1) directly, and the other allocation processes in Articles 40 and 41 cover shorter contracting periods.",
+  "suggested_fix": ""
+ }
+}

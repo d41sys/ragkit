@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "How is cross-border capacity that holders of physical transmission rights use for exchanging reserves treated under the use-it-or-sell-it rule?",
+ "gold": [
+  "reg_2017_2195_art38"
+ ],
+ "usage": {
+  "input_tokens": 131,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 195,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 38(7) of Regulation 2017/2195 states that if physical transmission right holders use cross-zonal capacity for the exchange of balancing capacity, it is considered nominated solely to exclude it from the UIOSI principle. The reference answer matches this.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question says 'exchanging reserves', which only loosely maps to 'exchange of balancing capacity', but no other article addresses this point.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 38(7) of Regulation 2017/2195 states that if physical transmission right holders use cross-zonal capacity for the exchange of balancing capacity, it is considered nominated solely to exclude it from the UIOSI principle. The reference answer matches this.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question says 'exchanging reserves', which only loosely maps to 'exchange of balancing capacity', but no other article addresses this point.",
+  "suggested_fix": ""
+ }
+}

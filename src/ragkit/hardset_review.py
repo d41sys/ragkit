@@ -67,7 +67,6 @@ def build_request(corpus: str, record: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "model": MODEL,
         "max_tokens": MAX_TOKENS,
-        "temperature": 0,
         "system": [
             {"type": "text", "text": INSTRUCTIONS},
             {"type": "text", "text": corpus, "cache_control": {"type": "ephemeral"}},

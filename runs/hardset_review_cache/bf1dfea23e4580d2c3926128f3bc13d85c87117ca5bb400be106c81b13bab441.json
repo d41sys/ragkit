@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "What is the largest minimum bid size that exchanges may require, so that demand response, storage and small renewables can take part in day-ahead and intraday trading?",
+ "gold": [
+  "reg_2019_943_art8"
+ ],
+ "usage": {
+  "input_tokens": 112,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 199,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 8(3) of Regulation 2019/943 says NEMOs shall provide day-ahead and intraday products with minimum bid sizes of 500 kW or less, to allow effective participation of demand-side response, energy storage and small-scale renewables. The reference answer matches this.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps directly to Article 8(3); 'exchanges' is a loose paraphrase of NEMOs but is not misleading.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 8(3) of Regulation 2019/943 says NEMOs shall provide day-ahead and intraday products with minimum bid sizes of 500 kW or less, to allow effective participation of demand-side response, energy storage and small-scale renewables. The reference answer matches this.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps directly to Article 8(3); 'exchanges' is a loose paraphrase of NEMOs but is not misleading.",
+  "suggested_fix": ""
+ }
+}

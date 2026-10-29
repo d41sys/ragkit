@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "How may frequency restoration power be interchanged between load-frequency control areas of one synchronous area when the reserve activation is manual rather than automatic?",
+ "gold": [
+  "reg_2017_1485_art147"
+ ],
+ "usage": {
+  "input_tokens": 166,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 204,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 147(4)(b) provides that, where FRR activation is manual, TSOs adjust a control program or define an active power flow over a virtual tie-line between LFC areas. Article 147(4)(c) adds adjusting the active power flows over HVDC interconnectors, so the reference answer is fully supported.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps directly onto Article 147(4)(b), which expressly covers manual FRR activation within one synchronous area.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 147(4)(b) provides that, where FRR activation is manual, TSOs adjust a control program or define an active power flow over a virtual tie-line between LFC areas. Article 147(4)(c) adds adjusting the active power flows over HVDC interconnectors, so the reference answer is fully supported.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps directly onto Article 147(4)(b), which expressly covers manual FRR activation within one synchronous area.",
+  "suggested_fix": ""
+ }
+}

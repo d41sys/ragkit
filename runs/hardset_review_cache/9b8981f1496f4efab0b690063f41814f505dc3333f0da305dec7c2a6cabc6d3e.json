@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "After which date may Member States no longer grant new rights under schemes that do not account separately for electricity fed into the grid and electricity taken from it?",
+ "gold": [
+  "dir_2019_944_art15"
+ ],
+ "usage": {
+  "input_tokens": 149,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 185,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 15(4) states that Member States with existing schemes that do not account separately for fed-in and consumed electricity shall not grant new rights under them after 31 December 2023, and that customers can opt at any time for a new scheme that accounts separately as the basis for network charges. This matches the reference answer in full.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps directly to Article 15(4) and has a single date as its answer.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 15(4) states that Member States with existing schemes that do not account separately for fed-in and consumed electricity shall not grant new rights under them after 31 December 2023, and that customers can opt at any time for a new scheme that accounts separately as the basis for network charges. This matches the reference answer in full.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps directly to Article 15(4) and has a single date as its answer.",
+  "suggested_fix": ""
+ }
+}

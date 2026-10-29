@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "By what date did TSOs have to hand ACER the method governing how revenue from scarce cross-border capacity may be spent, and how long did ACER have to decide on it?",
+ "gold": [
+  "reg_2019_943_art19"
+ ],
+ "usage": {
+  "input_tokens": 132,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 179,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 19(4) of Regulation 2019/943 says TSOs submit the proposed methodology to ACER by 5 July 2020 and ACER decides within six months of receiving it. The methodology governs the use of congestion revenues, which matches the question.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps directly to Article 19(4). No other article gives these dates for a revenue-use methodology.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 19(4) of Regulation 2019/943 says TSOs submit the proposed methodology to ACER by 5 July 2020 and ACER decides within six months of receiving it. The methodology governs the use of congestion revenues, which matches the question.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps directly to Article 19(4). No other article gives these dates for a revenue-use methodology.",
+  "suggested_fix": ""
+ }
+}

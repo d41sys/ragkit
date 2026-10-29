@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "When does a renewable plant commissioned before 4 July 2019 that was entitled to dispatch priority lose that priority?",
+ "gold": [
+  "reg_2019_943_art12"
+ ],
+ "usage": {
+  "input_tokens": 136,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 168,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 12(6) of Regulation 2019/943 states that such facilities keep priority dispatch until they become subject to significant modifications, deemed at least where a new connection agreement is required or generation capacity is increased. This matches the reference answer exactly.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps directly onto Article 12(6) with a single clear answer.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 12(6) of Regulation 2019/943 states that such facilities keep priority dispatch until they become subject to significant modifications, deemed at least where a new connection agreement is required or generation capacity is increased. This matches the reference answer exactly.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps directly onto Article 12(6) with a single clear answer.",
+  "suggested_fix": ""
+ }
+}

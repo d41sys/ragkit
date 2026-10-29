@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Under what conditions can a single TSO start a review of price zone borders inside its own control area on its own?",
+ "gold": [
+  "reg_2015_1222_art32"
+ ],
+ "usage": {
+  "input_tokens": 203,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 248,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 32(1)(d) states the conditions: approval of the competent regulatory authority, bidding zones inside the TSO's own control area, negligible impact on neighbouring TSOs' control areas, and the review being necessary to improve efficiency or maintain operational security. Article 32(3)(b) confirms the TSO is the only participating TSO.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps directly onto Article 32(1)(d). Nothing else in the corpus describes a single-TSO review, and Article 14 of Regulation 2019/943 covers the general bidding zone review process, not this case.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 32(1)(d) states the conditions: approval of the competent regulatory authority, bidding zones inside the TSO's own control area, negligible impact on neighbouring TSOs' control areas, and the review being necessary to improve efficiency or maintain operational security. Article 32(3)(b) confirms the TSO is the only participating TSO.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps directly onto Article 32(1)(d). Nothing else in the corpus describes a single-TSO review, and Article 14 of Regulation 2019/943 covers the general bidding zone review process, not this case.",
+  "suggested_fix": ""
+ }
+}

@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "When a transmission operator activates a security measure, are the affected distribution operators and large grid users obliged to carry out its instructions?",
+ "gold": [
+  "reg_2017_1485_art23"
+ ],
+ "usage": {
+  "input_tokens": 138,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 318,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 23(4), second subparagraph, states that when a TSO activates a remedial action, each impacted transmission-connected significant grid user and DSO shall execute the TSO's instructions. This matches the reference answer exactly.\", \"other_articles\": [{\"doc_id\": \"reg_2017_1485_art22\", \"answers\": \"partially\", \"why\": \"Art 22(1)(c)(iv) lets TSOs instruct transmission-connected DSOs and significant grid users on voltage and reactive power remedial actions. It does not state a general obligation to execute instructions.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"'Security measure' is a paraphrase of 'remedial action', and 'affected' and 'large' stand in for 'impacted' and 'significant', but the mapping is clear. The obligation applies to transmission-connected DSOs and users.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 23(4), second subparagraph, states that when a TSO activates a remedial action, each impacted transmission-connected significant grid user and DSO shall execute the TSO's instructions. This matches the reference answer exactly.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2017_1485_art22",
+    "answers": "partially",
+    "why": "Art 22(1)(c)(iv) lets TSOs instruct transmission-connected DSOs and significant grid users on voltage and reactive power remedial actions. It does not state a general obligation to execute instructions."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "'Security measure' is a paraphrase of 'remedial action', and 'affected' and 'large' stand in for 'impacted' and 'significant', but the mapping is clear. The obligation applies to transmission-connected DSOs and users.",
+  "suggested_fix": ""
+ }
+}

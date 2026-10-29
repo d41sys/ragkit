@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "If balancing energy was activated, what ceiling applies to the price paid to a party whose imbalance is a surplus?",
+ "gold": [
+  "reg_2017_2195_art55"
+ ],
+ "usage": {
+  "input_tokens": 162,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 270,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\":\"yes\",\"gold_reason\":\"Article 55(5) states that the imbalance price for positive imbalance shall not be greater than the weighted average price for negative activated balancing energy from FRR and RR, or, if there was no activation in either direction, the value of avoided activation. The reference answer matches this. Paragraph 1 and Table 2 show that a positive imbalance with a positive price is paid by the TSO to the BRP.\",\"other_articles\":[],\"ambiguity\":\"minor\",\"ambiguity_reason\":\"The question says 'if balancing energy was activated' and ignores the paragraph 6 case where both directions were activated. The reference answer's no-activation fallback goes beyond the question but is accurate. The ceiling is stated only for positive imbalance, which is clear.\",\"suggested_fix\":\"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 55(5) states that the imbalance price for positive imbalance shall not be greater than the weighted average price for negative activated balancing energy from FRR and RR, or, if there was no activation in either direction, the value of avoided activation. The reference answer matches this. Paragraph 1 and Table 2 show that a positive imbalance with a positive price is paid by the TSO to the BRP.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question says 'if balancing energy was activated' and ignores the paragraph 6 case where both directions were activated. The reference answer's no-activation fallback goes beyond the question but is accurate. The ceiling is stated only for positive imbalance, which is clear.",
+  "suggested_fix": ""
+ }
+}

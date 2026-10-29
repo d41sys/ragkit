@@ -12,6 +12,7 @@ from ragkit.cli import (
     BUNDLED_DATASETS,
     EU_CORPUS_DIR,
     EU_FRESH_QA_PATH,
+    EU_HARD_QA_PATH,
     EU_QA_PATH,
     EU_UNANSWERABLE_PATH,
     _load_documents,
@@ -143,3 +144,48 @@ def test_fresh_eu_questions_are_wellformed_disjoint_from_the_old_set(docs: dict[
         source = _norm(" ".join(docs[d] for d in relevant))
         for quote in _QUOTE.findall(str(item["answer"])):
             assert _norm(quote) in source, (item["q"], quote)
+
+
+def test_hard_eu_questions_are_wellformed_disjoint_and_reviewed(docs: dict[str, str]) -> None:
+    hard = _jsonl(EU_HARD_QA_PATH)
+    earlier = {str(item["q"]) for p in (EU_QA_PATH, EU_FRESH_QA_PATH) for item in _jsonl(p)}
+    assert len(hard) == 39
+    questions = [str(item["q"]) for item in hard]
+    assert len(set(questions)) == len(questions)
+    assert not set(questions) & earlier
+    assert {item["type"] for item in hard} == {"near-duplicate", "cross-act", "paraphrase"}
+    for item in hard:
+        assert item["status"] == "draft-agent"
+        assert not re.search(r"\d{4}/\d{1,4}", str(item["q"])), item["q"]  # never names its act
+        relevant = item["relevant_doc_ids"]
+        decoys = item["decoys"]
+        assert isinstance(relevant, list) and isinstance(decoys, list)
+        assert relevant and set(relevant) <= docs.keys(), item["q"]
+        assert decoys and set(decoys) <= docs.keys() and not set(decoys) & set(relevant)
+        provenance = item["provenance"]
+        assert isinstance(provenance, list)
+        assert {p.split("#")[0] for p in provenance} == set(relevant), item["q"]
+        source = _norm(" ".join(docs[d] for d in relevant))
+        for quote in _QUOTE.findall(str(item["answer"])):
+            assert _norm(quote) in source, (item["q"], quote)
+        sonnet = item["sonnet"]
+        assert isinstance(sonnet, dict) and sonnet["gold_answers"] == "yes", item["q"]
+        assert sonnet["ambiguity"] in {"none", "minor"}, item["q"]
+        assert not any("fully" in str(o) for o in sonnet["other_articles"]), item["q"]
+
+
+def test_hard_eu_questions_all_have_a_cached_sonnet_review() -> None:
+    """The committed review cache covers the final set: reproducible without a key."""
+    from ragkit.eurlex import strip_metadata_comment
+    from ragkit.hardset_review import build_request, corpus_block, request_key
+
+    corpus = corpus_block(
+        [
+            (p.stem, strip_metadata_comment(p.read_text(encoding="utf-8")))
+            for p in sorted(EU_CORPUS_DIR.glob("*.md"))
+        ]
+    )
+    cache = Path(__file__).parent.parent / "runs" / "hardset_review_cache"
+    for item in _jsonl(EU_HARD_QA_PATH):
+        assert (cache / f"{request_key(build_request(corpus, item))}.json").is_file(), item["q"]
+    assert len(list(cache.glob("*.json"))) <= 150

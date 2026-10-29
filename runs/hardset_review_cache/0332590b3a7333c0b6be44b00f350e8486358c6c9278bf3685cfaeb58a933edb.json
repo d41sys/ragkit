@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Which grid operator must act as a neutral market facilitator when buying the energy it uses to cover losses in its system?",
+ "gold": [
+  "dir_2019_944_art31"
+ ],
+ "usage": {
+  "input_tokens": 121,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 199,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 31(5) of Directive 2019/944 states that each distribution system operator shall act as a neutral market facilitator in procuring energy to cover losses, per transparent, non-discriminatory and market-based procedures, where it has such a function. This matches the reference answer.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps uniquely to Article 31(5). No other article in the corpus imposes the neutral market facilitator duty for loss energy on any operator.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 31(5) of Directive 2019/944 states that each distribution system operator shall act as a neutral market facilitator in procuring energy to cover losses, per transparent, non-discriminatory and market-based procedures, where it has such a function. This matches the reference answer.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps uniquely to Article 31(5). No other article in the corpus imposes the neutral market facilitator duty for loss energy on any operator.",
+  "suggested_fix": ""
+ }
+}

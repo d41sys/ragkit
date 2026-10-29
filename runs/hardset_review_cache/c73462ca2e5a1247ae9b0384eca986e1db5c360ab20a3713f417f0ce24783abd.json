@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "When cross-border capacity is set aside for sharing reserves (not for exchanging them) under the co-optimised or market-based approaches, how is its actual market value determined?",
+ "gold": [
+  "reg_2017_2195_art39"
+ ],
+ "usage": {
+  "input_tokens": 174,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 203,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 39(4) states the actual market value of cross-zonal capacity for sharing of reserves in a co-optimised or market-based process is calculated from the avoided costs of procuring balancing capacity. Article 39(3) supports the contrast with exchange, which is based on balancing capacity bids submitted to the capacity procurement optimisation function.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps directly to Article 39(4), and no other article gives this valuation rule.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 39(4) states the actual market value of cross-zonal capacity for sharing of reserves in a co-optimised or market-based process is calculated from the avoided costs of procuring balancing capacity. Article 39(3) supports the contrast with exchange, which is based on balancing capacity bids submitted to the capacity procurement optimisation function.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps directly to Article 39(4), and no other article gives this valuation rule.",
+  "suggested_fix": ""
+ }
+}

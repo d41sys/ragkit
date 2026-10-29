@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "May a TSO deal directly with another country's providers to exchange balancing energy from restoration reserves without doing the same for the reserve capacity behind it?",
+ "gold": [
+  "reg_2017_2195_art35"
+ ],
+ "usage": {
+  "input_tokens": 190,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 222,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 35(5) states the TSO-BSP model for exchanging balancing energy from frequency restoration reserves may be applied only where it is also applied for the exchange of balancing capacity for FRR. Article 35(6) gives the wider replacement-reserve rule, as the reference answer says.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"'Deal directly with another country's providers' is a paraphrase of the TSO-BSP model, and 'restoration reserves' could cover replacement reserves, but the reference answer addresses both.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 35(5) states the TSO-BSP model for exchanging balancing energy from frequency restoration reserves may be applied only where it is also applied for the exchange of balancing capacity for FRR. Article 35(6) gives the wider replacement-reserve rule, as the reference answer says.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "'Deal directly with another country's providers' is a paraphrase of the TSO-BSP model, and 'restoration reserves' could cover replacement reserves, but the reference answer addresses both.",
+  "suggested_fix": ""
+ }
+}

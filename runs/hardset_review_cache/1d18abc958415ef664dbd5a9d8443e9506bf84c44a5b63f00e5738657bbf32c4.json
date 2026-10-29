@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "What is the longest period for which a regulator may let the remaining part of reserve capacity contracts run, and what limit applies from 2026?",
+ "gold": [
+  "reg_2019_943_art6"
+ ],
+ "usage": {
+  "input_tokens": 141,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 269,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 6(10) of Regulation 2019/943 lets the regulatory authority, at the TSO's request, extend the contractual period of the remaining part of balancing capacity to a maximum of twelve months. Article 6(11) says that from 1 January 2026 contract periods shall not be longer than six months. Both points are in the gold article.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question says 'reserve capacity contracts' where the article says 'balancing capacity'. The 'remaining part' wording is consistent with Art. 6(9)-(10). The twelve-month extension is conditional on the TSO's request and on limits in time and effect, but the answer states the request condition.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 6(10) of Regulation 2019/943 lets the regulatory authority, at the TSO's request, extend the contractual period of the remaining part of balancing capacity to a maximum of twelve months. Article 6(11) says that from 1 January 2026 contract periods shall not be longer than six months. Both points are in the gold article.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question says 'reserve capacity contracts' where the article says 'balancing capacity'. The 'remaining part' wording is consistent with Art. 6(9)-(10). The twelve-month extension is conditional on the TSO's request and on limits in time and effect, but the answer states the request condition.",
+  "suggested_fix": ""
+ }
+}

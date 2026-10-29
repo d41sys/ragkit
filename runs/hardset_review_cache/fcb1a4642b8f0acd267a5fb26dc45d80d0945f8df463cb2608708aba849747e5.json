@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Must a distribution grid operator buy voltage-support type services (non-frequency ancillary services) through market-based procedures, and what exempts it?",
+ "gold": [
+  "dir_2019_944_art31"
+ ],
+ "usage": {
+  "input_tokens": 168,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 341,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 31(7) of Directive 2019/944 says the DSO shall procure non-frequency ancillary services via transparent, non-discriminatory, market-based procedures. The exceptions are a regulatory authority assessment of economic inefficiency with a granted derogation, and fully integrated network components. This matches the reference answer exactly.\", \"other_articles\": [{\"doc_id\": \"dir_2019_944_art32\", \"answers\": \"partially\", \"why\": \"Article 32(1) requires market-based procurement of flexibility services by DSOs and lists exemptions where the regulator finds it uneconomic or distorting. It covers flexibility services such as congestion management, not non-frequency ancillary services, and has no fully-integrated-components exemption.\"}], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question matches Article 31(7) closely, and 'DSO' and 'non-frequency ancillary services' point clearly to it.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 31(7) of Directive 2019/944 says the DSO shall procure non-frequency ancillary services via transparent, non-discriminatory, market-based procedures. The exceptions are a regulatory authority assessment of economic inefficiency with a granted derogation, and fully integrated network components. This matches the reference answer exactly.",
+  "other_articles": [
+   {
+    "doc_id": "dir_2019_944_art32",
+    "answers": "partially",
+    "why": "Article 32(1) requires market-based procurement of flexibility services by DSOs and lists exemptions where the regulator finds it uneconomic or distorting. It covers flexibility services such as congestion management, not non-frequency ancillary services, and has no fully-integrated-components exemption."
+   }
+  ],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question matches Article 31(7) closely, and 'DSO' and 'non-frequency ancillary services' point clearly to it.",
+  "suggested_fix": ""
+ }
+}

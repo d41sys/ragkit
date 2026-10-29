@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "May cross-border capacity on a direct-current interconnector be allocated to the exchange of frequency containment reserves, even though the reliability margin normally serves that purpose?",
+ "gold": [
+  "reg_2017_2195_art38"
+ ],
+ "usage": {
+  "input_tokens": 185,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 193,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 38(4) of Regulation 2017/2195 states that the reliability margin is used for operating and exchanging FCR, except on DC interconnectors, where cross-zonal capacity for FCR may also be allocated in accordance with paragraph 1. The reference answer matches this.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question maps directly onto the wording of Article 38(4); no other article addresses FCR on DC interconnectors.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 38(4) of Regulation 2017/2195 states that the reliability margin is used for operating and exchanging FCR, except on DC interconnectors, where cross-zonal capacity for FCR may also be allocated in accordance with paragraph 1. The reference answer matches this.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question maps directly onto the wording of Article 38(4); no other article addresses FCR on DC interconnectors.",
+  "suggested_fix": ""
+ }
+}

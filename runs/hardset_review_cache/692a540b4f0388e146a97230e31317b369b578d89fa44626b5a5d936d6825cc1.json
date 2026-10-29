@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Can a single TSO start a review of price zone borders inside its own control area by itself?",
+ "gold": [
+  "reg_2015_1222_art32"
+ ],
+ "usage": {
+  "input_tokens": 198,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 311,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\":\"yes\",\"gold_reason\":\"Article 32(1)(d) allows a single regulatory authority or TSO, with its regulatory authority's approval, to launch a review for bidding zones inside its control area when the impact on neighbours is negligible and the review is needed for efficiency or operational security. Article 32(3)(b) makes that TSO the only participating TSO.\",\"other_articles\":[{\"doc_id\":\"reg_2019_943_art14\",\"answers\":\"partially\",\"why\":\"Paragraphs 5 and 7 mention TSOs reporting structural congestion in their control areas and bidding zone reviews, but they do not say a single TSO can launch a review alone.\"}],\"ambiguity\":\"minor\",\"ambiguity_reason\":\"The question omits the conditions (regulatory authority approval, negligible impact on neighbours), so a bare 'yes' could be read as unconditional. The reference answer states them.\",\"suggested_fix\":\"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 32(1)(d) allows a single regulatory authority or TSO, with its regulatory authority's approval, to launch a review for bidding zones inside its control area when the impact on neighbours is negligible and the review is needed for efficiency or operational security. Article 32(3)(b) makes that TSO the only participating TSO.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2019_943_art14",
+    "answers": "partially",
+    "why": "Paragraphs 5 and 7 mention TSOs reporting structural congestion in their control areas and bidding zone reviews, but they do not say a single TSO can launch a review alone."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question omits the conditions (regulatory authority approval, negligible impact on neighbours), so a bare 'yes' could be read as unconditional. The reference answer states them.",
+  "suggested_fix": ""
+ }
+}

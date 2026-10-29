@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Which of the cross-border capacity allocation approaches for reserves has the TSOs allocate capacity to energy bids and to reserve bids in a single optimisation, covering both implicit and explicit auctions?",
+ "gold": [
+  "reg_2017_2195_art40"
+ ],
+ "usage": {
+  "input_tokens": 215,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 225,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 40(1)(b) of Regulation 2017/2195 states that the co-optimised allocation process methodology must describe how cross-zonal capacity is allocated to energy bids and balancing capacity/reserve-sharing bids in a single optimisation for both implicit and explicit auctions. This matches the reference answer exactly.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question's wording matches only the co-optimised process. The market-based process (Art 41) and the economic-efficiency process (Art 42) have no single-optimisation description.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 40(1)(b) of Regulation 2017/2195 states that the co-optimised allocation process methodology must describe how cross-zonal capacity is allocated to energy bids and balancing capacity/reserve-sharing bids in a single optimisation for both implicit and explicit auctions. This matches the reference answer exactly.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question's wording matches only the co-optimised process. The market-based process (Art 41) and the economic-efficiency process (Art 42) have no single-optimisation description.",
+  "suggested_fix": ""
+ }
+}

@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Counted from the decision to launch a review of existing price zone layouts, how long do the participating TSOs have to submit a joint proposal to maintain or amend the layout?",
+ "gold": [
+  "reg_2015_1222_art32"
+ ],
+ "usage": {
+  "input_tokens": 123,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 312,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 32(4)(b)(iii) of Regulation 2015/1222 says the participating TSOs submit a joint proposal to maintain or amend the bidding zone configuration within 15 months of the decision to launch a review.\", \"other_articles\": [{\"doc_id\": \"reg_2019_943_art14\", \"answers\": \"partially\", \"why\": \"Article 14(6) gives a different deadline (12 months) counted from approval of the methodology and assumptions, not from the decision to launch the review. It could confuse a reader but does not answer the question as asked.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"Article 14(6) of Regulation 2019/943 sets a different deadline (12 months after methodology approval), but the question's wording \\\"counted from the decision to launch a review\\\" matches only Article 32 of Regulation 2015/1222.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 32(4)(b)(iii) of Regulation 2015/1222 says the participating TSOs submit a joint proposal to maintain or amend the bidding zone configuration within 15 months of the decision to launch a review.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2019_943_art14",
+    "answers": "partially",
+    "why": "Article 14(6) gives a different deadline (12 months) counted from approval of the methodology and assumptions, not from the decision to launch the review. It could confuse a reader but does not answer the question as asked."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "Article 14(6) of Regulation 2019/943 sets a different deadline (12 months after methodology approval), but the question's wording \"counted from the decision to launch a review\" matches only Article 32 of Regulation 2015/1222.",
+  "suggested_fix": ""
+ }
+}

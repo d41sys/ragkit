@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "How may reserve power be passed between load-frequency control areas of one synchronous area when the activation is manual rather than automatic?",
+ "gold": [
+  "reg_2017_1485_art147"
+ ],
+ "usage": {
+  "input_tokens": 158,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 360,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 147(4) lists the options for frequency restoration power interchange between LFC areas of the same synchronous area. Point (b) covers manual FRR activation: adjusting a control program or defining an active power flow over a virtual tie-line. Point (c) adds HVDC interconnector flow adjustment, which is exactly what the reference answer states.\", \"other_articles\": [{\"doc_id\": \"reg_2017_1485_art146\", \"answers\": \"partially\", \"why\": \"Article 146(4) gives similar mechanisms (virtual tie-line, HVDC) for imbalance netting, but it does not distinguish manual from automatic activation and covers netting rather than FRR activation.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"'Reserve power' and 'passed' are loose wording, but they map clearly onto cross-border FRR activation with manual activation; imbalance netting in Article 146 is a different process.\", \"suggested_fix\": \"Optionally reword to 'frequency restoration power interchange' for precision.\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 147(4) lists the options for frequency restoration power interchange between LFC areas of the same synchronous area. Point (b) covers manual FRR activation: adjusting a control program or defining an active power flow over a virtual tie-line. Point (c) adds HVDC interconnector flow adjustment, which is exactly what the reference answer states.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2017_1485_art146",
+    "answers": "partially",
+    "why": "Article 146(4) gives similar mechanisms (virtual tie-line, HVDC) for imbalance netting, but it does not distinguish manual from automatic activation and covers netting rather than FRR activation."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "'Reserve power' and 'passed' are loose wording, but they map clearly onto cross-border FRR activation with manual activation; imbalance netting in Article 146 is a different process.",
+  "suggested_fix": "Optionally reword to 'frequency restoration power interchange' for precision."
+ }
+}

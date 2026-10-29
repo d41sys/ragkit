@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Eighteen months after approval of a platform's implementation framework, TSOs may propose changes to it. For which Europe-wide energy exchange platform may that change proposal also reopen the platform's basic principles (common governance, multilateral TSO-TSO model, common merit order lists), not just the implementation framework?",
+ "gold": [
+  "reg_2017_2195_art21"
+ ],
+ "usage": {
+  "input_tokens": 247,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 322,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 21(5) allows a modification proposal \\\"pursuant to paragraph 1 and of the principles set in paragraph 2\\\". Paragraph 2 sets common governance, the multilateral TSO-TSO model and common merit order lists. Article 20(5) for the manual-activation platform refers only to paragraph 1, so the reference answer is correct.\", \"other_articles\": [{\"doc_id\": \"reg_2017_2195_art20\", \"answers\": \"partially\", \"why\": \"Its paragraph 5 gives the 18-month modification right but covers only paragraph 1. It is useful as the contrast, but it does not answer which platform also covers the principles.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question is phrased vaguely (\\\"Europe-wide energy exchange platform\\\"), but the 18-month proposal plus principles condition matches only Article 21.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 21(5) allows a modification proposal \"pursuant to paragraph 1 and of the principles set in paragraph 2\". Paragraph 2 sets common governance, the multilateral TSO-TSO model and common merit order lists. Article 20(5) for the manual-activation platform refers only to paragraph 1, so the reference answer is correct.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2017_2195_art20",
+    "answers": "partially",
+    "why": "Its paragraph 5 gives the 18-month modification right but covers only paragraph 1. It is useful as the contrast, but it does not answer which platform also covers the principles."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question is phrased vaguely (\"Europe-wide energy exchange platform\"), but the 18-month proposal plus principles condition matches only Article 21.",
+  "suggested_fix": ""
+ }
+}
