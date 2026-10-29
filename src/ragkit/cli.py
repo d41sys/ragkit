@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -58,17 +59,29 @@ from ragkit.eval import (
     recall_at_k,
     wilson_interval,
 )
+from ragkit.genbench import (
+    decide,
+    items_from_records,
+    offline_reader_scorers,
+    reader_scores,
+    render_generation,
+    retrieve_passages,
+    run_generation,
+    subset_score_cache,
+)
+from ragkit.generation import LLMAnswerer, Passage
 from ragkit.hybrid import HybridRetriever
 from ragkit.legalbench import DEFAULT_LEGALBENCH_ZIP, load_mini, render_legalbench_report
 from ragkit.legalbench import SYSTEMS as LEGAL_SYSTEMS
 from ragkit.legalbench import evaluate_system as evaluate_legal
+from ragkit.lexical import Question, questions_from_records, render_decision_inputs, render_report
 from ragkit.lexical import evaluate as evaluate_lexical
-from ragkit.lexical import questions_from_records, render_decision_inputs, render_report
 from ragkit.lexical_explain import explain as explain_lexical
 from ragkit.lexical_explain import render_explanation
+from ragkit.llm import MODEL, CachedMessages
 from ragkit.modelsignals import DEFAULT_CACHE, MODEL_SIGNALS, ModelScorers, load_model_scorers
 from ragkit.nokw import load_index, render_rule_status
-from ragkit.pipeline import DEFAULT_MIN_SUPPORT, RAGPipeline, query_support
+from ragkit.pipeline import ABSTAIN_TEXT, DEFAULT_MIN_SUPPORT, RAGPipeline, query_support
 from ragkit.rerank import LexicalReranker
 from ragkit.rewrite import HyDERewriter, TemplateLLM
 
@@ -233,9 +246,20 @@ def _read_unanswerable(ds: Dataset, cohort: str = "all") -> list[dict[str, Any]]
     return kept
 
 
+def _make_pipeline(retriever: str, min_support: float) -> RAGPipeline:
+    """The shipped pipeline, or one on a neural retriever (needs the ``[st]`` extra)."""
+    if retriever == "default":
+        return RAGPipeline(min_support=min_support)
+    from ragkit.neural import NeuralChunkRetriever
+
+    return RAGPipeline(
+        retriever=NeuralChunkRetriever(retriever), rerank=False, min_support=min_support
+    )
+
+
 def cmd_ask(args: argparse.Namespace) -> int:
     """Answer a user query with chunk citations, or abstain when support is low."""
-    pipeline = RAGPipeline(min_support=args.min_support)
+    pipeline = _make_pipeline(args.retriever, args.min_support)
     if args.index:
         pipeline.index_chunks(_load_index(Path(args.index)))
     else:
@@ -850,8 +874,91 @@ def cmd_ctxprefix(args: argparse.Namespace) -> int:
     return 0
 
 
+DEFAULT_EMBED_DIR = Path("data/raw/emb")
+
+
+def _add_neural_args(parser: argparse.ArgumentParser) -> None:
+    """``--retriever`` and its model options (docs/neural_protocol.md)."""
+    parser.add_argument(
+        "--retriever",
+        choices=("bm25", "dense", "hybrid", "hybrid+ce"),
+        default="bm25",
+        help="bm25 = the model-free systems; dense, hybrid, hybrid+ce need `[st]` (neural).",
+    )
+    parser.add_argument(
+        "--cache-dir", default=str(DEFAULT_EMBED_DIR), help="Gitignored document-matrix cache."
+    )
+    parser.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
+
+
+def _cmd_beir_neural(args: argparse.Namespace) -> int:
+    """Neural systems on the BEIR sets of docs/neural_protocol.md."""
+    from ragkit.neuralbench import NEURAL_BEIR, render_neural_beir, run_beir_neural
+
+    names = list(NEURAL_BEIR) if args.dataset == "all" else [args.dataset]
+    for name in names:
+        if name not in NEURAL_BEIR:
+            print(f"Error: neural protocol covers {list(NEURAL_BEIR)}, not {name}", file=sys.stderr)
+            return 2
+        run = run_beir_neural(
+            name,
+            Path(args.data_dir),
+            args.retriever,
+            cache_dir=Path(args.cache_dir),
+            device=args.device,
+            max_queries=args.max_queries,
+            download=not args.no_download,
+        )
+        print()
+        print(render_neural_beir(run))
+    return 0
+
+
+def _cmd_legalbench_neural(args: argparse.Namespace) -> int:
+    """Neural systems on LegalBench-RAG-mini (RRF only: no dev split)."""
+    from ragkit.neuralbench import run_legal_neural
+
+    bench = load_mini(Path(args.data_zip), download=not args.no_download)
+    results = run_legal_neural(
+        bench,
+        args.retriever,
+        cache_dir=Path(args.cache_dir),
+        device=args.device,
+        max_queries=args.max_queries,
+    )
+    print()
+    print(render_legalbench_report(bench, results))
+    return 0
+
+
+def cmd_neural(args: argparse.Namespace) -> int:
+    """Neural systems on the original-42 (dev) and the fresh, hard and keyword-free EU sets."""
+    from ragkit.neuralbench import render_eu_neural, run_eu_neural
+
+    def load(path: Path) -> list[Question]:
+        return questions_from_records(_read_jsonl(path))
+
+    run = run_eu_neural(
+        _load_documents(EU_CORPUS_DIR),
+        load(EU_QA_PATH),
+        {
+            "fresh 29": load(EU_FRESH_QA_PATH),
+            "hard 39": load(EU_HARD_QA_PATH),
+            "keyword-free 49": load(EU_NOKW_QA_PATH),
+        },
+        args.retriever,
+        cache_dir=Path(args.cache_dir),
+        device=args.device,
+    )
+    print()
+    print(render_eu_neural(run))
+    return 0
+
+
 def cmd_beir(args: argparse.Namespace) -> int:
-    """Model-free retrievers on a BEIR test set (docs/beir_protocol.md); nDCG@10 and Recall@100."""
+    """Retrievers on a BEIR test set (docs/beir_protocol.md); nDCG@10 and Recall@100."""
+    if args.retriever != "bm25":
+        return _cmd_beir_neural(args)
     names = list(BEIR_DATASETS) if args.dataset == "all" else [args.dataset]
     by_name = {spec.name: spec for spec in SYSTEMS}
     if args.systems == "all":
@@ -880,7 +987,9 @@ def cmd_beir(args: argparse.Namespace) -> int:
 
 
 def cmd_legalbench(args: argparse.Namespace) -> int:
-    """Model-free retrievers on LegalBench-RAG-mini (docs/legalbench_protocol.md)."""
+    """Retrievers on LegalBench-RAG-mini (docs/legalbench_protocol.md)."""
+    if args.retriever != "bm25":
+        return _cmd_legalbench_neural(args)
     by_name = {s.name: s for s in LEGAL_SYSTEMS}
     if args.systems == "all":
         specs = list(LEGAL_SYSTEMS)
@@ -896,6 +1005,78 @@ def cmd_legalbench(args: argparse.Namespace) -> int:
     results = [evaluate_legal(s, bench, max_queries=args.max_queries) for s in specs]
     print()
     print(render_legalbench_report(bench, results))
+    return 0
+
+
+DEFAULT_LLM_CACHE = Path(".ragkit") / "llm_cache.jsonl"
+GENERATION_CACHE = Path("data/llm_cache/generation.jsonl")
+READER_CACHE = Path("data/llm_cache/reader_scores.json")
+
+
+def _llm_client(model: str, cache: str) -> CachedMessages:
+    """A cached client; live calls need ``ANTHROPIC_API_KEY``, replays need nothing."""
+    return CachedMessages(Path(cache), api_key=os.environ.get("ANTHROPIC_API_KEY", ""), model=model)
+
+
+def cmd_answer(args: argparse.Namespace) -> int:
+    """Retrieve, optionally gate on sufficient context, then answer with article citations."""
+    ds = _resolve_dataset(args)
+    pipeline = _make_pipeline(args.retriever, 0.0)
+    pipeline.index_documents(_load_documents(ds.corpus_dir))
+    passages = [Passage(c.doc_id, c.text) for c in pipeline.retrieve(args.query, args.top_k)]
+    answerer = LLMAnswerer(_llm_client(args.llm, args.cache))
+    print(f"Question: {args.query}\n")
+    suff = answerer.sufficiency(args.query, passages) if args.gate == "suff" else None
+    if suff is not None:
+        print(f"Sufficient context: {suff.sufficient} (confidence {suff.confidence:.0f}/100)")
+        print(f"  {suff.reasoning}\n")
+    answer = answerer.generate(args.query, passages)
+    abstain = (suff is not None and not suff.sufficient) or (
+        args.gate == "self" and not answer.supports
+    )
+    if abstain:
+        print(f"Answer:\n{ABSTAIN_TEXT}")
+        return 0
+    print(f"Answer:\n{answer.answer}\n")
+    if answer.citations:
+        print(f"Citations: {', '.join(answer.citations)}")
+    print(f"Model says the context supports the answer: {answer.supports}")
+    return 0
+
+
+def cmd_generation(args: argparse.Namespace) -> int:
+    """K-R2 on the 42 + 45 EU questions (docs/generation_protocol.md); replays the cache."""
+    ds = BUNDLED_DATASETS["eu"]
+    documents = _load_documents(ds.corpus_dir)
+    items = items_from_records(_read_jsonl(ds.qa_path), _read_jsonl(ds.unanswerable_path))
+    pipeline = _make_pipeline(args.retriever, 0.0)
+    passages = retrieve_passages(pipeline, documents, items, top_k=5)
+    reader_path = Path(args.reader_cache)
+    if args.build_reader_cache:
+        n = subset_score_cache(Path(args.build_reader_cache), reader_path, items, passages)
+        print(f"Wrote {n} reader scores to {reader_path}")
+        return 0
+    client = CachedMessages(
+        Path(args.cache),
+        api_key=os.environ.get("ANTHROPIC_API_KEY", "") if args.live else "",
+    )
+    records = run_generation(
+        items,
+        passages,
+        documents,
+        LLMAnswerer(client),
+        full_context=not args.no_fullcontext,
+        workers=args.workers,
+    )
+    reader = (
+        reader_scores(offline_reader_scorers(reader_path), items, passages)
+        if args.retriever == "default"
+        else None
+    )
+    decisions = decide(records, reader)
+    title = f"ragkit generation: EU answers, sufficient-context gates (retriever {args.retriever})"
+    print()
+    print(render_generation(records, decisions, client, title=title))
     return 0
 
 
@@ -942,6 +1123,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--index", default=None, help="Chunk index written by `ragkit index` (overrides corpus)."
     )
     p_ask.add_argument("--top-k", type=int, default=5, help="Number of retrieved chunks.")
+    p_ask.add_argument(
+        "--retriever",
+        choices=("default", "dense", "hybrid", "hybrid+ce"),
+        default="default",
+        help="default = shipped hashing hybrid + lexical rerank; the others need `[st]`.",
+    )
     p_ask.add_argument(
         "--min-support",
         type=float,
@@ -1060,6 +1247,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     p_beir.add_argument("--data-dir", default=str(DEFAULT_BEIR_DIR), help="Gitignored zip cache.")
     p_beir.add_argument("--no-download", action="store_true", help="Fail if the zip is missing.")
+    _add_neural_args(p_beir)
     p_beir.add_argument(
         "--max-queries", type=int, default=None, help="Score only the first N queries (smoke test)."
     )
@@ -1080,8 +1268,71 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="The authors' Dropbox archive (downloaded when missing, gitignored).",
     )
     p_lbr.add_argument("--no-download", action="store_true", help="Fail if the zip is missing.")
+    _add_neural_args(p_lbr)
     p_lbr.add_argument(
         "--max-queries", type=int, default=None, help="Score only N queries per source (smoke)."
+    )
+
+    # Neural EU command
+    p_neural = subparsers.add_parser(
+        "neural",
+        help="Neural dense / hybrid / cross-encoder retrieval on the four EU question sets.",
+    )
+    p_neural.add_argument(
+        "--retriever",
+        choices=("dense", "hybrid", "hybrid+ce"),
+        default="hybrid+ce",
+        help="Systems reported: dense = bm25, dense; hybrid adds fusion; hybrid+ce adds rerank.",
+    )
+    p_neural.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
+    p_neural.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
+
+    # LLM answer command
+    p_ans = subparsers.add_parser(
+        "answer",
+        help="LLM answer with article citations and a sufficient-context gate (needs an API key).",
+    )
+    p_ans.add_argument("query", help="Question text.")
+    _add_dataset_args(p_ans, questions=False)
+    p_ans.add_argument("--top-k", type=int, default=5, help="Number of retrieved chunks.")
+    p_ans.add_argument(
+        "--retriever",
+        choices=("default", "dense", "hybrid", "hybrid+ce"),
+        default="default",
+        help="default = shipped hashing hybrid + lexical rerank; the others need `[st]`.",
+    )
+    p_ans.add_argument("--llm", default=MODEL, help="Anthropic model id (ANTHROPIC_API_KEY).")
+    p_ans.add_argument(
+        "--gate",
+        choices=("suff", "self", "none"),
+        default="suff",
+        help="suff: abstain unless the sufficient-context check passes; self: abstain when the "
+        "answer says the context does not support it; none: always answer.",
+    )
+    p_ans.add_argument("--cache", default=str(DEFAULT_LLM_CACHE), help="JSONL call cache.")
+
+    # Generation experiment command
+    p_gen = subparsers.add_parser(
+        "generation",
+        help="K-R2: LLM answers, sufficient-context gates and full-context baseline on the EU set.",
+    )
+    p_gen.add_argument(
+        "--retriever",
+        choices=("default", "hybrid+ce"),
+        default="default",
+        help="default = shipped pipeline (reader signal available); hybrid+ce = secondary run.",
+    )
+    p_gen.add_argument("--cache", default=str(GENERATION_CACHE), help="JSONL call cache.")
+    p_gen.add_argument("--reader-cache", default=str(READER_CACHE), help="Reader score cache.")
+    p_gen.add_argument(
+        "--live", action="store_true", help="Allow API calls (needs ANTHROPIC_API_KEY)."
+    )
+    p_gen.add_argument("--no-fullcontext", action="store_true", help="Skip the full-context run.")
+    p_gen.add_argument("--workers", type=int, default=6, help="Concurrent API calls.")
+    p_gen.add_argument(
+        "--build-reader-cache",
+        default=None,
+        help="Copy the needed reader scores from this score cache into --reader-cache and exit.",
     )
 
     # Fetch-EU command
@@ -1120,6 +1371,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_ablation(parsed))
     elif parsed.subcommand == "fetch-eu":
         sys.exit(cmd_fetch_eu(parsed))
+    elif parsed.subcommand == "neural":
+        sys.exit(cmd_neural(parsed))
+    elif parsed.subcommand == "answer":
+        sys.exit(cmd_answer(parsed))
+    elif parsed.subcommand == "generation":
+        sys.exit(cmd_generation(parsed))
 
 
 if __name__ == "__main__":
