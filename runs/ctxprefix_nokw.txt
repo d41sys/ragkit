@@ -1,0 +1,74 @@
+
+### RagKit context prefix on the keyword-free EU set (model-free; BM25 and hybrid)
+
+Keyword-free rule (docs/ctxprefix_nokw_protocol.md): top-20 TF-IDF stems of the gold article, overlap <= 1: 49 / 49 questions pass, largest overlap 1.
+
+#### keyword-free EU set (qa_eu_nokw.jsonl) (49 questions, primary evidence)
+
+mean [bootstrap 95% CI over questions, 2000 resamples, seed 0]
+
+| Retriever | Chunk text | Recall@5 | MRR | nDCG@10 | wrong-act top-1 |
+|---|---|---|---|---|---|
+| bm25 | base | 0.347 [0.204, 0.490] | 0.259 [0.159, 0.372] | 0.300 [0.191, 0.410] | 29 / 49 |
+| bm25 | prefix | 0.327 [0.204, 0.449] | 0.238 [0.146, 0.336] | 0.284 [0.187, 0.385] | 32 / 49 |
+| hybrid | base | 0.306 [0.184, 0.429] | 0.206 [0.115, 0.304] | 0.243 [0.148, 0.343] | 30 / 49 |
+| hybrid | prefix | 0.327 [0.204, 0.449] | 0.216 [0.122, 0.319] | 0.256 [0.158, 0.357] | 33 / 49 |
+
+Paired difference `prefix` minus `base` (same questions):
+
+| Retriever | dRecall@5 | dMRR | dnDCG@10 | wrong-act: fixed / broken |
+|---|---|---|---|---|
+| bm25 | -0.020 [-0.082, +0.041] | -0.022 [-0.056, +0.005] | -0.016 [-0.047, +0.014] | 0 / 3 |
+| hybrid | +0.020 [-0.041, +0.082] | +0.010 [-0.056, +0.069] | +0.013 [-0.053, +0.072] | 1 / 4 |
+
+Questions better / worse / tied with the prefix:
+
+| Retriever | Recall@5 | MRR | nDCG@10 |
+|---|---|---|---|
+| bm25 | 1 / 2 / 46 | 2 / 7 / 40 | 2 / 7 / 40 |
+| hybrid | 2 / 1 / 46 | 7 / 5 / 37 | 7 / 5 / 37 |
+
+Paired dMRR and wrong-act count (base -> prefix) by question type:
+
+| Retriever | cross-act | near-duplicate |
+|---|---|---|
+| bm25 | n=21: -0.027 [-0.077, -0.001]; wrong-act 13 -> 14 | n=28: -0.018 [-0.063, +0.015]; wrong-act 16 -> 18 |
+| hybrid | n=21: +0.022 [-0.022, +0.091]; wrong-act 15 -> 15 | n=28: +0.001 [-0.115, +0.098]; wrong-act 15 -> 18 |
+
+Saturation guard (docs/ctxprefix_nokw_protocol.md): baseline BM25 Recall@5 = 0.347, threshold 0.85 -> **not saturated**.
+
+Floor guard (docs/ctxprefix_nokw_protocol.md): baseline BM25 Recall@5 = 0.347, floor 0.15 -> **not too hard**.
+
+#### synthetic set (qa.jsonl) (40 questions, regression guard)
+
+mean [bootstrap 95% CI over questions, 2000 resamples, seed 0]
+
+| Retriever | Chunk text | Recall@5 | MRR | nDCG@10 | wrong-act top-1 |
+|---|---|---|---|---|---|
+| bm25 | base | 1.000 [1.000, 1.000] | 0.940 [0.877, 0.988] | 0.955 [0.909, 0.991] | 4 / 40 |
+| bm25 | prefix | 1.000 [1.000, 1.000] | 0.956 [0.900, 1.000] | 0.967 [0.925, 1.000] | 3 / 40 |
+| hybrid | base | 1.000 [1.000, 1.000] | 0.944 [0.887, 0.988] | 0.958 [0.915, 0.991] | 4 / 40 |
+| hybrid | prefix | 1.000 [1.000, 1.000] | 0.956 [0.900, 1.000] | 0.967 [0.925, 1.000] | 3 / 40 |
+
+Paired difference `prefix` minus `base` (same questions):
+
+| Retriever | dRecall@5 | dMRR | dnDCG@10 | wrong-act: fixed / broken |
+|---|---|---|---|---|
+| bm25 | +0.000 [+0.000, +0.000] | +0.017 [+0.000, +0.046] | +0.013 [+0.000, +0.034] | 1 / 0 |
+| hybrid | +0.000 [+0.000, +0.000] | +0.013 [+0.000, +0.037] | +0.009 [+0.000, +0.028] | 1 / 0 |
+
+Questions better / worse / tied with the prefix:
+
+| Retriever | Recall@5 | MRR | nDCG@10 |
+|---|---|---|---|
+| bm25 | 0 / 0 / 40 | 2 / 0 / 38 | 2 / 0 / 38 |
+| hybrid | 0 / 0 / 40 | 1 / 0 / 39 | 1 / 0 / 39 |
+
+Decision rule (docs/ctxprefix_nokw_protocol.md): adopt iff the no-keyword-set paired dMRR CI lower
+bound is above 0 and the synthetic dMRR is >= -0.02 with CI upper bound >= 0.
+
+| Retriever | no-keyword dMRR | gain on no-keyword | synthetic dMRR | synthetic ok | verdict |
+|---|---|---|---|---|---|
+| bm25 | -0.022 [-0.056, +0.005] | no | +0.017 [+0.000, +0.046] | yes | **NOT ADOPTED (no evidence)** |
+| hybrid | +0.010 [-0.056, +0.069] | no | +0.013 [+0.000, +0.037] | yes | **NOT ADOPTED (no evidence)** |
+
