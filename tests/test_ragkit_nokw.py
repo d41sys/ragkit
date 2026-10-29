@@ -62,3 +62,44 @@ def test_violations_combine_overlap_and_naming() -> None:
     assert any("overlap" in p for p in problems) and "names an act number" in problems
     ok = {"q": "Who decides what happens next?", "relevant_doc_ids": ["reg_a_art1"]}
     assert violations(index, ok) == []
+
+
+def _nokw_records() -> list[dict[str, object]]:
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).parents[1] / "src" / "ragkit" / "data" / "qa_eu_nokw.jsonl"
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
+def test_nokw_set() -> None:
+    """Every committed no-keyword question obeys the frozen overlap and naming rule."""
+    from pathlib import Path
+
+    from ragkit.nokw import load_index
+
+    corpus = Path(__file__).parents[1] / "src" / "ragkit" / "data" / "corpus_eu"
+    index = load_index(corpus)
+    records = _nokw_records()
+    assert records
+    failures = {str(r["q"]): violations(index, r) for r in records if violations(index, r)}
+    assert failures == {}
+    for record in records:
+        ids = record["relevant_doc_ids"]
+        assert isinstance(ids, list) and ids and all(doc_id in index.counts for doc_id in ids)
+
+
+def test_nokw_questions_are_unique_and_new() -> None:
+    import json
+    from pathlib import Path
+
+    data = Path(__file__).parents[1] / "src" / "ragkit" / "data"
+    earlier = {
+        json.loads(line)["q"]
+        for name in ("qa_eu.jsonl", "qa_eu_fresh.jsonl", "qa_eu_hard.jsonl")
+        for line in (data / name).read_text(encoding="utf-8").splitlines()
+        if line
+    }
+    questions = [str(r["q"]) for r in _nokw_records()]
+    assert len(set(questions)) == len(questions)
+    assert not earlier & set(questions)
