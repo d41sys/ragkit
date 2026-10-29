@@ -41,6 +41,7 @@ from ragkit.bm25 import BM25Index
 from ragkit.chunking import Chunk, fixed, recursive, semantic, sentence
 from ragkit.ctxprefix import evaluate_set as evaluate_ctxprefix
 from ragkit.ctxprefix import render_hard_protocol as render_ctxprefix_hard_protocol
+from ragkit.ctxprefix import render_nokw_protocol as render_ctxprefix_nokw_protocol
 from ragkit.ctxprefix import render_protocol as render_ctxprefix_protocol
 from ragkit.ctxprefix import render_set as render_ctxprefix_set
 from ragkit.ctxprefix import without_act_named
@@ -66,6 +67,7 @@ from ragkit.lexical import questions_from_records, render_decision_inputs, rende
 from ragkit.lexical_explain import explain as explain_lexical
 from ragkit.lexical_explain import render_explanation
 from ragkit.modelsignals import DEFAULT_CACHE, MODEL_SIGNALS, ModelScorers, load_model_scorers
+from ragkit.nokw import load_index, render_rule_status
 from ragkit.pipeline import DEFAULT_MIN_SUPPORT, RAGPipeline, query_support
 from ragkit.rerank import LexicalReranker
 from ragkit.rewrite import HyDERewriter, TemplateLLM
@@ -78,6 +80,7 @@ EU_CORPUS_DIR = DEFAULT_DATA_DIR / "corpus_eu"
 EU_QA_PATH = DEFAULT_DATA_DIR / "qa_eu.jsonl"
 EU_FRESH_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_fresh.jsonl"
 EU_HARD_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_hard.jsonl"
+EU_NOKW_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_nokw.jsonl"
 EU_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable_eu.jsonl"
 COHORTS = ("all", "original-12", "expanded")
 
@@ -781,8 +784,27 @@ def cmd_ctxprefix(args: argparse.Namespace) -> int:
     Builds BM25Index, HashingEmbedder, DenseIndex and HybridRetriever only: no sentence-
     transformers embedder, cross-encoder or reranker. ``--protocol`` runs the three bundled
     question sets of the protocol; ``--hard`` runs the hard held-out set against the synthetic
-    guard (docs/ctxprefix_hard_protocol.md); otherwise one set is scored.
+    guard (docs/ctxprefix_hard_protocol.md); ``--nokw`` runs the keyword-free EU set with the
+    saturation and floor guards (docs/ctxprefix_nokw_protocol.md); otherwise one set is scored.
     """
+    if args.nokw:
+        nokw_records = _read_jsonl(EU_NOKW_QA_PATH)
+        nokw = questions_from_records(nokw_records)
+        synthetic = questions_from_records(_read_jsonl(DEFAULT_QA_PATH))
+        eu_docs = _load_documents(EU_CORPUS_DIR)
+        print(
+            "\n### RagKit context prefix on the keyword-free EU set (model-free; BM25 and hybrid)\n"
+        )
+        print(render_rule_status(load_index(EU_CORPUS_DIR), nokw_records))
+        print(
+            render_ctxprefix_nokw_protocol(
+                evaluate_ctxprefix(eu_docs, nokw, "keyword-free EU set (qa_eu_nokw.jsonl)"),
+                evaluate_ctxprefix(
+                    _load_documents(DEFAULT_CORPUS_DIR), synthetic, "synthetic set (qa.jsonl)"
+                ),
+            )
+        )
+        return 0
     if args.hard:
         hard = questions_from_records(_read_jsonl(EU_HARD_QA_PATH))
         synthetic = questions_from_records(_read_jsonl(DEFAULT_QA_PATH))
@@ -1003,6 +1025,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--hard",
         action="store_true",
         help="Run the hard held-out EU set with the synthetic guard, saturation guard and rule.",
+    )
+    p_ctx.add_argument(
+        "--nokw",
+        action="store_true",
+        help="Run the keyword-free EU set with the synthetic guard, saturation and floor guards.",
     )
     p_ctx.add_argument(
         "--protocol",

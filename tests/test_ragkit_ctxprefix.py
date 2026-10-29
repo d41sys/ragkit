@@ -12,6 +12,7 @@ import pytest
 from ragkit.chunking import Chunk, recursive
 from ragkit.ctxprefix import (
     BUILDERS,
+    FLOOR_RECALL5,
     RETRIEVERS,
     SATURATION_RECALL5,
     SetResult,
@@ -24,9 +25,12 @@ from ragkit.ctxprefix import (
     evaluate_set,
     heading_of,
     is_saturated,
+    is_too_hard,
     is_wrong_act,
     names_an_act,
+    render_floor,
     render_hard_protocol,
+    render_nokw_protocol,
     render_saturation,
     render_set,
     render_verdicts,
@@ -306,5 +310,54 @@ def test_hard_command_runs_with_no_model_library_and_prints_guard_and_rule() -> 
         "Saturation guard",
         "regression guard",
         "docs/ctxprefix_hard_protocol.md",
+    ):
+        assert token in out.stdout, token
+
+
+def test_floor_guard_flags_a_baseline_recall_below_the_floor() -> None:
+    n = 20
+    assert FLOOR_RECALL5 == 0.15
+    none = _result([0.0] * n, [0.0] * n)  # no gold retrieved at all
+    assert baseline_recall5(none) == 0.0 and is_too_hard(none)
+    assert "TOO HARD FOR LEXICAL RETRIEVAL" in render_floor(none)
+    ok = _result([0.0] * 10 + [1.0] * 10, [0.0] * n)  # Recall@5 = 0.5
+    assert not is_too_hard(ok) and "not too hard" in render_floor(ok)
+    edge = _result([0.0] * 17 + [1.0] * 3, [0.0] * n)  # exactly 0.15 is not below it
+    assert baseline_recall5(edge) == 0.15 and not is_too_hard(edge)
+
+
+def test_nokw_report_has_both_guards_synthetic_and_the_unchanged_rule() -> None:
+    n = 30
+    report = render_nokw_protocol(_result([0.5] * n, [0.5] * n), _result([0.5] * n, [0.5] * n))
+    for token in (
+        "Saturation guard (docs/ctxprefix_nokw_protocol.md)",
+        "Floor guard (docs/ctxprefix_nokw_protocol.md)",
+        "regression guard",
+        "no-keyword dMRR",
+        "NOT ADOPTED (no evidence)",
+    ):
+        assert token in report, token
+
+
+def test_nokw_command_runs_with_no_model_library_and_prints_guards_and_rule() -> None:
+    script = (
+        "import sys\n"
+        "from ragkit.cli import main\n"
+        "try:\n    main(['ctxprefix', '--nokw'])\n"
+        "except SystemExit as e:\n    assert e.code == 0\n"
+        "banned = ('sentence_transformers', 'torch', 'transformers')\n"
+        "loaded = [m for m in banned if m in sys.modules]\n"
+        "assert not loaded, loaded\n"
+        "print('OK')\n"
+    )
+    out = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=True)
+    assert "OK" in out.stdout
+    for token in (
+        "keyword-free EU set (qa_eu_nokw.jsonl)",
+        "Keyword-free rule",
+        "Saturation guard",
+        "Floor guard",
+        "regression guard",
+        "docs/ctxprefix_nokw_protocol.md",
     ):
         assert token in out.stdout, token

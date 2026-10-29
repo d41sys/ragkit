@@ -29,6 +29,7 @@ SEARCH_CHUNKS = 10
 MIN_MRR_GAIN_LOWER = 0.0  # fresh set: paired MRR CI lower bound must exceed this
 SYNTHETIC_MAX_DROP = 0.02  # synthetic set: paired MRR may not fall by more than this
 SATURATION_RECALL5 = 0.85  # hard set: baseline BM25 Recall@5 above this means "saturated"
+FLOOR_RECALL5 = 0.15  # no-keyword set: baseline BM25 Recall@5 below this means "too hard"
 
 RETRIEVERS = ("bm25", "hybrid")
 VARIANTS = ("base", "prefix")
@@ -295,13 +296,34 @@ def is_saturated(result: SetResult) -> bool:
     return baseline_recall5(result) > SATURATION_RECALL5
 
 
-def render_saturation(result: SetResult) -> str:
+def render_saturation(result: SetResult, protocol: str = "ctxprefix_hard_protocol.md") -> str:
     """The saturation guard's input and outcome, in one line for the report."""
     recall = baseline_recall5(result)
     outcome = "SATURATED" if is_saturated(result) else "not saturated"
     return (
-        f"Saturation guard (docs/ctxprefix_hard_protocol.md): baseline BM25 Recall@5 = "
+        f"Saturation guard (docs/{protocol}): baseline BM25 Recall@5 = "
         f"{recall:.3f}, threshold {SATURATION_RECALL5:.2f} -> **{outcome}**.\n"
+    )
+
+
+def is_too_hard(result: SetResult) -> bool:
+    """Pre-registered floor: baseline BM25 Recall@5 below ``FLOOR_RECALL5`` (no gold retrieved)."""
+    return baseline_recall5(result) < FLOOR_RECALL5
+
+
+def render_floor(result: SetResult, protocol: str = "ctxprefix_nokw_protocol.md") -> str:
+    """The floor guard's input and outcome; below the floor the set cannot test the prefix."""
+    recall = baseline_recall5(result)
+    if is_too_hard(result):
+        outcome = (
+            "**TOO HARD FOR LEXICAL RETRIEVAL**: the prefix cannot help when the gold article "
+            "is not in the candidate set"
+        )
+    else:
+        outcome = "**not too hard**"
+    return (
+        f"Floor guard (docs/{protocol}): baseline BM25 Recall@5 = {recall:.3f}, "
+        f"floor {FLOOR_RECALL5:.2f} -> {outcome}.\n"
     )
 
 
@@ -340,5 +362,19 @@ def render_hard_protocol(hard: SetResult, synthetic: SetResult) -> str:
             render_verdicts(
                 decide(hard, synthetic), primary="hard", protocol="ctxprefix_hard_protocol.md"
             ),
+        ]
+    )
+
+
+def render_nokw_protocol(nokw: SetResult, synthetic: SetResult) -> str:
+    """No-keyword-set report: scores, both guards, synthetic guard, the unchanged decision rule."""
+    protocol = "ctxprefix_nokw_protocol.md"
+    return "\n".join(
+        [
+            render_set(nokw, ", primary evidence"),
+            render_saturation(nokw, protocol),
+            render_floor(nokw, protocol),
+            render_set(synthetic, ", regression guard"),
+            render_verdicts(decide(nokw, synthetic), primary="no-keyword", protocol=protocol),
         ]
     )

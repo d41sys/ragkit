@@ -109,6 +109,17 @@ def load_index(corpus_dir: Path) -> TermIndex:
     )
 
 
+def render_rule_status(index: TermIndex, records: Sequence[Mapping[str, Any]]) -> str:
+    """One line for the run report: questions passing the frozen rule, and the worst overlap."""
+    worst = max(overlap(index, str(r["q"]), list(r["relevant_doc_ids"]))[0] for r in records)
+    passing = sum(1 for r in records if not violations(index, r))
+    return (
+        f"Keyword-free rule (docs/ctxprefix_nokw_protocol.md): top-{TOP_K} TF-IDF stems of the "
+        f"gold article, overlap <= {MAX_OVERLAP}: {passing} / {len(records)} questions pass, "
+        f"largest overlap {worst}.\n"
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Print the overlap of every question of a jsonl file; exit 1 when any breaks the rule."""
     parser = argparse.ArgumentParser(description="Keyword-free rule check of a QA jsonl file.")
