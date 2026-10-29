@@ -28,6 +28,7 @@ DENSE_DIM = 512
 SEARCH_CHUNKS = 10
 MIN_MRR_GAIN_LOWER = 0.0  # fresh set: paired MRR CI lower bound must exceed this
 SYNTHETIC_MAX_DROP = 0.02  # synthetic set: paired MRR may not fall by more than this
+SATURATION_RECALL5 = 0.85  # hard set: baseline BM25 Recall@5 above this means "saturated"
 
 RETRIEVERS = ("bm25", "hybrid")
 VARIANTS = ("base", "prefix")
@@ -262,13 +263,16 @@ def render_set(result: SetResult, note: str = "") -> str:
     return "\n".join(lines)
 
 
-def render_verdicts(verdicts: Sequence[Verdict]) -> str:
-    """The decision rule's inputs and outcome for each retriever."""
+def render_verdicts(
+    verdicts: Sequence[Verdict], primary: str = "fresh", protocol: str = "ctxprefix_protocol.md"
+) -> str:
+    """The decision rule's inputs and outcome per retriever (``primary`` names the gating set)."""
     lines = [
-        "Decision rule (docs/ctxprefix_protocol.md): adopt iff the fresh-set paired dMRR CI lower",
+        f"Decision rule (docs/{protocol}): adopt iff the {primary}-set paired dMRR CI lower",
         "bound is above 0 and the synthetic dMRR is >= -0.02 with CI upper bound >= 0.",
         "",
-        "| Retriever | fresh dMRR | gain on fresh | synthetic dMRR | synthetic ok | verdict |",
+        f"| Retriever | {primary} dMRR | gain on {primary} | synthetic dMRR | synthetic ok "
+        "| verdict |",
         "|---|---|---|---|---|---|",
     ]
     for v in verdicts:
@@ -278,6 +282,27 @@ def render_verdicts(verdicts: Sequence[Verdict]) -> str:
         lines.append(f"| {v.retriever} | {fresh} | {gain} | {synth} | {ok} | **{v.decision}** |")
     lines.append("")
     return "\n".join(lines)
+
+
+def baseline_recall5(result: SetResult, retriever: str = "bm25") -> float:
+    """Mean Recall@5 of the ``base`` chunk text of one retriever on a question set."""
+    values = result.results[(retriever, "base")].scores["r5"]
+    return sum(values) / len(values)
+
+
+def is_saturated(result: SetResult) -> bool:
+    """Pre-registered saturation guard: baseline BM25 Recall@5 above ``SATURATION_RECALL5``."""
+    return baseline_recall5(result) > SATURATION_RECALL5
+
+
+def render_saturation(result: SetResult) -> str:
+    """The saturation guard's input and outcome, in one line for the report."""
+    recall = baseline_recall5(result)
+    outcome = "SATURATED" if is_saturated(result) else "not saturated"
+    return (
+        f"Saturation guard (docs/ctxprefix_hard_protocol.md): baseline BM25 Recall@5 = "
+        f"{recall:.3f}, threshold {SATURATION_RECALL5:.2f} -> **{outcome}**.\n"
+    )
 
 
 def names_an_act(question: str) -> bool:
@@ -301,5 +326,19 @@ def render_protocol(
             render_set(old, ", TAINTED by earlier diagnosis, secondary, never gates"),
             render_set(synthetic, ", regression guard"),
             render_verdicts(decide(fresh, synthetic)),
+        ]
+    )
+
+
+def render_hard_protocol(hard: SetResult, synthetic: SetResult) -> str:
+    """Hard-set report: scores, saturation guard, synthetic guard, the unchanged decision rule."""
+    return "\n".join(
+        [
+            render_set(hard, ", primary evidence"),
+            render_saturation(hard),
+            render_set(synthetic, ", regression guard"),
+            render_verdicts(
+                decide(hard, synthetic), primary="hard", protocol="ctxprefix_hard_protocol.md"
+            ),
         ]
     )

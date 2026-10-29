@@ -40,6 +40,7 @@ from ragkit.beir import (
 from ragkit.bm25 import BM25Index
 from ragkit.chunking import Chunk, fixed, recursive, semantic, sentence
 from ragkit.ctxprefix import evaluate_set as evaluate_ctxprefix
+from ragkit.ctxprefix import render_hard_protocol as render_ctxprefix_hard_protocol
 from ragkit.ctxprefix import render_protocol as render_ctxprefix_protocol
 from ragkit.ctxprefix import render_set as render_ctxprefix_set
 from ragkit.ctxprefix import without_act_named
@@ -76,6 +77,7 @@ DEFAULT_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable.jsonl"
 EU_CORPUS_DIR = DEFAULT_DATA_DIR / "corpus_eu"
 EU_QA_PATH = DEFAULT_DATA_DIR / "qa_eu.jsonl"
 EU_FRESH_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_fresh.jsonl"
+EU_HARD_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_hard.jsonl"
 EU_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable_eu.jsonl"
 COHORTS = ("all", "original-12", "expanded")
 
@@ -778,8 +780,24 @@ def cmd_ctxprefix(args: argparse.Namespace) -> int:
 
     Builds BM25Index, HashingEmbedder, DenseIndex and HybridRetriever only: no sentence-
     transformers embedder, cross-encoder or reranker. ``--protocol`` runs the three bundled
-    question sets of the protocol; otherwise one set is scored.
+    question sets of the protocol; ``--hard`` runs the hard held-out set against the synthetic
+    guard (docs/ctxprefix_hard_protocol.md); otherwise one set is scored.
     """
+    if args.hard:
+        hard = questions_from_records(_read_jsonl(EU_HARD_QA_PATH))
+        synthetic = questions_from_records(_read_jsonl(DEFAULT_QA_PATH))
+        print("\n### RagKit context prefix on the hard EU set (model-free; BM25 and hybrid)\n")
+        print(
+            render_ctxprefix_hard_protocol(
+                evaluate_ctxprefix(
+                    _load_documents(EU_CORPUS_DIR), hard, "hard EU set (qa_eu_hard.jsonl)"
+                ),
+                evaluate_ctxprefix(
+                    _load_documents(DEFAULT_CORPUS_DIR), synthetic, "synthetic set (qa.jsonl)"
+                ),
+            )
+        )
+        return 0
     if args.protocol:
         eu_docs = _load_documents(EU_CORPUS_DIR)
         fresh = questions_from_records(_read_jsonl(EU_FRESH_QA_PATH))
@@ -981,6 +999,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     _add_dataset_args(p_ctx, questions=False)
     p_ctx.add_argument("--qa-file", default=None, help="Override the answerable QA jsonl.")
+    p_ctx.add_argument(
+        "--hard",
+        action="store_true",
+        help="Run the hard held-out EU set with the synthetic guard, saturation guard and rule.",
+    )
     p_ctx.add_argument(
         "--protocol",
         action="store_true",

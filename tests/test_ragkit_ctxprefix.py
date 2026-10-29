@@ -13,16 +13,21 @@ from ragkit.chunking import Chunk, recursive
 from ragkit.ctxprefix import (
     BUILDERS,
     RETRIEVERS,
+    SATURATION_RECALL5,
     SetResult,
     VariantResult,
     act_of,
+    baseline_recall5,
     build_chunks,
     context_prefix,
     decide,
     evaluate_set,
     heading_of,
+    is_saturated,
     is_wrong_act,
     names_an_act,
+    render_hard_protocol,
+    render_saturation,
     render_set,
     render_verdicts,
     with_context_prefix,
@@ -254,3 +259,30 @@ def test_protocol_command_runs_the_three_sets_with_no_model_library() -> None:
         "Decision rule",
     ):
         assert token in out.stdout, token
+
+
+def test_saturation_guard_flags_a_baseline_recall_above_the_threshold() -> None:
+    n = 20
+    easy = _result([1.0] * n, [1.0] * n)  # every question solved at rank 1
+    assert SATURATION_RECALL5 == 0.85
+    assert baseline_recall5(easy) == 1.0 and is_saturated(easy)
+    assert "SATURATED" in render_saturation(easy)
+    hard = _result([0.0] * 12 + [1.0] * 8, [0.0] * 12 + [1.0] * 8)  # Recall@5 = 0.4
+    assert baseline_recall5(hard) == 0.4 and not is_saturated(hard)
+    assert "not saturated" in render_saturation(hard)
+    edge = _result([0.0] * 3 + [1.0] * 17, [1.0] * 20)  # exactly 0.85 is not above it
+    assert baseline_recall5(edge) == 0.85 and not is_saturated(edge)
+
+
+def test_hard_report_has_guard_synthetic_and_the_unchanged_rule() -> None:
+    n = 30
+    report = render_hard_protocol(_result([0.5] * n, [0.5] * n), _result([0.5] * n, [0.5] * n))
+    for token in (
+        "Saturation guard",
+        "not saturated",
+        "regression guard",
+        "docs/ctxprefix_hard_protocol.md",
+        "hard dMRR",
+        "NOT ADOPTED (no evidence)",
+    ):
+        assert token in report, token
