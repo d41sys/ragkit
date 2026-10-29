@@ -113,7 +113,8 @@ fails; **not adopted (no evidence)** when the fresh CI includes 0. The old-42 nu
 caveat to the verdict but cannot change it. The two retrievers are two tests with no
 multiplicity correction; a lone pass for one retriever is reported as such. With 29 questions one
 question moves MRR by at most 1/29 = 0.034, so only a gain that shows up on several questions can
-clear rule 1.
+clear rule 1. **Wording:** "not adopted (no evidence)" means no detectable effect on that set. It
+never means "the prefix does not help": a set at its ceiling cannot show a gain.
 
 ## Not tried (would need a fresh protocol)
 
@@ -121,3 +122,14 @@ A shuffled-prefix control (a prefix from a different article, to separate "right
 "extra tokens and length"), prefixes on structured chunks, a prefix only in one of BM25 or dense,
 a prefix weighted differently from the body, model-generated chunk context (the real contextual
 retrieval), and any tuning of the prefix format.
+
+## Outcome and follow-up
+
+The first scored run (`runs/ctxprefix_protocol.txt`) found no detectable effect on the fresh set
+(BM25 dMRR +0.032 [-0.017, +0.095], hybrid +0.000 [-0.072, +0.072]); that set was close to its
+ceiling (BM25 MRR 0.891, Recall@5 0.948, 3 of 29 wrong-act top-1), so it could not show a gain.
+The set was not edited afterwards. A second, harder set with a saturation guard and the same
+decision rule was pre-registered in `docs/ctxprefix_hard_protocol.md` (set review in
+`docs/qa_eu_hard_review.md`). Its result, `runs/ctxprefix_hard.txt`: the hard set was also
+saturated for BM25 (Recall@5 0.897 > 0.85), and neither retriever was adopted (BM25 dMRR -0.009
+[-0.039, +0.012], hybrid +0.026 [-0.030, +0.085]). No default changed.

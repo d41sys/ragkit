@@ -286,3 +286,25 @@ def test_hard_report_has_guard_synthetic_and_the_unchanged_rule() -> None:
         "NOT ADOPTED (no evidence)",
     ):
         assert token in report, token
+
+
+def test_hard_command_runs_with_no_model_library_and_prints_guard_and_rule() -> None:
+    script = (
+        "import sys\n"
+        "from ragkit.cli import main\n"
+        "try:\n    main(['ctxprefix', '--hard'])\n"
+        "except SystemExit as e:\n    assert e.code == 0\n"
+        "banned = ('sentence_transformers', 'torch', 'transformers')\n"
+        "loaded = [m for m in banned if m in sys.modules]\n"
+        "assert not loaded, loaded\n"
+        "print('OK')\n"
+    )
+    out = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=True)
+    assert "OK" in out.stdout
+    for token in (
+        "hard EU set (qa_eu_hard.jsonl) (39 questions",
+        "Saturation guard",
+        "regression guard",
+        "docs/ctxprefix_hard_protocol.md",
+    ):
+        assert token in out.stdout, token
