@@ -102,3 +102,9 @@ Unchanged from `docs/ctxprefix_protocol.md`: shuffled-prefix control, prefix on 
 prefix in only one index, field weighting, model-generated chunk context, prefix-format tuning. In
 addition: a blind (non-agent) relabelling of the hard set, and a per-decoy confusion metric that
 would also count same-act mistakes.
+
+## Outcome
+
+`runs/ctxprefix_hard.txt`: saturated (BM25 Recall@5 0.897 > 0.85); BM25 dMRR -0.009 [-0.039,
++0.012], hybrid +0.026 [-0.030, +0.085]; neither adopted, no default changed. A keyword-free
+follow-up set that is not saturated is in `docs/ctxprefix_nokw_protocol.md`.

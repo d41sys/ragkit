@@ -41,6 +41,7 @@ uv run ragkit lexical --corpus eu                                # model-free le
 uv run ragkit lexical --corpus eu --explain                      # post-hoc diagnosis of the A0 vs A4 top-5 changes (also model-free)
 uv run ragkit ctxprefix --protocol                               # model-free context prefix on every chunk: fresh questions, old 42 (tainted), synthetic guard, decision rule
 uv run ragkit ctxprefix --hard                                   # the same prefix on the 39-question hard held-out set (saturation guard, unchanged decision rule)
+uv run ragkit ctxprefix --nokw                                   # the same prefix on the 49-question keyword-free set (overlap rule, saturation and floor guards, unchanged decision rule)
 uv run ragkit beir --dataset scifact                              # BEIR test set, model-free; `--dataset all` for the six datasets below, `--ladder` for the BM25-vs-Pyserini ladder
 uv run ragkit legalbench                                          # LegalBench-RAG-mini (776 queries, 72 contracts), official character-overlap metric
 # any of eval / abstention / ablation also take --corpus-dir, --qa-file, --unanswerable-file, --cohort
@@ -298,7 +299,7 @@ Counting every crossing, not only the net ones (relevant articles out / in): hea
 
 Does prepending `<act title> — Article N: <article heading>` to **every** chunk, in both the BM25 text and the hashing-dense text, fix the wrong-document failure across near-identical articles? This is a model-free version of contextual retrieval (Anthropic's contextual retrieval; arXiv 2510.06999): the context string is the article's own heading, so nothing is generated. The recursive 500/50 chunks are unchanged apart from the prefix (a leading `# heading` line is replaced by it, so the first chunk does not carry the heading twice); queries are never modified. Retrievers are pinned to `BM25Index` and `HybridRetriever(BM25Index, DenseIndex(HashingEmbedder))`, the two rows of `ragkit eval`, with no reranker and no sentence-transformers model (`tests/test_ragkit_ctxprefix.py` runs both the single-set command and `--protocol` in a subprocess and checks that `sentence_transformers`, `torch` and `transformers` are never imported).
 
-**Result: no detectable effect on this set, so the prefix is not adopted, for BM25 or for the hybrid.** On the fresh question set its paired MRR gain has a CI that includes 0 for both retrievers (BM25 +0.032 [-0.017, +0.095], hybrid +0.000 [-0.072, +0.072]); the synthetic guard did not regress, so the only failed condition was the gain. The baseline was near its ceiling (see "little room for one" below), so this set could not show a gain; it is not evidence that the prefix does not help. The hard-set follow-up is the next subsection.
+**Result: no detectable effect on this set, so the prefix is not adopted, for BM25 or for the hybrid.** On the fresh question set its paired MRR gain has a CI that includes 0 for both retrievers (BM25 +0.032 [-0.017, +0.095], hybrid +0.000 [-0.072, +0.072]); the synthetic guard did not regress, so the only failed condition was the gain. The baseline was near its ceiling (see "little room for one" below), so this set could not show a gain; it is not evidence that the prefix does not help. The hard-set and keyword-free follow-ups are the next two subsections; the last one is the final verdict.
 
 **Order of work** (`git log`): fresh questions (`2662cea`, 29 questions; that commit message says 30, a miscount), adversarial review pass (`e9b2741`), protocol and decision rule (`284b957`, [`docs/ctxprefix_protocol.md`](docs/ctxprefix_protocol.md)), code (`ac086c0`), then the first scored run (`runs/ctxprefix_protocol.txt`). No prefix variant was run on any question before the protocol commit.
 
@@ -390,6 +391,42 @@ Better / worse / tied questions on MRR: BM25 2 / 2 / 35, hybrid 4 / 1 / 34. Satu
 - **No detectable effect on this set, again.** Both CIs include 0 (BM25 -0.009, hybrid +0.026). With 39 questions and 2 to 4 flips in either direction, a true effect of a few hundredths of MRR could not be resolved, and with the baseline saturated this set cannot support "the prefix is harmless" either. The BM25 near-duplicate subgroup moved down (-0.044 [-0.132, +0.008]) and the hybrid's Recall@5 gain is one question; neither subgroup was a pre-registered test.
 - **Consequence.** Neither retriever is adopted, so the default chunk text is unchanged and the EU headline numbers were not re-run. There is no old-vs-new comparison to report.
 - **Caveats.** Labels are agent-made and agent-checked (same model family), the set was built to favour a sibling-confusion fix and 17 easy items were dropped, so even a gain here would not transfer to natural queries; 19 of 39 questions have only same-act look-alikes, where the wrong-act count cannot register a confusion; two tests, no multiplicity correction. Not tried: a blind relabelling, a per-decoy confusion metric, and everything in the list above.
+
+### Context prefix on a keyword-free set: `ragkit ctxprefix --nokw` (final test)
+
+**Why.** The hard set was saturated for BM25 (Recall@5 0.897) because the discriminating words of the right article were in the question. This set removes them by a mechanical rule fixed **before any question was written** ([`docs/ctxprefix_nokw_protocol.md`](docs/ctxprefix_nokw_protocol.md), implemented in [`src/ragkit/nokw.py`](src/ragkit/nokw.py)): with ragkit's own analyzer (lowercase, Lucene stop words, Porter stems), the question may share **at most 1** stem with the gold article's **top 20 TF-IDF stems** (`tf * ln(94 / df)`), and may not name an act, an article number or the article's heading. `tests/test_ragkit_nokw.py::test_nokw_set` enforces it on the committed file; `ragkit ctxprefix --nokw` prints that all 49 pass (29 at overlap 0, 20 at 1; the earlier sets have medians of 3 to 5).
+
+**Set.** [`src/ragkit/data/qa_eu_nokw.jsonl`](src/ragkit/data/qa_eu_nokw.jsonl): 49 answerable questions (28 `near-duplicate`, 21 `cross-act`) in the same parallel-article clusters as the hard set plus 2017/1485 arts 166/176 and 2016/1719 curtailment, written in lay paraphrase ("which continent-wide scheme lets grid companies cancel out each other's opposite shortfalls and surpluses instead of ranking price offers?"). An agent drafted 54 (`c37af66`), an independent Sonnet pass (`claude-sonnet-5-5`, 59 live calls of the 150 allowed, about $2.4 at assumed list prices) checked each against the whole corpus: 52 of 54 "gold supports the answer" at first (2 partial, fixed), one article that fully answered instead (fixed by adding it to the gold ids), 5 items reworded, 5 sibling-less `paraphrase` items dropped by a rule fixed before any retrieval. Details and limits (same model family, lenient reviewer, no human labels, 42 of 49 rated minor-ambiguity because of the heavy paraphrase, 28 of 49 with only same-act look-alikes) are in [`docs/qa_eu_nokw_review.md`](docs/qa_eu_nokw_review.md).
+
+**Order of work** (`git log`): rule and test (`bbe1b8f`), 54 candidates (`c37af66`), frozen set, review and pre-registration (`1f1bce2`), code (`083668c`), then the first and only scored run (`runs/ctxprefix_nokw.txt`). Pre-registered before the run: the saturation guard (BM25 Recall@5 above 0.85), a new **floor guard** (below 0.15 the report says "too hard for lexical retrieval": with no gold in the candidates the prefix has nothing to promote) and the unchanged adoption rule.
+
+```bash
+uv run ragkit ctxprefix --nokw > runs/ctxprefix_nokw.txt   # keyword-free set, synthetic guard, both guards, decision rule
+```
+
+Keyword-free set, 49 questions (mean [bootstrap 95% CI, 2000 resamples]; paired difference = prefix minus base):
+
+| Retriever | Chunk text | Recall@5 | MRR | nDCG@10 | wrong-act top-1 |
+|---|---|---|---|---|---|
+| BM25 | base | 0.347 [0.204, 0.490] | 0.259 [0.159, 0.372] | 0.300 [0.191, 0.410] | 29 / 49 |
+| BM25 | prefix | 0.327 [0.204, 0.449] | 0.238 [0.146, 0.336] | 0.284 [0.187, 0.385] | 32 / 49 |
+| BM25 | paired | -0.020 [-0.082, +0.041] | -0.022 [-0.056, +0.005] | -0.016 [-0.047, +0.014] | 0 fixed / 3 broken |
+| Hybrid | base | 0.306 [0.184, 0.429] | 0.206 [0.115, 0.304] | 0.243 [0.148, 0.343] | 30 / 49 |
+| Hybrid | prefix | 0.327 [0.204, 0.449] | 0.216 [0.122, 0.319] | 0.256 [0.158, 0.357] | 33 / 49 |
+| Hybrid | paired | +0.020 [-0.041, +0.082] | +0.010 [-0.056, +0.069] | +0.013 [-0.053, +0.072] | 1 fixed / 4 broken |
+
+Guards: baseline BM25 Recall@5 0.347, so the set is **not saturated** (threshold 0.85) and **not too hard** (floor 0.15): it is a valid test, with a baseline in the middle. Synthetic guard (40 questions): BM25 dMRR +0.017 [+0.000, +0.046], hybrid +0.013 [+0.000, +0.037], no regression. Questions better / worse / tied on MRR: BM25 2 / 7 / 40, hybrid 7 / 5 / 37.
+
+| Retriever | keyword-free dMRR | gain | synthetic ok | verdict |
+|---|---|---|---|---|
+| BM25 | -0.022 [-0.056, +0.005] | no | yes | not adopted (no evidence) |
+| Hybrid | +0.010 [-0.056, +0.069] | no | yes | not adopted (no evidence) |
+
+**Reading.**
+- **Final verdict: the model-free heading prefix is not adopted for either retriever, and no default changed.** Across three pre-registered sets (fresh 29, hard 39, keyword-free 49) no paired MRR CI has a lower bound above 0. This is the first one that is a valid test (BM25 Recall@5 between the guards), and on it the BM25 point estimate is slightly negative (-0.022; the CI upper bound +0.005 rules out a BM25 MRR gain above about half a hundredth on this set) and the hybrid's is +0.010 with a wide CI (upper bound +0.069, so a small gain is not excluded there). The EU headline numbers were not re-run, since nothing was adopted; there is no old-vs-new comparison.
+- **The failure the prefix targets did not go away.** At baseline 29 of 49 BM25 top-1 articles (30 hybrid) are in the wrong act, and the prefix fixed none for BM25 (3 broken) and one for the hybrid (4 broken). With the discriminating words removed the questions share almost nothing with the act title or heading, so the prefix adds the same unmatched tokens to every chunk of an article instead of a signal; that is a plausible cause, not tested. The by-type split (BM25 `cross-act` dMRR -0.027 [-0.077, -0.001], `near-duplicate` -0.018 [-0.063, +0.015]) was not pre-registered.
+- **Predictions.** Four of five held: BM25 wrong-act 29 (at least 8), BM25 dMRR -0.022 (inside -0.03 to +0.06, CI lower bound not above 0), hybrid dMRR +0.010 with a CI around 0, and Recall@5 moving by 0.02 (under 0.06). One missed: baseline BM25 Recall@5 0.347 was just under the predicted 0.35 to 0.75 (point guess 0.55), so the rule made the set harder than expected, not impossible.
+- **Caveats.** The set is built to be lexically unlike its gold articles, so it is not a sample of natural questions and its absolute scores say nothing about them; the phrasing is indirect ("takings", "blueprint", "next-day border entitlements") because the rule rewards it. Labels are agent-made and agent-checked; 49 questions and 2 tests (no multiplicity correction) can resolve only effects of a few hundredths of MRR. The rule constrains the gold article only; words shared with siblings remain. Not tried (unchanged): a shuffled-prefix control, prefix on structured chunks, a prefix in only one index, field weighting, model-generated chunk context (the real contextual retrieval), prefix-format tuning, and a blind relabelling.
 
 ### Abstention transfer: `ragkit abstention --corpus eu`
 

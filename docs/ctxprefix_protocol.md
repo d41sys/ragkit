@@ -133,3 +133,9 @@ decision rule was pre-registered in `docs/ctxprefix_hard_protocol.md` (set revie
 `docs/qa_eu_hard_review.md`). Its result, `runs/ctxprefix_hard.txt`: the hard set was also
 saturated for BM25 (Recall@5 0.897 > 0.85), and neither retriever was adopted (BM25 dMRR -0.009
 [-0.039, +0.012], hybrid +0.026 [-0.030, +0.085]). No default changed.
+
+A third and last set, written without the gold article's discriminating vocabulary by a mechanical
+overlap rule, was pre-registered in `docs/ctxprefix_nokw_protocol.md`. It was a valid test (BM25
+Recall@5 0.347, between the saturation guard 0.85 and the floor guard 0.15): BM25 dMRR -0.022
+[-0.056, +0.005], hybrid +0.010 [-0.056, +0.069]. Neither retriever was adopted; no default changed
+(`runs/ctxprefix_nokw.txt`).

@@ -126,3 +126,24 @@ may claim.
   labels).
 - Label corrections found later are reported next to the committed numbers; the numbers are not
   re-run to look different.
+
+---
+
+# Outcome (`runs/ctxprefix_nokw.txt`, the one scored run)
+
+Guards: baseline BM25 Recall@5 = 0.347 -> not saturated (0.85) and not too hard (0.15); a valid
+test. All 49 questions pass the overlap rule (29 at 0, 20 at 1).
+
+| Retriever | base R@5 / MRR / nDCG@10 | prefix R@5 / MRR / nDCG@10 | dMRR [95% CI] | wrong-act top-1 base -> prefix (fixed / broken) | verdict |
+|---|---|---|---|---|---|
+| BM25 | 0.347 / 0.259 / 0.300 | 0.327 / 0.238 / 0.284 | -0.022 [-0.056, +0.005] | 29 -> 32 of 49 (0 / 3) | not adopted (no evidence) |
+| Hybrid | 0.306 / 0.206 / 0.243 | 0.327 / 0.216 / 0.256 | +0.010 [-0.056, +0.069] | 30 -> 33 of 49 (1 / 4) | not adopted (no evidence) |
+
+Other paired CIs: BM25 dRecall@5 -0.020 [-0.082, +0.041], dnDCG@10 -0.016 [-0.047, +0.014]; hybrid
+dRecall@5 +0.020 [-0.041, +0.082], dnDCG@10 +0.013 [-0.053, +0.072]. Synthetic guard: BM25 dMRR
++0.017 [+0.000, +0.046], hybrid +0.013 [+0.000, +0.037] (no regression). Nothing was adopted, so no
+default changed and the EU headline numbers were not re-run.
+
+Predictions: 1 missed (Recall@5 0.347, just under the predicted 0.35 to 0.75); 2 held (wrong-act 29
+of 49); 3 held (BM25 dMRR inside -0.03 to +0.06, CI lower bound not above 0); 4 held; 5 held (Recall@5
+moved by 0.02 for both).
