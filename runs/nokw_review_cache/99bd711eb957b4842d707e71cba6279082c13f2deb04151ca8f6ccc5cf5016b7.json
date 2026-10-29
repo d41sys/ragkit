@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "When the grid is under acute threat and next-day border entitlements bought at auction get cut, how is the payout worked out?",
+ "gold": [
+  "reg_2015_1222_art72"
+ ],
+ "usage": {
+  "input_tokens": 151,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 612,
+  "output_tokens_details": {
+   "thinking_tokens": 336
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\":\"yes\",\"gold_reason\":\"Article 72(3)(c) says that in an emergency situation with explicit allocation, market participants receive compensation equal to the price difference between the bidding zones concerned. Article 72(3)(d) says the price paid for the capacity is reimbursed if the bidding zone price is not calculated in at least one of the two zones. Both points are in the reference answer.\",\"other_articles\":[],\"ambiguity\":\"minor\",\"ambiguity_reason\":\"The question's wording (acute threat, next-day, bought at auction) maps to an emergency situation with explicit allocation, but it never says 'explicit', and the force majeure and implicit-allocation cases differ. The long-term rights rules in the 2016/1719 articles are a distinct regime and not about next-day capacity.\",\"suggested_fix\":\"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 72(3)(c) says that in an emergency situation with explicit allocation, market participants receive compensation equal to the price difference between the bidding zones concerned. Article 72(3)(d) says the price paid for the capacity is reimbursed if the bidding zone price is not calculated in at least one of the two zones. Both points are in the reference answer.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question's wording (acute threat, next-day, bought at auction) maps to an emergency situation with explicit allocation, but it never says 'explicit', and the force majeure and implicit-allocation cases differ. The long-term rights rules in the 2016/1719 articles are a distinct regime and not about next-day capacity.",
+  "suggested_fix": ""
+ }
+}

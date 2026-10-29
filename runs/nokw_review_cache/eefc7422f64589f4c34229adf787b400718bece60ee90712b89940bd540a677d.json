@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "May a country oblige local grid companies to run green generators and combined heat-and-power plants first when scheduling plants?",
+ "gold": [
+  "dir_2019_944_art31"
+ ],
+ "usage": {
+  "input_tokens": 133,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 341,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 31(4) of Directive 2019/944 says a Member State may require the DSO, when dispatching generating installations, to give priority to installations using renewable sources or high-efficiency cogeneration. The reference answer matches this, and it correctly notes that the power is optional.\", \"other_articles\": [{\"doc_id\": \"reg_2019_943_art12\", \"answers\": \"partially\", \"why\": \"Article 12(2) and (4) cover priority dispatch for renewables and high-efficiency cogeneration, but only for small installations (under 400 kW, or 200 kW for new ones) and by system operators generally. The reference article is limited to DSOs and has no size limits.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question asks about 'local grid companies', which points to DSOs and Article 31(4). Article 12 of Regulation 2019/943 also covers priority dispatch, but it applies conditions and thresholds.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 31(4) of Directive 2019/944 says a Member State may require the DSO, when dispatching generating installations, to give priority to installations using renewable sources or high-efficiency cogeneration. The reference answer matches this, and it correctly notes that the power is optional.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2019_943_art12",
+    "answers": "partially",
+    "why": "Article 12(2) and (4) cover priority dispatch for renewables and high-efficiency cogeneration, but only for small installations (under 400 kW, or 200 kW for new ones) and by system operators generally. The reference article is limited to DSOs and has no size limits."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question asks about 'local grid companies', which points to DSOs and Article 31(4). Article 12 of Regulation 2019/943 also covers priority dispatch, but it applies conditions and thresholds.",
+  "suggested_fix": ""
+ }
+}

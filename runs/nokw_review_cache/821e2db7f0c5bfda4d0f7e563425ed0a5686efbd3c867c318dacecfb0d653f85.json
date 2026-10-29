@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "How often must the bodies computing interconnection limits tell regulators about trimming applied when grid operators double-check the figures?",
+ "gold": [
+  "reg_2015_1222_art26"
+ ],
+ "usage": {
+  "input_tokens": 100,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 375,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 26(5) of Regulation 2015/1222 requires each coordinated capacity calculator to report every three months all reductions made during TSO validation under paragraph 3 to all regulatory authorities of the capacity calculation region. The report must include the location and amount of each reduction and the reasons for it.\", \"other_articles\": [{\"doc_id\": \"reg_2019_943_art16\", \"answers\": \"partially\", \"why\": \"Article 16(3) requires regional coordination centres to report every three months to regulators and ACER on capacity reductions or deviations from coordinated actions. This is a different context: it concerns reductions made as a last resort to reach the linear trajectory or minimum capacity, not reductions made during TSO validation.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question's wording (bodies computing limits, trimming, operators double-checking) clearly maps to Article 26(5). Article 16(3) of Regulation 2019/943 is a similar quarterly report by regional coordination centres, so it is a possible confusion.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 26(5) of Regulation 2015/1222 requires each coordinated capacity calculator to report every three months all reductions made during TSO validation under paragraph 3 to all regulatory authorities of the capacity calculation region. The report must include the location and amount of each reduction and the reasons for it.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2019_943_art16",
+    "answers": "partially",
+    "why": "Article 16(3) requires regional coordination centres to report every three months to regulators and ACER on capacity reductions or deviations from coordinated actions. This is a different context: it concerns reductions made as a last resort to reach the linear trajectory or minimum capacity, not reductions made during TSO validation."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question's wording (bodies computing limits, trimming, operators double-checking) clearly maps to Article 26(5). Article 16(3) of Regulation 2019/943 is a similar quarterly report by regional coordination centres, so it is a possible confusion.",
+  "suggested_fix": ""
+ }
+}

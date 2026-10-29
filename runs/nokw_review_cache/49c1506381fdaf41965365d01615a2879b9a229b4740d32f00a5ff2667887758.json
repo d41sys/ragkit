@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Where can border room go if it was set aside for back-up power but the matching energy swap never used it?",
+ "gold": [
+  "reg_2017_2195_art38"
+ ],
+ "usage": {
+  "input_tokens": 110,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 413,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 38(9) of Regulation 2017/2195 says that cross-zonal capacity allocated for the exchange of balancing capacity or sharing of reserves, but not used for the associated balancing energy exchange, is released for balancing energy exchange with shorter activation times or for operating the imbalance netting process. This matches the reference answer exactly.\", \"other_articles\": [{\"doc_id\": \"reg_2019_943_art17\", \"answers\": \"partially\", \"why\": \"Paragraph 3 says capacity still available after the intraday cross-zonal gate closure time is used for balancing energy exchange or imbalance netting. That is a different trigger from capacity allocated for balancing capacity but left unused for the associated energy, so it only partly answers the question.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question is paraphrased, but 'border room' (cross-zonal capacity), 'back-up power' (balancing capacity or reserves) and 'matching energy swap' (associated balancing energy exchange) all map clearly to Article 38(9). Article 38(8) also covers release when capacity is no longer needed, which is a minor competing reading.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 38(9) of Regulation 2017/2195 says that cross-zonal capacity allocated for the exchange of balancing capacity or sharing of reserves, but not used for the associated balancing energy exchange, is released for balancing energy exchange with shorter activation times or for operating the imbalance netting process. This matches the reference answer exactly.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2019_943_art17",
+    "answers": "partially",
+    "why": "Paragraph 3 says capacity still available after the intraday cross-zonal gate closure time is used for balancing energy exchange or imbalance netting. That is a different trigger from capacity allocated for balancing capacity but left unused for the associated energy, so it only partly answers the question."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question is paraphrased, but 'border room' (cross-zonal capacity), 'back-up power' (balancing capacity or reserves) and 'matching energy swap' (associated balancing energy exchange) all map clearly to Article 38(9). Article 38(8) also covers release when capacity is no longer needed, which is a minor competing reading.",
+  "suggested_fix": ""
+ }
+}

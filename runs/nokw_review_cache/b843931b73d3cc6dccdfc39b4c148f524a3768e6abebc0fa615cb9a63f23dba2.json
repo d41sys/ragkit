@@ -1,0 +1,48 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Which of the continent-wide trading schemes has its blueprint drafted only by the grid operators that run the slowest back-up stage, rather than by all of them?",
+ "gold": [
+  "reg_2017_2195_art19"
+ ],
+ "usage": {
+  "input_tokens": 163,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 554,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 19(1) says the proposal for the replacement-reserves platform is developed by 'all TSOs performing the reserve replacement process pursuant to Part IV of Regulation (EU) 2017/1485', i.e. only a subset. The contrast that Articles 20, 21 and 22 use 'all TSOs' is supported by those articles, though they sit outside the gold id.\", \"other_articles\": [{\"doc_id\": \"reg_2017_2195_art20\", \"answers\": \"partially\", \"why\": \"Shows the FRR manual-activation platform proposal is developed by all TSOs, which is the contrast case but not the answer.\"}, {\"doc_id\": \"reg_2017_2195_art21\", \"answers\": \"partially\", \"why\": \"Shows the FRR automatic-activation platform proposal is developed by all TSOs, which is the contrast case.\"}, {\"doc_id\": \"reg_2017_2195_art22\", \"answers\": \"partially\", \"why\": \"Shows the imbalance-netting platform proposal is developed by all TSOs, which is the contrast case.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"'Slowest back-up stage' is a paraphrase of replacement reserves and could be misread. Article 21(6) also restricts implementation to TSOs performing aFRP, and Article 19(5) restricts implementation, but the proposal-drafting restriction applies only to Article 19.\", \"suggested_fix\": \"Optionally make the wording explicit, e.g. 'the platform whose implementation framework proposal is developed only by TSOs performing the replacement reserve process'. Keep the gold id as is.\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 19(1) says the proposal for the replacement-reserves platform is developed by 'all TSOs performing the reserve replacement process pursuant to Part IV of Regulation (EU) 2017/1485', i.e. only a subset. The contrast that Articles 20, 21 and 22 use 'all TSOs' is supported by those articles, though they sit outside the gold id.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2017_2195_art20",
+    "answers": "partially",
+    "why": "Shows the FRR manual-activation platform proposal is developed by all TSOs, which is the contrast case but not the answer."
+   },
+   {
+    "doc_id": "reg_2017_2195_art21",
+    "answers": "partially",
+    "why": "Shows the FRR automatic-activation platform proposal is developed by all TSOs, which is the contrast case."
+   },
+   {
+    "doc_id": "reg_2017_2195_art22",
+    "answers": "partially",
+    "why": "Shows the imbalance-netting platform proposal is developed by all TSOs, which is the contrast case."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "'Slowest back-up stage' is a paraphrase of replacement reserves and could be misread. Article 21(6) also restricts implementation to TSOs performing aFRP, and Article 19(5) restricts implementation, but the proposal-drafting restriction applies only to Article 19.",
+  "suggested_fix": "Optionally make the wording explicit, e.g. 'the platform whose implementation framework proposal is developed only by TSOs performing the replacement reserve process'. Keep the gold id as is."
+ }
+}

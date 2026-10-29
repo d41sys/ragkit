@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "How often must an exemption granted to some island grids from the automated restoration scheme be revisited?",
+ "gold": [
+  "reg_2017_1485_art145"
+ ],
+ "usage": {
+  "input_tokens": 84,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 239,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 145(2) of Regulation 2017/1485 lets the GB and IE/NI TSOs request not to implement an aFRP, and says that if approved, the TSOs and regulatory authorities must re-evaluate the decision at least every 4 years. That matches the reference answer.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question paraphrases 'GB and IE/NI synchronous areas' as 'some island grids' and 'automatic frequency restoration process' as 'automated restoration scheme'. Only Article 145(2) fits, so the answer is not in doubt.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 145(2) of Regulation 2017/1485 lets the GB and IE/NI TSOs request not to implement an aFRP, and says that if approved, the TSOs and regulatory authorities must re-evaluate the decision at least every 4 years. That matches the reference answer.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question paraphrases 'GB and IE/NI synchronous areas' as 'some island grids' and 'automatic frequency restoration process' as 'automated restoration scheme'. Only Article 145(2) fits, so the answer is not in doubt.",
+  "suggested_fix": ""
+ }
+}

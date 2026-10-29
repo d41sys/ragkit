@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Which two aims take precedence when deciding what to do with the takings from allocating border transmission room?",
+ "gold": [
+  "reg_2019_943_art19"
+ ],
+ "usage": {
+  "input_tokens": 129,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 275,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 19(2) gives exactly two priority objectives for revenues from allocating cross-zonal capacity: (a) guaranteeing actual availability of allocated capacity, including firmness compensation, and (b) maintaining or increasing cross-zonal capacities via coordinated remedial actions or covering network investment costs. The reference answer matches this.\", \"other_articles\": [{\"doc_id\": \"reg_2015_1222_art73\", \"answers\": \"partially\", \"why\": \"Deals with congestion income distribution methodology, but does not state the two priority objectives.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question is paraphrased ('takings', 'border transmission room'), but it clearly points to Article 19(2).\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 19(2) gives exactly two priority objectives for revenues from allocating cross-zonal capacity: (a) guaranteeing actual availability of allocated capacity, including firmness compensation, and (b) maintaining or increasing cross-zonal capacities via coordinated remedial actions or covering network investment costs. The reference answer matches this.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2015_1222_art73",
+    "answers": "partially",
+    "why": "Deals with congestion income distribution methodology, but does not state the two priority objectives."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question is paraphrased ('takings', 'border transmission room'), but it clearly points to Article 19(2).",
+  "suggested_fix": ""
+ }
+}

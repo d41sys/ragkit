@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "When may a local grid company skip competitive purchasing of grid-support products that have nothing to do with frequency?",
+ "gold": [
+  "dir_2019_944_art31"
+ ],
+ "usage": {
+  "input_tokens": 131,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 370,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 31(7) of Directive 2019/944 states that a DSO must procure non-frequency ancillary services via market-based procedures unless the regulatory authority has assessed that market-based provision is economically not efficient and granted a derogation. It also states that the obligation does not apply to fully integrated network components.\", \"other_articles\": [{\"doc_id\": \"dir_2019_944_art32\", \"answers\": \"partially\", \"why\": \"Article 32(1) lets DSOs skip market-based procurement of flexibility services if the regulator finds it economically inefficient or likely to cause severe market distortions or higher congestion. It covers flexibility services, not non-frequency ancillary services as such, and has no fully-integrated-components exception.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"'Local grid company' maps to the DSO and 'grid-support products with nothing to do with frequency' to non-frequency ancillary services. Article 32 on flexibility services is a loosely related exception, but the wording points to Article 31(7).\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 31(7) of Directive 2019/944 states that a DSO must procure non-frequency ancillary services via market-based procedures unless the regulatory authority has assessed that market-based provision is economically not efficient and granted a derogation. It also states that the obligation does not apply to fully integrated network components.",
+  "other_articles": [
+   {
+    "doc_id": "dir_2019_944_art32",
+    "answers": "partially",
+    "why": "Article 32(1) lets DSOs skip market-based procurement of flexibility services if the regulator finds it economically inefficient or likely to cause severe market distortions or higher congestion. It covers flexibility services, not non-frequency ancillary services as such, and has no fully-integrated-components exception."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "'Local grid company' maps to the DSO and 'grid-support products with nothing to do with frequency' to non-frequency ancillary services. Article 32 on flexibility services is a loosely related exception, but the wording points to Article 31(7).",
+  "suggested_fix": ""
+ }
+}

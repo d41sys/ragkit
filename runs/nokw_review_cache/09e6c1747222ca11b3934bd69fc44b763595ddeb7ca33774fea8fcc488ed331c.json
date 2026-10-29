@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Which type of link between countries can have trading room booked for the very fastest stabilising power, contrary to the usual rule that only the safety buffer serves that purpose?",
+ "gold": [
+  "reg_2017_2195_art38"
+ ],
+ "usage": {
+  "input_tokens": 112,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 219,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 38(4) of Regulation 2017/2195 says the reliability margin is used for operating and exchanging frequency containment reserves, except on DC interconnectors, where cross-zonal capacity may also be allocated for that purpose under paragraph 1. This matches the reference answer.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question paraphrases heavily ('fastest stabilising power' = frequency containment reserves, 'safety buffer' = reliability margin), but only Article 38(4) supports the answer.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 38(4) of Regulation 2017/2195 says the reliability margin is used for operating and exchanging frequency containment reserves, except on DC interconnectors, where cross-zonal capacity may also be allocated for that purpose under paragraph 1. This matches the reference answer.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question paraphrases heavily ('fastest stabilising power' = frequency containment reserves, 'safety buffer' = reliability margin), but only Article 38(4) supports the answer.",
+  "suggested_fix": ""
+ }
+}

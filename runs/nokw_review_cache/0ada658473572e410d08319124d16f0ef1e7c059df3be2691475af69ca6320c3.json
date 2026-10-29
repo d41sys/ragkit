@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Inside what time window before delivery does the joint procedure for trimming multi-year border entitlements stop applying, and which process replaces it?",
+ "gold": [
+  "reg_2016_1719_art25"
+ ],
+ "usage": {
+  "input_tokens": 153,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 270,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 25(1) of Regulation 2016/1719 says TSOs coordinate curtailments of long-term capacity only for time frames of more than 48 hours before delivery. Within 48 hours, the day-ahead and intraday capacity calculation process of Article 29 of Regulation 2015/1222 applies. This matches the reference answer.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question is paraphrased: \\\"multi-year border entitlements\\\" stands for long-term transmission rights and \\\"trimming\\\" for curtailment. A reader could take it to mean the Article 53 firmness rules, but only Article 25(1) gives the 48-hour window and the replacement process.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 25(1) of Regulation 2016/1719 says TSOs coordinate curtailments of long-term capacity only for time frames of more than 48 hours before delivery. Within 48 hours, the day-ahead and intraday capacity calculation process of Article 29 of Regulation 2015/1222 applies. This matches the reference answer.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question is paraphrased: \"multi-year border entitlements\" stands for long-term transmission rights and \"trimming\" for curtailment. A reader could take it to mean the Article 53 firmness rules, but only Article 25(1) gives the 48-hour window and the replacement process.",
+  "suggested_fix": ""
+ }
+}

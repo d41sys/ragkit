@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "When does an older renewable plant, in service before mid-2019 and scheduled ahead of others, lose that benefit?",
+ "gold": [
+  "reg_2019_943_art12"
+ ],
+ "usage": {
+  "input_tokens": 124,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 195,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 12(6) states that plants commissioned before 4 July 2019 that were subject to priority dispatch keep it until they undergo significant modifications, deemed to include at least a new connection agreement being required or a capacity increase. This matches the reference answer.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question paraphrases 'priority dispatch' as 'scheduled ahead of others'. Article 12(6) is still clearly the intended provision.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 12(6) states that plants commissioned before 4 July 2019 that were subject to priority dispatch keep it until they undergo significant modifications, deemed to include at least a new connection agreement being required or a capacity increase. This matches the reference answer.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question paraphrases 'priority dispatch' as 'scheduled ahead of others'. Article 12(6) is still clearly the intended provision.",
+  "suggested_fix": ""
+ }
+}

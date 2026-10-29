@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "How long do grid companies have, counted from approval of the assessment method, to submit a joint recommendation on redrawing price areas?",
+ "gold": [
+  "reg_2019_943_art14"
+ ],
+ "usage": {
+  "input_tokens": 107,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 531,
+  "output_tokens_details": {
+   "thinking_tokens": 234
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\":\"yes\",\"gold_reason\":\"Article 14(6) of Regulation 2019/943 says the TSOs in the bidding zone review submit a joint proposal to amend or maintain the configuration no later than 12 months after approval of the methodology and assumptions under paragraph 5. This matches the reference answer exactly.\",\"other_articles\":[],\"ambiguity\":\"minor\",\"ambiguity_reason\":\"Article 32(4)(b)(iii) of Regulation 2015/1222 also sets a deadline for a joint proposal on bidding zone configuration, but it runs 15 months from the decision to launch the review, not from approval of the method. The question's wording ties it to Article 14(6).\",\"suggested_fix\":\"Optionally name 'Regulation 2019/943' or 'bidding zone review' in the question to rule out the 15-month deadline in Regulation 2015/1222.\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 14(6) of Regulation 2019/943 says the TSOs in the bidding zone review submit a joint proposal to amend or maintain the configuration no later than 12 months after approval of the methodology and assumptions under paragraph 5. This matches the reference answer exactly.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "Article 32(4)(b)(iii) of Regulation 2015/1222 also sets a deadline for a joint proposal on bidding zone configuration, but it runs 15 months from the decision to launch the review, not from approval of the method. The question's wording ties it to Article 14(6).",
+  "suggested_fix": "Optionally name 'Regulation 2019/943' or 'bidding zone review' in the question to rule out the 15-month deadline in Regulation 2015/1222."
+ }
+}

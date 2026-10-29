@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Until which year must the decision to fund a new grid-side power store have been taken for a high-voltage grid company to keep the usual write-off period before phase-out?",
+ "gold": [
+  "dir_2019_944_art54"
+ ],
+ "usage": {
+  "input_tokens": 137,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 317,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 54(5) states that paragraph 4 phase-out does not apply for the usual depreciation period of new battery storage facilities with a final investment decision until 2024, provided they are connected within two years, integrated into the transmission system, used only for reactive instantaneous restoration of network security, and not used to buy or sell electricity. This matches the reference answer.\", \"other_articles\": [{\"doc_id\": \"dir_2019_944_art36\", \"answers\": \"partially\", \"why\": \"Gives the parallel rule for distribution system operators, with a final investment decision until 4 July 2019. It does not apply to a high-voltage (transmission) grid company.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"'High-voltage grid company' means a transmission system operator, so the question points to Article 54. A reader might consider the distribution counterpart, but the wording separates them.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 54(5) states that paragraph 4 phase-out does not apply for the usual depreciation period of new battery storage facilities with a final investment decision until 2024, provided they are connected within two years, integrated into the transmission system, used only for reactive instantaneous restoration of network security, and not used to buy or sell electricity. This matches the reference answer.",
+  "other_articles": [
+   {
+    "doc_id": "dir_2019_944_art36",
+    "answers": "partially",
+    "why": "Gives the parallel rule for distribution system operators, with a final investment decision until 4 July 2019. It does not apply to a high-voltage (transmission) grid company."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "'High-voltage grid company' means a transmission system operator, so the question points to Article 54. A reader might consider the distribution counterpart, but the wording separates them.",
+  "suggested_fix": ""
+ }
+}

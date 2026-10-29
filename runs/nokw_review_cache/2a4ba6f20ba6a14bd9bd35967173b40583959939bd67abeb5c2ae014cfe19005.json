@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Who pays the owners of multi-year border entitlements that were cut for safe-running reasons before the next-day cut-off, and what is the sum based on?",
+ "gold": [
+  "reg_2016_1719_art53"
+ ],
+ "usage": {
+  "input_tokens": 123,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 306,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 53(1) allows TSOs to curtail long-term transmission rights for operational security before the day-ahead firmness deadline, and Article 53(2) says the concerned TSOs on that border compensate the holders with the market spread. This is exactly the reference answer.\", \"other_articles\": [{\"doc_id\": \"reg_2016_1719_art56\", \"answers\": \"partially\", \"why\": \"Covers compensation for curtailed long-term rights, but only for force majeure, where the TSO invoking it pays the amount originally paid. This is a different basis and trigger, so it does not answer this question.\"}], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question's paraphrase ('cut for safe-running reasons before next-day cut-off') maps clearly to Article 53 (operational security, before the day-ahead firmness deadline).\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 53(1) allows TSOs to curtail long-term transmission rights for operational security before the day-ahead firmness deadline, and Article 53(2) says the concerned TSOs on that border compensate the holders with the market spread. This is exactly the reference answer.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2016_1719_art56",
+    "answers": "partially",
+    "why": "Covers compensation for curtailed long-term rights, but only for force majeure, where the TSO invoking it pays the amount originally paid. This is a different basis and trigger, so it does not answer this question."
+   }
+  ],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question's paraphrase ('cut for safe-running reasons before next-day cut-off') maps clearly to Article 53 (operational security, before the day-ahead firmness deadline).",
+  "suggested_fix": ""
+ }
+}

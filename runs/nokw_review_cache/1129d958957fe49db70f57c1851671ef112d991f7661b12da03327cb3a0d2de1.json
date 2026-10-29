@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Which already-running subsidised plants, in service before mid-2019, may a country still excuse from paying for the imbalances they cause?",
+ "gold": [
+  "reg_2019_943_art5"
+ ],
+ "usage": {
+  "input_tokens": 129,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 233,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 5(2)(c) of Regulation 2019/943 lets Member States derogate from balance responsibility for installations that benefit from Commission-approved State aid support under Articles 107-109 TFEU and were commissioned before 4 July 2019. The reference answer states exactly this.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question's wording of 'subsidised plants in service before mid-2019' maps clearly to Article 5(2)(c). Article 5(3) adds that another market participant must then bear the financial responsibility, but the question does not ask about that.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 5(2)(c) of Regulation 2019/943 lets Member States derogate from balance responsibility for installations that benefit from Commission-approved State aid support under Articles 107-109 TFEU and were commissioned before 4 July 2019. The reference answer states exactly this.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question's wording of 'subsidised plants in service before mid-2019' maps clearly to Article 5(2)(c). Article 5(3) adds that another market participant must then bear the financial responsibility, but the question does not ask about that.",
+  "suggested_fix": ""
+ }
+}

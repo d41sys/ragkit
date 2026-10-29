@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Who may refuse an agreement to lend restoration capacity between operators, besides the one lending and the one borrowing, and on what ground?",
+ "gold": [
+  "reg_2017_1485_art166"
+ ],
+ "usage": {
+  "input_tokens": 135,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 218,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 166(4) says any control capability providing TSO, receiving TSO or affected TSO may refuse FRR/RR sharing where it would result in power flows that violate operational security limits. The affected TSO is the party besides lender and borrower, so the reference answer is fully supported.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question paraphrases 'sharing of FRR/RR' as 'lend restoration capacity'. This is a reasonable reading and points to Article 166(4); no other article gives a refusal right.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 166(4) says any control capability providing TSO, receiving TSO or affected TSO may refuse FRR/RR sharing where it would result in power flows that violate operational security limits. The affected TSO is the party besides lender and borrower, so the reference answer is fully supported.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question paraphrases 'sharing of FRR/RR' as 'lend restoration capacity'. This is a reasonable reading and points to Article 166(4); no other article gives a refusal right.",
+  "suggested_fix": ""
+ }
+}

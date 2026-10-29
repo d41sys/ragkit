@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "What is the upper limit on how much counterbalancing power a region may swap when cancelling opposite corrections?",
+ "gold": [
+  "reg_2017_1485_art146"
+ ],
+ "usage": {
+  "input_tokens": 131,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 226,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 146(6) of Regulation 2017/1485 says the imbalance netting power interchange of an LFC area must not exceed the actual amount of FRR activation needed to regulate that area's FRCE to zero without imbalance netting power interchange. This matches the reference answer.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question is paraphrased in vague terms ('counterbalancing power', 'region', 'opposite corrections'), but it plausibly maps to imbalance netting, and Article 146(6) is the only place that states the limit.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 146(6) of Regulation 2017/1485 says the imbalance netting power interchange of an LFC area must not exceed the actual amount of FRR activation needed to regulate that area's FRCE to zero without imbalance netting power interchange. This matches the reference answer.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question is paraphrased in vague terms ('counterbalancing power', 'region', 'opposite corrections'), but it plausibly maps to imbalance netting, and Article 146(6) is the only place that states the limit.",
+  "suggested_fix": ""
+ }
+}

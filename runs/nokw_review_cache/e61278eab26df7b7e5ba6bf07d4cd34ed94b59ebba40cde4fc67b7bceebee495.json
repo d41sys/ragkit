@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Who must make public that a redrawing exercise for price zones has begun and what came out of it?",
+ "gold": [
+  "reg_2015_1222_art32"
+ ],
+ "usage": {
+  "input_tokens": 113,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 260,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 32(6) of Regulation 2015/1222 says the initiative for the review of the bidding zone configuration and its results shall be published by ENTSO for Electricity, or by the participating TSO if the review was launched under paragraph 1(d). This matches the reference answer; the 'regulatory authority or TSO' wording is slightly loose, since 1(d) covers a single regulatory authority or a TSO with approval, but it is acceptable.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"'Redrawing exercise for price zones' clearly means a bidding zone configuration review, and publication of its launch and results is addressed only in Article 32(6).\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 32(6) of Regulation 2015/1222 says the initiative for the review of the bidding zone configuration and its results shall be published by ENTSO for Electricity, or by the participating TSO if the review was launched under paragraph 1(d). This matches the reference answer; the 'regulatory authority or TSO' wording is slightly loose, since 1(d) covers a single regulatory authority or a TSO with approval, but it is acceptable.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "'Redrawing exercise for price zones' clearly means a bidding zone configuration review, and publication of its launch and results is addressed only in Article 32(6).",
+  "suggested_fix": ""
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Which duty makes a local-level grid company purchase the power that offsets its own line losses in an even-handed, competitive way?",
+ "gold": [
+  "dir_2019_944_art31"
+ ],
+ "usage": {
+  "input_tokens": 141,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 222,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 31(5) of Directive 2019/944 states that each DSO shall act as a neutral market facilitator in procuring the energy it uses to cover energy losses, under transparent, non-discriminatory and market-based procedures, where it has such a function. The reference answer restates this correctly.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"'Local-level grid company' clearly means a distribution system operator, and 'power that offsets line losses' matches 'energy it uses to cover energy losses'. Only Article 31(5) addresses this.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 31(5) of Directive 2019/944 states that each DSO shall act as a neutral market facilitator in procuring the energy it uses to cover energy losses, under transparent, non-discriminatory and market-based procedures, where it has such a function. The reference answer restates this correctly.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "'Local-level grid company' clearly means a distribution system operator, and 'power that offsets line losses' matches 'energy it uses to cover energy losses'. Only Article 31(5) addresses this.",
+  "suggested_fix": ""
+ }
+}

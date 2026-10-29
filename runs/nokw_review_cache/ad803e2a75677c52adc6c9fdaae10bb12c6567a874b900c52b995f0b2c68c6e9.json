@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "When does an older green plant that was scheduled ahead of others lose that benefit?",
+ "gold": [
+  "reg_2019_943_art12"
+ ],
+ "usage": {
+  "input_tokens": 112,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 264,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"partial\", \"gold_reason\": \"Article 12(6) says priority dispatch ends from the date of significant modifications, deemed at least where a new connection agreement is required or the generation capacity is increased. The reference answer says capacity is \\\"modified\\\", which is broader than \\\"increased\\\" in the text.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The wording is vague (\\\"scheduled ahead\\\", \\\"green plant\\\") but plausibly means priority dispatch for pre-July 2019 RES plants; Article 12(6) is the only match.\", \"suggested_fix\": \"Change the reference answer to \\\"generation capacity is increased\\\". Rephrase the question to name priority dispatch for renewable plants commissioned before 4 July 2019.\"}",
+ "verdict": {
+  "gold_answers": "partial",
+  "gold_reason": "Article 12(6) says priority dispatch ends from the date of significant modifications, deemed at least where a new connection agreement is required or the generation capacity is increased. The reference answer says capacity is \"modified\", which is broader than \"increased\" in the text.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The wording is vague (\"scheduled ahead\", \"green plant\") but plausibly means priority dispatch for pre-July 2019 RES plants; Article 12(6) is the only match.",
+  "suggested_fix": "Change the reference answer to \"generation capacity is increased\". Rephrase the question to name priority dispatch for renewable plants commissioned before 4 July 2019."
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "When borrowed restoration capacity turns out to be unavailable, who must cope with the resulting incidents?",
+ "gold": [
+  "reg_2017_1485_art166"
+ ],
+ "usage": {
+  "input_tokens": 92,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 213,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 166(6) of Regulation 2017/1485 states that each control capability receiving TSO is responsible for coping with incidents and imbalances when the shared FRR/RR reserve capacity is unavailable, either through operational security restrictions or because the providing TSO has used it.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The phrase 'borrowed restoration capacity' is a paraphrase of shared FRR/RR, but it maps clearly to the receiving TSO. No other article addresses this.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 166(6) of Regulation 2017/1485 states that each control capability receiving TSO is responsible for coping with incidents and imbalances when the shared FRR/RR reserve capacity is unavailable, either through operational security restrictions or because the providing TSO has used it.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The phrase 'borrowed restoration capacity' is a paraphrase of shared FRR/RR, but it maps clearly to the receiving TSO. No other article addresses this.",
+  "suggested_fix": ""
+ }
+}

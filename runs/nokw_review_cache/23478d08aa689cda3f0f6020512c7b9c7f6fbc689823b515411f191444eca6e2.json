@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Within what time must grid companies hand out their shares of the takings from scarce border room once the cash has arrived?",
+ "gold": [
+  "reg_2015_1222_art73"
+ ],
+ "usage": {
+  "input_tokens": 110,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 317,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 73(3) of Regulation 2015/1222 states TSOs shall distribute congestion incomes as soon as reasonably practicable and no later than one week after the incomes have been transferred under Article 68(8). This matches the reference answer.\", \"other_articles\": [{\"doc_id\": \"reg_2016_1719_art57\", \"why\": \"It only requires a methodology for sharing congestion income from forward capacity allocation and applies Article 73 of Regulation 2015/1222 to it. It states no deadline itself, so it does not independently answer.\", \"answers\": \"partially\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question does not name the allocation time-frame (day-ahead or forward), so a reader could also look at the forward capacity allocation regulation. That regulation only cross-refers to Article 73's requirements and has no deadline of its own.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 73(3) of Regulation 2015/1222 states TSOs shall distribute congestion incomes as soon as reasonably practicable and no later than one week after the incomes have been transferred under Article 68(8). This matches the reference answer.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2016_1719_art57",
+    "why": "It only requires a methodology for sharing congestion income from forward capacity allocation and applies Article 73 of Regulation 2015/1222 to it. It states no deadline itself, so it does not independently answer.",
+    "answers": "partially"
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question does not name the allocation time-frame (day-ahead or forward), so a reader could also look at the forward capacity allocation regulation. That regulation only cross-refers to Article 73's requirements and has no deadline of its own.",
+  "suggested_fix": ""
+ }
+}

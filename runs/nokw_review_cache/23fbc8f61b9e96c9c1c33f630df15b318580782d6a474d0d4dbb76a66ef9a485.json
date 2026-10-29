@@ -1,0 +1,43 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "What must a proposal include if a grid company wants to pre-agree the price of delivered output in a deal for keeping resources on standby?",
+ "gold": [
+  "reg_2017_2195_art16"
+ ],
+ "usage": {
+  "input_tokens": 135,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 440,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 16(6) of Regulation 2017/2195 says the price of balancing energy bids shall not be predetermined in a balancing capacity contract. A TSO may propose an exemption in the proposal for terms and conditions related to balancing (Article 18). The exemption applies only to specific products under Article 26(3)(b) and must come with a justification demonstrating higher economic efficiency.\", \"other_articles\": [{\"doc_id\": \"reg_2017_2195_art18\", \"answers\": \"partially\", \"why\": \"Article 18(7)(f) lets a TSO include an exemption for specific products to predetermine bid prices in the terms and conditions. It does not state the justification requirement.\"}, {\"doc_id\": \"reg_2019_943_art6\", \"answers\": \"partially\", \"why\": \"Article 6(2) says the price of balancing energy shall not be pre-determined in balancing capacity contracts. Article 6(14) allows derogations for specific products. Neither states the economic-efficiency justification.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question is paraphrased in vague terms ('grid company', 'keeping resources on standby'). It maps clearly to Article 16(6), though Article 18(7)(f) is closely related.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 16(6) of Regulation 2017/2195 says the price of balancing energy bids shall not be predetermined in a balancing capacity contract. A TSO may propose an exemption in the proposal for terms and conditions related to balancing (Article 18). The exemption applies only to specific products under Article 26(3)(b) and must come with a justification demonstrating higher economic efficiency.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2017_2195_art18",
+    "answers": "partially",
+    "why": "Article 18(7)(f) lets a TSO include an exemption for specific products to predetermine bid prices in the terms and conditions. It does not state the justification requirement."
+   },
+   {
+    "doc_id": "reg_2019_943_art6",
+    "answers": "partially",
+    "why": "Article 6(2) says the price of balancing energy shall not be pre-determined in balancing capacity contracts. Article 6(14) allows derogations for specific products. Neither states the economic-efficiency justification."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question is paraphrased in vague terms ('grid company', 'keeping resources on standby'). It maps clearly to Article 16(6), though Article 18(7)(f) is closely related.",
+  "suggested_fix": ""
+ }
+}

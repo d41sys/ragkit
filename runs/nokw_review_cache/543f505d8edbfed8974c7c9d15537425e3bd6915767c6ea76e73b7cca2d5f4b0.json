@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Above what level of carbon output for each unit of electricity may newly started plants not be paid for standing ready?",
+ "gold": [
+  "reg_2019_943_art22"
+ ],
+ "usage": {
+  "input_tokens": 131,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 251,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 22(4)(a) of Regulation 2019/943 says capacity that started commercial production on or after 4 July 2019 and emits more than 550 g CO2 of fossil fuel origin per kWh of electricity cannot be committed or receive payments under a capacity mechanism. This matches the reference answer.\", \"other_articles\": [], \"ambiguity\": \"none\", \"ambiguity_reason\": \"The question is a paraphrase of Article 22(4)(a): 'newly started plants' maps to capacity starting production on or after 4 July 2019, and 'paid for standing ready' maps to capacity mechanism payments. Only one threshold applies to new plants.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 22(4)(a) of Regulation 2019/943 says capacity that started commercial production on or after 4 July 2019 and emits more than 550 g CO2 of fossil fuel origin per kWh of electricity cannot be committed or receive payments under a capacity mechanism. This matches the reference answer.",
+  "other_articles": [],
+  "ambiguity": "none",
+  "ambiguity_reason": "The question is a paraphrase of Article 22(4)(a): 'newly started plants' maps to capacity starting production on or after 4 July 2019, and 'paid for standing ready' maps to capacity mechanism payments. Only one threshold applies to new plants.",
+  "suggested_fix": ""
+ }
+}

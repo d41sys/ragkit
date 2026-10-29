@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Until which date must the decision to fund a new grid-side power store have been taken for a local-level grid company to keep the usual write-off period before phase-out?",
+ "gold": [
+  "dir_2019_944_art36"
+ ],
+ "usage": {
+  "input_tokens": 137,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 371,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 36(4) of Directive 2019/944 exempts new battery storage with a final investment decision until 4 July 2019 from the phase-out in paragraph 3 for the usual depreciation period. It lists the conditions (a)-(d): connected within two years, integrated into the distribution system, used only for reactive instantaneous restoration of network security, and not used to buy or sell electricity, including balancing. The reference answer matches this.\", \"other_articles\": [{\"doc_id\": \"dir_2019_944_art54\", \"answers\": \"partially\", \"why\": \"Article 54(5) is the transmission-level counterpart and gives 2024, not 4 July 2019. It concerns transmission system operators, so it answers a different question than the distribution-level one asked.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"'Local-level grid company' and 'grid-side power store' are paraphrases of distribution system operator and energy storage facility. The wording could in principle be confused with the TSO provision, but 'local-level' points to distribution.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 36(4) of Directive 2019/944 exempts new battery storage with a final investment decision until 4 July 2019 from the phase-out in paragraph 3 for the usual depreciation period. It lists the conditions (a)-(d): connected within two years, integrated into the distribution system, used only for reactive instantaneous restoration of network security, and not used to buy or sell electricity, including balancing. The reference answer matches this.",
+  "other_articles": [
+   {
+    "doc_id": "dir_2019_944_art54",
+    "answers": "partially",
+    "why": "Article 54(5) is the transmission-level counterpart and gives 2024, not 4 July 2019. It concerns transmission system operators, so it answers a different question than the distribution-level one asked."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "'Local-level grid company' and 'grid-side power store' are paraphrases of distribution system operator and energy storage facility. The wording could in principle be confused with the TSO provision, but 'local-level' points to distribution.",
+  "suggested_fix": ""
+ }
+}

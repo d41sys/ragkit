@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "What goal is stated for the arrangement that cuts how much opposing correcting energy neighbouring regions deploy simultaneously?",
+ "gold": [
+  "reg_2017_1485_art146"
+ ],
+ "usage": {
+  "input_tokens": 133,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 278,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 146(1) of Regulation 2017/1485 states that the control target of the imbalance netting process is to reduce the amount of simultaneous counteracting FRR activations of the participating LFC areas by imbalance netting power interchange. This matches the reference answer.\", \"other_articles\": [{\"doc_id\": \"reg_2017_2195_art22\", \"answers\": \"partially\", \"why\": \"It covers the European platform for the imbalance netting process but states no goal of reducing counteracting FRR activations.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question is a paraphrase without naming the process. 'Goal' maps clearly to the 'control target' in 146(1), and 'neighbouring regions' maps to LFC areas.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 146(1) of Regulation 2017/1485 states that the control target of the imbalance netting process is to reduce the amount of simultaneous counteracting FRR activations of the participating LFC areas by imbalance netting power interchange. This matches the reference answer.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2017_2195_art22",
+    "answers": "partially",
+    "why": "It covers the European platform for the imbalance netting process but states no goal of reducing counteracting FRR activations."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question is a paraphrase without naming the process. 'Goal' maps clearly to the 'control target' in 146(1), and 'neighbouring regions' maps to LFC areas.",
+  "suggested_fix": ""
+ }
+}

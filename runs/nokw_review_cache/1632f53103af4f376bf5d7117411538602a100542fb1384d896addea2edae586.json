@@ -1,0 +1,32 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "What ceiling applies, relative to last year's available trading room across a border, when the reservation is justified by a study showing that it pays off?",
+ "gold": [
+  "reg_2017_2195_art42"
+ ],
+ "usage": {
+  "input_tokens": 133,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 257,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 42(2) of Reg 2017/2195 limits allocation of cross-zonal capacity based on an economic efficiency analysis to 5% of the available capacity for energy exchange of the previous relevant calendar year between the bidding zones, or 10% of total installed technical capacity for new interconnectors. This matches the reference answer.\", \"other_articles\": [], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question is paraphrased and does not name the balancing capacity context. 'Reservation justified by a study that it pays off' maps to the economic efficiency analysis allocation; Article 41 (market-based, 10%) is a distractor but is distinguishable.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 42(2) of Reg 2017/2195 limits allocation of cross-zonal capacity based on an economic efficiency analysis to 5% of the available capacity for energy exchange of the previous relevant calendar year between the bidding zones, or 10% of total installed technical capacity for new interconnectors. This matches the reference answer.",
+  "other_articles": [],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question is paraphrased and does not name the balancing capacity context. 'Reservation justified by a study that it pays off' maps to the economic efficiency analysis allocation; Article 41 (market-based, 10%) is a distractor but is distinguishable.",
+  "suggested_fix": ""
+ }
+}

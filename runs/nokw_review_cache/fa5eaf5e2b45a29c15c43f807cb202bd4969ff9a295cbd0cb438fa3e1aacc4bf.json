@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "When national energy regulators cannot agree among themselves on how the price-area examination will be carried out, who decides?",
+ "gold": [
+  "reg_2019_943_art14"
+ ],
+ "usage": {
+  "input_tokens": 111,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 278,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 14(5) of Regulation 2019/943 says that if the regulatory authorities cannot reach a unanimous decision within 3 months, ACER decides within an additional three months on the methodology, assumptions and alternative bidding zone configurations.\", \"other_articles\": [{\"doc_id\": \"reg_2015_1222_art32\", \"answers\": \"partially\", \"why\": \"Article 32(4)(a) says regulatory authorities may require coordinated amendments within three months. It names no decision-maker if they disagree, so it does not answer the question.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"'Price-area examination' is a paraphrase of the bidding zone review. The question is clear enough that Article 14(5) is the intended source.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 14(5) of Regulation 2019/943 says that if the regulatory authorities cannot reach a unanimous decision within 3 months, ACER decides within an additional three months on the methodology, assumptions and alternative bidding zone configurations.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2015_1222_art32",
+    "answers": "partially",
+    "why": "Article 32(4)(a) says regulatory authorities may require coordinated amendments within three months. It names no decision-maker if they disagree, so it does not answer the question."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "'Price-area examination' is a paraphrase of the bidding zone review. The question is clear enough that Article 14(5) is the intended source.",
+  "suggested_fix": ""
+ }
+}

@@ -1,0 +1,38 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "At a minimum, how often must grid companies recheck that room set aside through the pay-off-study route is still needed?",
+ "gold": [
+  "reg_2017_2195_art38"
+ ],
+ "usage": {
+  "input_tokens": 87,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 295,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 38(8) says TSOs must regularly assess whether allocated cross-zonal capacity is still needed, and that where the allocation process based on economic efficiency analysis is applied, the assessment is done at least every year. This matches the reference answer.\", \"other_articles\": [{\"doc_id\": \"reg_2017_2195_art42\", \"answers\": \"partially\", \"why\": \"It describes the economic-efficiency-analysis allocation process and requires TSOs to reassess value and release capacity no longer beneficial, but it gives no yearly frequency.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question's paraphrase ('pay-off-study route', 'room set aside') is obscure but maps clearly to the economic efficiency analysis allocation process and cross-zonal capacity.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 38(8) says TSOs must regularly assess whether allocated cross-zonal capacity is still needed, and that where the allocation process based on economic efficiency analysis is applied, the assessment is done at least every year. This matches the reference answer.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2017_2195_art42",
+    "answers": "partially",
+    "why": "It describes the economic-efficiency-analysis allocation process and requires TSOs to reassess value and release capacity no longer beneficial, but it gives no yearly frequency."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question's paraphrase ('pay-off-study route', 'room set aside') is obscure but maps clearly to the economic efficiency analysis allocation process and cross-zonal capacity.",
+  "suggested_fix": ""
+ }
+}

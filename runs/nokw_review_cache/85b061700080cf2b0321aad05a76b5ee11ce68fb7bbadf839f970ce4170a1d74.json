@@ -1,0 +1,43 @@
+{
+ "model": "claude-sonnet-5-5",
+ "question": "Which grid companies collect the money from scarce cross-border lines and handle payments for hosting the flows of neighbours' trade?",
+ "gold": [
+  "dir_2019_944_art40"
+ ],
+ "usage": {
+  "input_tokens": 125,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 99476,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 337,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ },
+ "reply": "{\"gold_answers\": \"yes\", \"gold_reason\": \"Article 40(1)(h) of Directive 2019/944 assigns to each TSO the task of collecting congestion rents and payments under the inter-TSO compensation mechanism, which matches the reference answer exactly.\", \"other_articles\": [{\"doc_id\": \"reg_2019_943_art49\", \"answers\": \"partially\", \"why\": \"It covers the inter-TSO compensation for hosting cross-border flows, which TSOs receive and pay. It does not mention congestion rent collection.\"}, {\"doc_id\": \"reg_2019_943_art19\", \"answers\": \"partially\", \"why\": \"It covers congestion income and how TSOs use it, but not the compensation for hosting flows.\"}], \"ambiguity\": \"minor\", \"ambiguity_reason\": \"The question is a paraphrase and could point to Regulation 2019/943 Article 49 or Article 19. Only Directive Article 40(1)(h) joins both tasks in one provision.\", \"suggested_fix\": \"\"}",
+ "verdict": {
+  "gold_answers": "yes",
+  "gold_reason": "Article 40(1)(h) of Directive 2019/944 assigns to each TSO the task of collecting congestion rents and payments under the inter-TSO compensation mechanism, which matches the reference answer exactly.",
+  "other_articles": [
+   {
+    "doc_id": "reg_2019_943_art49",
+    "answers": "partially",
+    "why": "It covers the inter-TSO compensation for hosting cross-border flows, which TSOs receive and pay. It does not mention congestion rent collection."
+   },
+   {
+    "doc_id": "reg_2019_943_art19",
+    "answers": "partially",
+    "why": "It covers congestion income and how TSOs use it, but not the compensation for hosting flows."
+   }
+  ],
+  "ambiguity": "minor",
+  "ambiguity_reason": "The question is a paraphrase and could point to Regulation 2019/943 Article 49 or Article 19. Only Directive Article 40(1)(h) joins both tasks in one provision.",
+  "suggested_fix": ""
+ }
+}

@@ -33,3 +33,96 @@ committed file, and runnable on any file with `python -m ragkit.nokw FILE --corp
 
 The rule looks at the question text and the gold article's term statistics only. It runs no
 retrieval, so it can be used while writing without touching the scores.
+
+---
+
+# Part 2: set, review, guards, predictions (committed before the first scored run)
+
+Everything in `docs/ctxprefix_protocol.md` that is not restated here is unchanged: the recursive
+500/50 chunks, the `base` and `prefix` texts, `BM25Index` and the pinned hybrid, metrics (Recall@5,
+MRR, nDCG@10), the paired bootstrap (95% percentile interval, 2000 resamples, seed 0), the
+wrong-act top-1 count and the adoption rule. The "not tried" list of that protocol still stands.
+
+## The set
+
+`src/ragkit/data/qa_eu_nokw.jsonl`: 49 answerable questions over the same 94-article EU corpus
+(`status: draft-agent`; review and cost in `docs/qa_eu_nokw_review.md`). 28 `near-duplicate`
+(parallel articles inside one act), 21 `cross-act` (the same matter in another act). Every
+question satisfies the part-1 rule (29 have overlap 0, 20 have overlap 1; enforced by
+`tests/test_ragkit_nokw.py::test_nokw_set`), names no act, article number or heading, and is a
+lay paraphrase. Clusters: 2017/2195 arts 19-22 and 38-42, 2017/1485 arts 146/147/166/176,
+directive 2019/944 arts 31/40 and 36/54, bidding zone review (2015/1222 art 32 vs 2019/943
+art 14), 2019/943 art 5(4) vs 12(5) vs 2015/1222, 2016/1719 firmness and curtailment (2015/1222
+art 72, 2016/1719 arts 25/53/56), congestion income (2015/1222 art 73, 2019/943 art 19), and the
+imbalance settlement period (2019/943 art 8(4) vs 2017/2195 art 53).
+
+### Order of work (`git log`)
+
+1. rule, its test and part 1 (`bbe1b8f`), before any question existed;
+2. 54 candidates (`c37af66`), all passing the rule, before any reviewer or retriever saw them;
+3. Sonnet review (59 live calls), fixes and a rule-based drop of 5 sibling-less `paraphrase`
+   items, the frozen 49 questions, this part 2, then the `--nokw` code, then the one scored run.
+
+### Disclosed taint and bias
+
+- The drafter (an AI agent, the same family as the reviewer) knew the aggregate outcome of both
+  earlier runs and the texts of the 42 + 29 + 39 earlier questions, and read the corpus articles to
+  write these. It saw **no per-question retrieval output**. No retriever was run on any candidate;
+  the only computation over the corpus while writing was the TF-IDF overlap check of the rule.
+- The rule removes words that are frequent *and* distinctive in the gold article. It does not
+  remove every word BM25 can use: other content words ("grid", "price", "areas", "weeks", "who")
+  remain, and many are shared by the gold article with its siblings. So the set is lexically
+  harder, not lexically blind; how much harder is what the floor guard measures.
+- The writing task rewarded questions that pass the rule, so unusually indirect phrasing
+  ("blueprint", "takings", "next-day border entitlements") appears; it is not how a user would ask.
+- 28 of 49 questions have every drafter-listed decoy inside the gold article's own act, where the
+  wrong-act count cannot register a confusion; 21 have a decoy in another act.
+- Labels are agent-made and agent-checked; Sonnet answered "yes" for 52 of 54 gold checks on the
+  first pass (2 partial, fixed) and found no article that fully answers instead after the fixes
+  (it found one before: item 28).
+
+## Guards (pre-registered, thresholds fixed here)
+
+1. **Saturation guard, unchanged.** Baseline BM25 Recall@5 above **0.85**: the set is "saturated"
+   and a null on it is "no detectable effect on a saturated set".
+2. **Floor guard, new.** Baseline BM25 Recall@5 below **0.15**: the report says first **"too hard
+   for lexical retrieval"**. The prefix is a change to the text of chunks that are retrieved; if
+   BM25 does not put the gold article in its top 5 for almost any question, there is nothing for
+   the prefix to promote, and a null says nothing about the prefix. A set between the two guards is
+   a valid test; the guard is on BM25 only, as the saturation guard was.
+3. `ragkit ctxprefix --nokw` prints both guards and the synthetic regression guard; both are
+   computed from the baseline, never from the prefix variant.
+
+## Decision rule (unchanged)
+
+Per retriever: **adopt** iff the paired dMRR (`prefix` - `base`) on the keyword-free set has a 95%
+CI lower bound above 0 **and** the synthetic dMRR is at least -0.02 with CI upper bound not below
+0. **Rejected** when the keyword-free CI is entirely below 0 or the synthetic check fails;
+otherwise **not adopted (no evidence)**. Two retrievers, two tests, no multiplicity correction. The
+fresh, old-42 and hard-set results are not re-reported as gating. The guards do not change the
+rule: it is computed and reported whatever they say, and a guard hit changes only what the report
+may claim.
+
+## Predictions (written before the run)
+
+1. BM25 baseline Recall@5 on this set is between 0.35 and 0.75 (point guess 0.55). Probability
+   above 0.85 (saturated): about 3%. Probability below 0.15 (too hard): about 4%.
+2. BM25 wrong-act top-1 is at least 8 of 49 on the base text.
+3. BM25 dMRR is between -0.03 and +0.06; probability its CI lower bound is above 0 (adoption for
+   BM25): about 15%. The author's reason for any gain: with the heading words absent from the
+   question, the prefix matters only through shared act-title words and article numbers, which the
+   questions do not contain either, so I expect it to help little even here.
+4. Hybrid dMRR within +-0.05 with a CI that includes 0; probability of adoption: about 8%.
+5. Recall@5 changes by less than 0.06 for both retrievers.
+
+## After the verdict
+
+- **Neither adopted, or a guard fired:** report plainly; change no default; the README states what
+  the set could and could not show.
+- **A retriever adopted:** the prefix becomes the default chunk text for that retriever in the
+  pipeline and the EU headline paths; every EU headline number that changes is re-run and reported
+  old vs new in the README, losses included; a lone pass for one retriever is reported as such. The
+  caveats above stand (set built to separate the prefix from lexical cues; 49 questions; agent
+  labels).
+- Label corrections found later are reported next to the committed numbers; the numbers are not
+  re-run to look different.
