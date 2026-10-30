@@ -174,3 +174,86 @@ answerable questions correct, 0 of 45 unanswerable answered, 0 wrong abstentions
 3.29 USD. This holds for a corpus that fits in a prompt; it says nothing about corpora that do
 not. Judge: the same model family as the answerer (`CORRECT`, `CITE` run by `claude-sonnet-5-5`),
 no human check, so a shared bias cannot be excluded.
+
+## Phase L: parent-document (small-to-big) context (frozen before any scored call)
+
+Why: in the scored K-R2 run, 22 of the 25 `no` and 20 of the 32 `partial` `CORRECT` verdicts (all
+`CORRECT` records of the cache, three runs) are on answers that say the passages were cut off, not
+provided or do not state the fact, while only 6 of 42 gold articles are missing from the top-5
+chunks. The 500-character chunks hand `GEN` fragments of the right article; full context (41/42)
+does not. This phase tests that cause by changing only what `GEN` is shown.
+
+Method (`--context article`, `src/ragkit/parent.py`): retrieve the top-5 chunks exactly as in K-R2
+(the same pipeline, the same ranking), then pass the FULL text of the distinct parent articles of
+those chunks to `GEN`, in rank order of their best chunk, each as `[article id]` followed by the
+whole article. The `GEN` prompt and schema are unchanged (byte for byte); only the context
+differs.
+
+- **k = 3** articles (the three best-ranked distinct articles; fewer if the top 5 chunks come from
+  fewer articles).
+- **Token budget 12 000** estimated tokens (characters / 4; the 94-article corpus is 337 kB and
+  the K-R2 protocol counts it as about 85 k tokens, the same ratio). Articles are added whole in
+  rank order; the first article is always kept (cut at the budget only if it alone exceeds it);
+  a later article that would exceed the budget is dropped, as are all after it. The longest
+  article is 12.1 kB (about 3 k tokens), so on this corpus 3 articles are at most about 9 k tokens
+  and the budget never binds; it is there so the same code is safe on other corpora.
+- k and the budget were fixed here, before any article-context call; they are not tuned on the 87
+  questions.
+- The decision gates are not re-run: `reader` is the K-R2 `qa_answerable` rule on the retrieved
+  chunks and `stack` the K-R2 nested-CV logistic gate on `qa_answerable` and the chunk-context
+  `SUFF.confidence` (cached K-R2 calls, no new `SUFF` call). Each gate answers the same questions
+  as in K-R2; Phase L changes only the text of the answer, its correctness and its citations.
+  For `hybrid+ce` no reader scores existed, so the reader (`roberta-base-squad2`, the pinned
+  revision of K-R2) is run once locally on the `hybrid+ce` top-5 chunks and its scores are
+  committed as `data/llm_cache/reader_scores_hybrid_ce.json`.
+
+Calls (new, on top of the K-R2 cache; cap 600 new calls, the cost cap rises from 15 to 25 USD
+cumulative): `GEN` for all 87 questions per retriever, `CORRECT` for the 42 answerable, `CITE`
+for every article an answer cites (only an id in the context counts; others are `invalid` without a
+call) on all 42 answerable questions and on the unanswerable questions that `reader` or `stack`
+answers (the only unanswerable answers a reported row counts). Retrievers: the shipped `default`
+pipeline ("BM25 default") and `hybrid+ce`. No other call is made; chunk-context `GEN`, `FC` and
+their judge calls are replayed from the cache.
+
+Reported (per retriever, LLM-judged, no human check):
+
+1. Always-answer correctness on the 42 answerable questions (`CORRECT` = `yes`, strict; and
+   `yes` + `partial`, lenient) for chunk-context RAG, article-context RAG and full context (FC),
+   each with a Wilson 95 % CI, and paired differences (paired bootstrap over questions, 2000
+   resamples, seed 0) article minus chunk and article minus FC, at both levels.
+2. The `reader` and `stack` gates with article-context answers: unanswerable answered,
+   wrongly abstained, balanced accuracy, correct (strict and lenient) with Wilson CIs, and the
+   citation table (yes / partial / no / invalid per cited article) next to chunk context and FC.
+3. Context-gap answers: among `CORRECT` verdicts other than `yes`, the share whose answer matches
+   a fixed phrase pattern (`cut off`, `truncat`, `incomplete`, `not provided`, `not included`,
+   `cannot confirm|determine`, or `passage(s)|context|text|excerpt|fragment` followed within 40
+   characters by `do|does|did not`), for chunk and article context. The pattern is fixed here
+   and is a text match, not a judgement.
+4. Retrieval misses: answerable questions whose gold article is not in the article context
+   (k = 3 can miss articles that five chunks reached).
+5. FC citation audit (cache only, no calls): per cited article of the 87 FC answers, the verdict
+   against whether the id is a gold article of the question; plus a manual read of 10 randomly
+   chosen (seed 0) non-`yes` FC `CITE` records, classified as wrong article id cited / correct
+   article judged partial because the article is the citation granularity / other.
+
+Predictions (before any scored call):
+
+- L1 Article-context RAG, always answering, is correct (strict) on at least 30 of 42 (default)
+  and at least 32 of 42 (`hybrid+ce`), against 12 and 14 for chunk context.
+- L2 The paired difference article minus chunk has a 95 % CI lower bound above 0 for both
+  retrievers (strict).
+- L3 Article-context RAG stays below full context (point difference article minus FC negative,
+  and at least -0.25): the remaining gap is retrieval misses within k = 3.
+- L4 The context-gap share of non-`yes` verdicts falls from about 0.8 (chunk, on the K-R2 records)
+  to at most 0.3 (article).
+- L5 The citation `yes` rate of article-context `GEN` is higher than 0.587 (chunk) and is at
+  least 0.70, yet A4's 0.85 is still not reached (answers cite several articles and each supports
+  only part).
+- L6 Most non-`yes` FC citations are `partial` on a gold article (the answer combines claims from
+  several articles, so one whole article supports a part); at most 2 of the 10 read records are
+  a wrong article id.
+
+Decision rule: article context becomes the default of `ragkit answer --llm` iff the strict paired
+difference article minus chunk has a CI lower bound above 0 for both retrievers; otherwise
+`--context chunk` stays the default. If the rule passes, that is the answer to "why did RAG get
+12/42": the chunks, not the retriever or the generator.
