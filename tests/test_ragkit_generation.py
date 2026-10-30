@@ -429,7 +429,9 @@ def test_k_report_compares_with_the_base_and_prints_the_adoption_rule(tmp_path: 
         Record(r.item, [*r.passages, Passage("art2", "q")], r.gen, r.suff, r.fc, None, r.correct_fc)
         for r in records
     ]
+    client.touched.clear()
     new = run_article_generation(wider, DOCS, answerer, [False] * len(cites), k=2)
+    new_keys = set(client.touched) - keys_before
     text = render_k_report(
         records,
         base,
@@ -441,7 +443,7 @@ def test_k_report_compares_with_the_base_and_prints_the_adoption_rule(tmp_path: 
         k_base=1,
         k_new=2,
         budget_new=20_000,
-        keys_before=keys_before,
+        new_keys=new_keys,
         m5_range=(0.0, 1.0),
     )
     for needle in (
@@ -455,7 +457,7 @@ def test_k_report_compares_with_the_base_and_prints_the_adoption_rule(tmp_path: 
         "Adopt k = 5 as the default only if BOTH",
     ):
         assert needle in text
-    added = [r for key, r in client.records.items() if key not in keys_before]
+    added = [client.records[key] for key in new_keys]
     assert added and all(r["kind"] in ("GEN", "CORRECT") for r in added)  # no CITE call
 
 

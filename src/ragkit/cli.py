@@ -1147,7 +1147,9 @@ def cmd_generation(args: argparse.Namespace) -> int:
         api_key=os.environ.get("ANTHROPIC_API_KEY", "") if args.live else "",
     )
     answerer = LLMAnswerer(client)
-    keys_before = set(client.records)
+    # Cache records that predate the analysis; --since-records N fixes them as the first N.
+    keys = list(client.records)
+    baseline = set(keys[: args.since_records] if args.since_records is not None else keys)
     records = run_generation(
         items,
         passages,
@@ -1167,6 +1169,7 @@ def cmd_generation(args: argparse.Namespace) -> int:
             print("Error: --context article needs reader scores (--reader-cache)", file=sys.stderr)
             return 2
         cites = cite_mask(decisions).tolist()
+        client.touched.clear()
         article_records = run_article_generation(
             records,
             documents,
@@ -1176,11 +1179,14 @@ def cmd_generation(args: argparse.Namespace) -> int:
             budget_tokens=args.budget,
             workers=args.workers,
         )
+        touched_new = set(client.touched)
         if (args.articles, args.budget) != (ARTICLE_K, ARTICLE_BUDGET_TOKENS):
             # Post-hoc sensitivity analysis (Phase L addendum): the cached k = 3 run is the base.
+            client.touched.clear()
             base_records = run_article_generation(
                 records, documents, answerer, cites, workers=args.workers
             )
+            touched_base = set(client.touched)
             print()
             print(
                 render_k_report(
@@ -1195,7 +1201,7 @@ def cmd_generation(args: argparse.Namespace) -> int:
                     k_base=ARTICLE_K,
                     k_new=args.articles,
                     budget_new=args.budget,
-                    keys_before=keys_before,
+                    new_keys=(touched_new - touched_base) - baseline,
                     m5_range=(0.15, 0.30) if args.retriever == "default" else (0.08, 0.20),
                 )
             )
@@ -1503,6 +1509,13 @@ def main(argv: Sequence[str] | None = None) -> None:
         action="store_true",
         help="--context article: make no new CITE call for the --articles run (the budget stage "
         "of the post-hoc k = 5 analysis).",
+    )
+    p_gen.add_argument(
+        "--since-records",
+        type=int,
+        default=None,
+        help="--articles run: the first N records of the cache predate the analysis (default: "
+        "every record present at start); calls added after them for this run are costed.",
     )
 
     # Fetch-EU command

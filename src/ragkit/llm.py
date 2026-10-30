@@ -101,6 +101,7 @@ class CachedMessages:
         self.max_cost_usd = max_cost_usd
         self.transport: Transport = transport or post_message
         self.live_calls = 0
+        self.touched: set[str] = set()  # keys of every request made through this client
         self._lock = threading.Lock()
         self._key_locks: defaultdict[str, threading.Lock] = defaultdict(threading.Lock)
         self.records: dict[str, dict[str, Any]] = {}
@@ -134,6 +135,7 @@ class CachedMessages:
         """The reply to one request: from the cache, else one live call that is then stored."""
         payload = self.payload(system, user, max_tokens)
         key = request_key(payload)
+        self.touched.add(key)
         with self._key_locks[key]:
             record = self.records.get(key)
             if record is not None:

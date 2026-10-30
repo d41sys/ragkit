@@ -553,14 +553,14 @@ def render_k_report(
     k_base: int,
     k_new: int,
     budget_new: int,
-    keys_before: set[str],
+    new_keys: set[str],
     m5_range: tuple[float, float],
 ) -> str:
     """Post-hoc sensitivity analysis: ``k_new`` parent articles against ``k_base``.
 
     Protocol, adoption rule and predictions M1 to M5: ``docs/generation_protocol.md`` (Phase L
-    addendum). ``keys_before`` is the set of cache keys before this run, so the new spend is
-    measured from the records this run added.
+    addendum). ``new_keys`` are the cache keys of the calls this analysis added for the new
+    context (made for it, absent from the base run and from the cache before the analysis).
     """
     labels = decisions.labels
     idx = np.flatnonzero(labels)
@@ -661,7 +661,7 @@ def render_k_report(
     else:
         lines.append("`CITE` skipped for this run (budget); no citation rows for the new context.")
 
-    added = [r for key, r in client.records.items() if key not in keys_before]
+    added = [client.records[key] for key in new_keys if key in client.records]
     spend = sum(usage_cost(r.get("usage", {})) for r in added)
     by_kind: dict[str, tuple[int, float]] = {}
     for r in added:
@@ -679,9 +679,10 @@ def render_k_report(
         "",
         "**5. Cost (assumed list prices: 3 / 15 USD per M input / output tokens)**",
         "",
-        f"New calls of this run: {len(added)} ({client.live_calls} live); spend "
-        f"{spend:.2f} USD = {spend / len(new_records):.4f} USD per question over the "
-        f"{len(new_records)} questions (on top of the {k_base}-article run, which is cached).",
+        f"Calls added to the cache for the {new} context: {len(added)} ({client.live_calls} "
+        f"live in this run); spend {spend:.2f} USD = {spend / len(new_records):.4f} USD per "
+        f"question over the {len(new_records)} questions (on top of the {k_base}-article run, "
+        "which is cached).",
         "",
         "| call | new calls | USD |",
         "|---|---|---|",
