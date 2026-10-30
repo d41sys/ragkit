@@ -166,9 +166,17 @@ class LLMAnswerer:
         max_tokens: int,
         required: Sequence[str],
     ) -> dict[str, Any]:
-        """One call; a reply that is not the expected JSON is retried once with a reminder."""
-        for attempt in (user, user + "\n\nReply with only the JSON object, nothing else."):
-            reply = self.client.complete(kind, system, attempt, max_tokens)
+        """One call; a reply that is not the expected JSON is retried once with a reminder.
+
+        The retry doubles ``max_tokens`` (a reply cut off at the limit is the usual cause), so
+        first-attempt requests, and their cache keys, are unchanged.
+        """
+        attempts = (
+            (user, max_tokens),
+            (user + "\n\nReply with only the JSON object.", 2 * max_tokens),
+        )
+        for attempt, limit in attempts:
+            reply = self.client.complete(kind, system, attempt, limit)
             try:
                 parsed = parse_json_object(reply.text)
             except ValueError:

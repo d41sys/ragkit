@@ -1,0 +1,73 @@
+
+### ragkit generation: EU answers, sufficient-context gates (retriever hybrid+ce)
+
+42 answerable and 45 unanswerable EU questions; model `claude-sonnet-5-5`; LLM-judged rows are labelled as such (no human check). CIs: Wilson for counts, stratified bootstrap (2000 resamples, seed 0) for differences.
+
+**Abstention AUROC (answerable vs unanswerable)**
+
+| Score | AUROC [95% CI] |
+|---|---|
+| `suff_confidence` | 0.987 [0.963, 0.999] |
+| `self` (binary flag) | 0.774 |
+| `suff` (binary flag) | 0.798 |
+| `fullctx` (binary flag) | 1.000 |
+
+**Decisions**
+
+| System | unanswerable answered | answerable wrongly abstained | balanced acc. | paired d vs reader | correct answers (LLM-judged, of 42) | partial | correct when answered |
+|---|---|---|---|---|---|---|---|
+| `self` | 0/45 (0.00) [0.00, 0.08] | 19/42 (0.45) [0.31, 0.60] | 0.774 [0.690, 0.857] | - | 14/42 (0.33) [0.21, 0.48] | 8 | 14/23 |
+| `suff` | 0/45 (0.00) [0.00, 0.08] | 17/42 (0.40) [0.27, 0.56] | 0.798 [0.726, 0.869] | - | 14/42 (0.33) [0.21, 0.48] | 11 | 14/25 |
+| `fullctx` | 0/45 (0.00) [0.00, 0.08] | 0/42 (0.00) [0.00, 0.08] | 1.000 [1.000, 1.000] | - | 41/42 (0.98) [0.88, 1.00] | 1 | 41/42 |
+
+**Citation support (LLM-judged: does the cited article support the answer?)**
+
+| System (answer source) | answers given | citations | yes | partial | no | invalid | yes rate |
+|---|---|---|---|---|---|---|---|
+| self (GEN) | 23 | 32 | 22 | 9 | 1 | 0 | 0.688 |
+| suff (GEN) | 25 | 38 | 24 | 13 | 1 | 0 | 0.632 |
+| fullctx (FC) | 42 | 79 | 40 | 36 | 3 | 0 | 0.506 |
+
+**Retrieval misses and unanswerable types**
+
+6 of 42 answerable questions have no gold article in the retrieved chunks.
+- `suff` wrongly abstains on 17 answerable questions, 6 of them retrieval misses.
+- `self` wrongly abstains on 19 answerable questions, 5 of them retrieval misses.
+
+| unanswerable type | n | `self` answered | `suff` answered | `fullctx` answered |
+|---|---|---|---|---|
+| absent_article | 8 | 0 | 0 | 0 |
+| missing_number | 9 | 0 | 0 | 0 |
+| national_rule | 7 | 0 | 0 | 0 |
+| original | 12 | 0 | 0 | 0 |
+| wrong_regulation | 9 | 0 | 0 | 0 |
+
+**Full context vs RAG (accuracy on the answerable questions, LLM-judged)**
+
+| System | correct (of answerable) | paired d vs full context always-answer |
+|---|---|---|
+| RAG `self` (GEN answers when `context_supports`) | 14/42 (0.33) [0.21, 0.48] | -0.643 [-0.786, -0.500] |
+| RAG `suff` (GEN answers when sufficient) | 14/42 (0.33) [0.21, 0.48] | -0.643 [-0.786, -0.500] |
+| RAG, always answer (GEN, no gate) | 14/42 (0.33) [0.21, 0.48] | -0.643 [-0.786, -0.500] |
+| full context `fullctx` | 41/42 (0.98) [0.88, 1.00] | +0.000 [+0.000, +0.000] |
+| full context, always answer (FC, no gate) | 41/42 (0.98) [0.88, 1.00] | +0.000 [+0.000, +0.000] |
+
+**Calls and cost (assumed list prices)**
+
+1015 cached calls (269 live in this run); tokens: input 1,271,994, cache write 99,317, cache read 8,541,262, output 196,893; cost at assumed list prices (3 / 15 USD per M input / output, cache write 1.25x, read 0.1x): 9.70 USD.
+
+| call | calls | USD |
+|---|---|---|
+| CITE | 453 | 3.70 |
+| CORRECT | 125 | 0.37 |
+| FC | 87 | 3.29 |
+| GEN | 174 | 1.19 |
+| SUFF | 176 | 1.15 |
+
+**Pre-registered predictions and decision rule**
+
+- A1 `SUFF.confidence` AUROC 0.987 above the reader and at least 0.90: holds
+- A2 `suff` answers 0/45 unanswerable (<= 6) and wrongly abstains on 17/42 answerable (<= 10): does not hold
+- A3 `self` answers 0 unanswerable vs `suff` 0 (self more): does not hold
+- A4 citation `yes` rate GEN 0.608 (>= 0.85), FC 0.592 (>= 0.90): does not hold
+- A5 `fullctx` accuracy 0.976 vs RAG `self` 0.333 (>= +0.05) and answers 0 unanswerable (<= `self` 0): holds
