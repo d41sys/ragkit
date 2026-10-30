@@ -6,6 +6,7 @@ import sys
 import zipfile
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -28,8 +29,10 @@ from ragkit.neural import (
     rrf_fuse,
 )
 from ragkit.neuralbench import (
+    beir_mean_ci,
     pool,
     recommendation,
+    render_beir_mean,
     render_eu_neural,
     render_neural_beir,
     run_beir_neural,
@@ -272,3 +275,25 @@ def test_importing_neural_modules_loads_no_model_library() -> None:
     )
     out = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=True)
     assert "OK" in out.stdout
+
+
+def test_beir_mean_ci_is_the_dataset_mean_with_a_paired_interval() -> None:
+    from types import SimpleNamespace
+
+    from ragkit.beir import SystemResult
+
+    def run(name: str, base: list[float], better: list[float]) -> Any:
+        return SimpleNamespace(
+            data=SimpleNamespace(name=name),
+            results={"bm25": SystemResult("bm25", base), "dense": SystemResult("dense", better)},
+        )
+
+    runs = [run("a", [0.2, 0.4, 0.6, 0.8], [0.3, 0.5, 0.7, 0.9]), run("b", [0.1, 0.1], [0.4, 0.2])]
+    mean, lo, hi = beir_mean_ci(runs, "dense")
+    assert mean == pytest.approx((0.6 + 0.3) / 2)
+    assert lo <= mean <= hi
+    d, dlo, dhi = beir_mean_ci(runs, "dense", "bm25")
+    assert d == pytest.approx((0.1 + 0.2) / 2)
+    assert dlo <= d <= dhi and dlo > 0  # every query improves: the paired interval excludes 0
+    text = render_beir_mean(runs)
+    assert "mean over 2 datasets (a, b)" in text and "| dense |" in text and "baseline" in text

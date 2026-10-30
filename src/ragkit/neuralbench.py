@@ -12,6 +12,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import numpy as np
+
 from ragkit.analysis import lucene_english
 from ragkit.beir import (
     LUCENE_B,
@@ -230,6 +232,58 @@ def render_neural_beir(run: NeuralBeirRun) -> str:
             f"{MTEB_BGE_SMALL[name][0]:.4f}, gap {gap:+.4f}, {verdict} the pre-registered "
             f"{REPRODUCTION_TOLERANCE} tolerance.",
         ]
+    return "\n".join(lines)
+
+
+def beir_mean_ci(
+    runs: Sequence[NeuralBeirRun],
+    system: str,
+    base: str | None = None,
+    *,
+    n_resamples: int = 2000,
+    seed: int = 0,
+) -> tuple[float, float, float]:
+    """Mean over datasets of mean nDCG@10 (or of the paired ``system - base`` difference), 95% CI.
+
+    The queries of each dataset are resampled independently (same resample for ``system`` and
+    ``base``) and the dataset means are averaged, so the interval is that of the unweighted
+    mean over datasets.
+    """
+    rng = np.random.default_rng(seed)
+    boot = np.zeros(n_resamples)
+    point = 0.0
+    for run in runs:
+        values = np.asarray(run.results[system].ndcg, dtype=np.float64)
+        if base is not None:
+            values = values - np.asarray(run.results[base].ndcg, dtype=np.float64)
+        idx = rng.integers(0, len(values), size=(n_resamples, len(values)))
+        boot += values[idx].mean(axis=1) / len(runs)
+        point += float(values.mean()) / len(runs)
+    lo, hi = np.quantile(boot, [0.025, 0.975])
+    return point, float(lo), float(hi)
+
+
+def render_beir_mean(runs: Sequence[NeuralBeirRun]) -> str:
+    """Mean nDCG@10 over the datasets run, with paired bootstrap CIs against ``bm25``."""
+    names = ", ".join(run.data.name for run in runs)
+    lines = [
+        f"### ragkit beir --retriever: mean over {len(runs)} datasets ({names})",
+        "",
+        "Unweighted mean of the per-dataset nDCG@10; 95% bootstrap CI (2000 resamples, seed 0) "
+        "resampling the queries of each dataset independently; the paired difference uses the "
+        "same resample for both systems.",
+        "",
+        "| System | mean nDCG@10 [95% CI] | paired d vs bm25 [95% CI] |",
+        "|---|---|---|",
+    ]
+    for system in runs[0].results:
+        mean = beir_mean_ci(runs, system)
+        delta = (
+            "baseline"
+            if system == "bm25"
+            else "{:+.3f} [{:+.3f}, {:+.3f}]".format(*beir_mean_ci(runs, system, "bm25"))
+        )
+        lines.append(f"| {system} | {mean[0]:.3f} [{mean[1]:.3f}, {mean[2]:.3f}] | {delta} |")
     return "\n".join(lines)
 
 

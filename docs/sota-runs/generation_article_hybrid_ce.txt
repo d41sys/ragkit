@@ -1,0 +1,187 @@
+
+### ragkit generation --context article: parent articles (hybrid+ce)
+
+42 answerable and 45 unanswerable EU questions; model `claude-sonnet-5-5`; context for article rows: top-3 distinct parent articles of the top-5 chunks, full text, budget 12000 estimated tokens. All correctness and citation rows are LLM-judged (no human check). CIs: Wilson for counts, paired bootstrap over questions (2000 resamples, seed 0) for differences.
+
+**1. Always-answer correctness on the answerable questions (strict = `yes`; lenient = `yes` + `partial`)**
+
+| Context | strict (of 42) [Wilson 95%] | lenient (of 42) [Wilson 95%] | `no` |
+|---|---|---|---|
+| chunk RAG (top-5 chunks) | 14/42 (0.33) [0.21, 0.48] | 31/42 (0.74) [0.59, 0.85] | 11 |
+| article RAG | 30/42 (0.71) [0.56, 0.83] | 33/42 (0.79) [0.64, 0.88] | 9 |
+| full context (FC) | 41/42 (0.98) [0.88, 1.00] | 42/42 (1.00) [0.92, 1.00] | 0 |
+
+| Paired difference (mean of per-question 0/1 differences) | strict [95% CI] | lenient [95% CI] |
+|---|---|---|
+| article RAG - chunk RAG | +0.381 [+0.238, +0.524] | +0.048 [-0.048, +0.143] |
+| article RAG - full context | -0.262 [-0.405, -0.119] | -0.214 [-0.333, -0.095] |
+| chunk RAG - full context | -0.643 [-0.786, -0.500] | -0.262 [-0.405, -0.143] |
+
+**2. Gates with article-context answers (decisions as in K-R2)**
+
+| System | context | unanswerable answered | answerable wrongly abstained | balanced acc. | correct strict (of 42) | correct lenient (of 42) | paired d strict vs chunk |
+|---|---|---|---|---|---|---|---|
+| `reader` | chunk | 12/45 (0.27) [0.16, 0.41] | 12/42 (0.29) [0.17, 0.44] | 0.724 [0.628, 0.816] | 13/42 (0.31) [0.19, 0.46] | 23/42 (0.55) [0.40, 0.69] | - |
+| `reader` | article | 12/45 (0.27) [0.16, 0.41] | 12/42 (0.29) [0.17, 0.44] | 0.724 [0.628, 0.816] | 24/42 (0.57) [0.42, 0.71] | 26/42 (0.62) [0.47, 0.75] | +0.262 [+0.143, +0.405] |
+| `stack` | chunk | 2/45 (0.04) [0.01, 0.15] | 4/42 (0.10) [0.04, 0.22] | 0.930 [0.871, 0.977] | 14/42 (0.33) [0.21, 0.48] | 31/42 (0.74) [0.59, 0.85] | - |
+| `stack` | article | 2/45 (0.04) [0.01, 0.15] | 4/42 (0.10) [0.04, 0.22] | 0.930 [0.871, 0.977] | 30/42 (0.71) [0.56, 0.83] | 33/42 (0.79) [0.64, 0.88] | +0.381 [+0.238, +0.524] |
+| `fullctx` | FC | 0/45 (0.00) [0.00, 0.08] | 0/42 (0.00) [0.00, 0.08] | 1.000 [1.000, 1.000] | 41/42 (0.98) [0.88, 1.00] | 42/42 (1.00) [0.92, 1.00] | - |
+
+**3. Citation support (LLM-judged, per cited article; article-context `CITE` calls only on the questions behind the rows below)**
+
+| System (context) | answers given | citations | yes | partial | no | invalid | yes rate |
+|---|---|---|---|---|---|---|---|
+| reader (chunk) | 42 | 73 | 45 | 23 | 5 | 0 | 0.616 |
+| reader (article) | 42 | 69 | 46 | 22 | 1 | 0 | 0.667 |
+| stack (chunk) | 40 | 60 | 32 | 25 | 3 | 0 | 0.533 |
+| stack (article) | 40 | 58 | 38 | 19 | 1 | 0 | 0.655 |
+| all answerable, always answer (chunk) | 42 | 67 | 34 | 28 | 5 | 0 | 0.507 |
+| all answerable, always answer (article) | 42 | 65 | 43 | 21 | 1 | 0 | 0.662 |
+| all answerable, always answer (FC) | 42 | 79 | 40 | 36 | 3 | 0 | 0.506 |
+| fullctx (FC) | 42 | 79 | 40 | 36 | 3 | 0 | 0.506 |
+
+On the same 54 questions: chunk-context `GEN` citation yes rate 0.576, article-context 0.678, FC (all 87 answers) 0.592.
+
+**4. Context-gap answers among the non-`yes` verdicts (always answer, answerable questions; text match fixed in the protocol)**
+
+| Context | non-`yes` verdicts | answer says the context is cut off / not provided / does not state it | share |
+|---|---|---|---|
+| chunk RAG (top-5 chunks) | 28 (11 no, 17 partial) | 21 | 0.75 |
+| article RAG | 12 (9 no, 3 partial) | 12 | 1.00 |
+| full context (FC) | 1 (0 no, 1 partial) | 0 | 0.00 |
+
+**5. Retrieval misses (gold article absent from the context `GEN` sees)**
+
+Top-5 chunks: 6 of 42. Top-3 articles: 8 of 42.
+
+Post-hoc (not pre-registered): `CORRECT` verdicts of the always-answer rows by whether the gold article is in the context.
+
+| Context | gold article in context | questions | yes | partial | no |
+|---|---|---|---|---|---|
+| chunk RAG | yes | 36 | 14 | 17 | 5 |
+| chunk RAG | no | 6 | 0 | 0 | 6 |
+| article RAG | yes | 34 | 30 | 3 | 1 |
+| article RAG | no | 8 | 0 | 0 | 8 |
+
+**6. FC citation audit (cache only)**
+
+FC answers to the 42 answerable questions cite a gold article in 42.
+
+| verdict | cited id is a gold article | cited id is not a gold article |
+|---|---|---|
+| yes | 37 | 3 |
+| partial | 13 | 23 |
+| no | 0 | 3 |
+| invalid | 0 | 0 |
+
+Answers citing one article(s): 17 of 17 citations `yes` (1.00).
+
+Answers citing several article(s): 23 of 62 citations `yes` (0.37).
+
+Random sample (seed 0) of non-`yes` FC citations (all 87 answers):
+
+1. `dir_2019_944_art32` judged **partial**; gold: (unanswerable); the answer cites 1: dir_2019_944_art32.
+   Q: Below what number of connected customers may a vertically integrated distribution system operator be exempt from legal unbundling?
+   A: The corpus does not contain the provision on legal unbundling of distribution system operators, so it cannot answer this definitively. The nearest figure is in Article 32(5) of Directive 2019/944. It lets Member States not apply the network development plan obligation to integrated electricity undertakings serving fewer than 100 000 connected customers, or serving small isolated systems. That is a different exemption from legal unbundling, and I cannot confirm that the same threshold applies to it.
+   Judge: The article does contain the Article 32(5) exemption for integrated undertakings serving fewer than 100 000 connected customers from the network development plan obligation, but it says nothing on legal unbundling, so it only loosely supports the answer, which itself disclaims that the threshold applies to unbundling.
+2. `reg_2017_1485_art153` judged **partial**; gold: (unanswerable); the answer cites 3: reg_2017_2195_art2, reg_2017_1485_art156, reg_2017_1485_art153.
+   Q: What frequency deviation defines the standard frequency range of the Continental Europe synchronous area?
+   A: The corpus does not state this. The standard frequency range for Continental Europe is set in Article 127 of Regulation (EU) 2017/1485, which is not included. Other texts only refer to that Article without giving a value: Article 2(1) of Regulation 2017/2195 mentions a 'predefined stability range'. Articles 153 and 156 of Regulation 2017/1485 mention the reference incident (3 000 MW for Continental Europe) and the 'maximum steady-state frequency deviation' without giving a number.
+   Judge: Article 153 supports only the answer's side remark that the CE reference incident is 3 000 MW; it says nothing about the standard frequency range, Article 127 or the 'maximum steady-state frequency deviation', and it does not contradict the answer.
+3. `reg_2017_2195_art24` judged **partial**; gold: reg_2017_2195_art24, reg_2017_2195_art2; the answer cites 2: reg_2017_2195_art24, reg_2019_943_art6.
+   Q: Can a balancing service provider still update its balancing energy bid after gate closure?
+   A: No. Under Regulation (EU) 2017/2195, after the balancing energy gate closure time, balancing service providers are no longer permitted to submit or update their balancing energy bids. They must only report any unavailable volumes of their bids to the connecting TSO (and the DSO, if required) without undue delay. For TSOs applying a central dispatching model, integrated scheduling process bids may be changed after an integrated scheduling process gate closure time only under the rules set in the terms and conditions for balancing service providers. Regulation 2019/943 likewise provides that balancing energy gate closure times shall not be before the intraday cross-zonal gate closure time.
+   Judge: Article 24 of Regulation 2017/2195 supports the main claims (no submitting or updating bids after gate closure, reporting unavailable volumes to the TSO and DSO, and the integrated scheduling bid rules), but it says nothing about Regulation 2019/943, and the answer's closing sentence relies on that regulation.
+4. `reg_2019_943_art16` judged **partial**; gold: reg_2019_943_art15, reg_2015_1222_art74; the answer cites 3: reg_2019_943_art15, reg_2015_1222_art74, reg_2019_943_art16.
+   Q: Who pays for the remedial actions needed to reach the cross-zonal capacity trajectory, and how must the cost-sharing methodology treat redispatching with cross-border relevance?
+   A: Under Regulation 2019/943 Article 15(3), the cost of remedial actions needed to achieve the linear trajectory, or to make cross-zonal capacity available on the borders or critical network elements covered by the action plan, is borne by the Member State(s) implementing the action plan. For cross-border redispatching and countertrading, Regulation 2015/1222 Article 74 requires a common cost-sharing methodology per capacity calculation region. It must include cost-sharing solutions for actions of cross-border relevance, with eligible costs determined transparently and auditably, and ensure a fair distribution of costs and benefits between the TSOs. Article 16(13) of Regulation 2019/943 adds that, when allocating remedial-action costs between TSOs, regulatory authorities allocate them by each bidding zone's contribution to congestion from internal flows.
+   Judge: The article (Article 16) supports the Article 16(13) point on allocating remedial-action costs by contribution to congestion from internal flows, and 16(4) mentions a redispatch cost-sharing methodology. It does not contain Article 15(3) on who bears costs of the trajectory, or the Regulation 2015/1222 Article 74 details, which are the answer's main claims.
+5. `reg_2017_2195_art52` judged **partial**; gold: (unanswerable); the answer cites 3: reg_2017_2195_art18, reg_2017_2195_art52, reg_2017_2195_art53.
+   Q: What is the EU-wide maximum number of days that a transmission system operator may take to finalise imbalance settlement?
+   A: The corpus sets no EU-wide maximum number of days for finalising imbalance settlement. Under Article 18 of Regulation 2017/2195, the terms and conditions for balance responsible parties must contain a maximum period for finalising settlement of imbalances for any imbalance settlement period, and likewise for balancing energy settled with service providers. TSOs propose these terms in each Member State, and no figure is given. Article 52 requires TSOs to propose harmonisation of the imbalance calculation and price components, but it sets no settlement deadline. Article 53 sets a 15-minute imbalance settlement period, which is a different matter.
+   Judge: The article (Article 52) supports only the claims that TSOs propose harmonisation of imbalance calculation and price components and that no settlement deadline is set there. The answer's claims about Article 18's terms and conditions and Article 53's 15-minute period are not in the cited text.
+6. `reg_2017_2195_art23` judged **partial**; gold: (unanswerable); the answer cites 4: reg_2015_1222_art74, reg_2015_1222_art73, reg_2017_2195_art23, reg_2019_943_art7.
+   Q: How are the costs of establishing and operating single day-ahead coupling shared between nominated electricity market operators?
+   A: The corpus does not say how the costs of establishing and operating single day-ahead coupling are shared between nominated electricity market operators (NEMOs). The Regulation 2015/1222 articles included cover capacity calculation, bidding zones, redispatching and countertrading, and congestion income. Article 74 covers cost sharing for redispatching and countertrading between TSOs, and Article 73 covers sharing of congestion income. Regulation 2017/2195 Article 23 covers cost sharing between TSOs for the balancing platforms. Regulation 2019/943 Article 7 only says TSOs and NEMOs jointly organise day-ahead and intraday market management and cooperate, with no cost-sharing rule.
+   Judge: The article confirms the one minor claim that Article 23 of Regulation 2017/2195 covers cost sharing between TSOs for balancing platforms, but it does not bear on the main claim about NEMOs and day-ahead coupling costs.
+7. `reg_2017_1485_art153` judged **partial**; gold: (unanswerable); the answer cites 2: reg_2017_1485_art157, reg_2017_1485_art153.
+   Q: How many megawatts of automatic frequency restoration reserve capacity must a load-frequency control block in Continental Europe hold?
+   A: The corpus gives no fixed megawatt figure. Under Article 157 of Regulation (EU) 2017/1485, a CE LFC block's FRR reserve capacity is set by the block's TSOs. They use a probabilistic method based on at least one year of historical LFC block imbalances. It must respect the FRCE target parameters and cover positive and negative imbalances for at least 99% of the time. It must be no less than the positive and negative dimensioning incident. The TSOs also set the automatic/manual FRR ratio. The only fixed MW value in the corpus (3,000 MW) is the CE FCR reference incident, which concerns FCR rather than automatic FRR.
+   Judge: Article 153 supports only the answer's closing remark that the CE reference incident is 3,000 MW and relates to FCR; it says nothing about Article 157 or the FRR dimensioning rules that make up the rest of the answer.
+8. `reg_2015_1222_art73` judged **partial**; gold: (unanswerable); the answer cites 4: reg_2015_1222_art74, reg_2015_1222_art73, reg_2017_2195_art23, reg_2019_943_art7.
+   Q: How are the costs of establishing and operating single day-ahead coupling shared between nominated electricity market operators?
+   A: The corpus does not say how the costs of establishing and operating single day-ahead coupling are shared between nominated electricity market operators (NEMOs). The Regulation 2015/1222 articles included cover capacity calculation, bidding zones, redispatching and countertrading, and congestion income. Article 74 covers cost sharing for redispatching and countertrading between TSOs, and Article 73 covers sharing of congestion income. Regulation 2017/2195 Article 23 covers cost sharing between TSOs for the balancing platforms. Regulation 2019/943 Article 7 only says TSOs and NEMOs jointly organise day-ahead and intraday market management and cooperate, with no cost-sharing rule.
+   Judge: Article 73 does concern a methodology for sharing congestion income among TSOs, as the answer says, but it is silent on NEMO cost sharing, so it supports only a minor part of the answer.
+9. `reg_2019_943_art2` judged **partial**; gold: (unanswerable); the answer cites 3: reg_2019_943_art21, reg_2019_943_art22, reg_2019_943_art2.
+   Q: Which capacity mechanism has Poland introduced and what price cleared in its latest capacity auction?
+   A: The corpus does not say. It contains no information on Poland's capacity mechanism or on any auction clearing price. It only has the general EU rules for capacity mechanisms in Regulation (EU) 2019/943: Article 21 on general principles (last resort, temporary, approved for no longer than 10 years) and Article 22 on design principles (strategic reserves, competitive selection, CO2 emission limits). It also has the Article 2 definition of 'capacity mechanism'.
+   Judge: The article supports only the Article 2 definition of 'capacity mechanism' (point 22); it says nothing about Articles 21 and 22 or their details (last resort, 10-year limit, strategic reserves, CO2 limits), or about Poland.
+10. `reg_2017_1485_art20` judged **partial**; gold: reg_2017_1485_art23; the answer cites 2: reg_2017_1485_art23, reg_2017_1485_art20.
+   Q: Is a grid operator allowed to leave a network overload unresolved, rather than pay for corrective measures, if its effects stay within its own area and no joint handling with neighbouring operators is needed?
+   A: Yes, but only in a narrow case. Under Regulation 2017/1485 Article 23(5), where a constraint affects only the local state within the TSO's control area and the operational security violation does not need coordinated management, the responsible TSO may decide not to activate remedial actions with costs to relieve it. The rule covers only costly remedial actions. Article 20(1) still makes the TSO responsible for managing operational security violations and requires it to endeavour to keep its system in the normal state. The corpus does not say that cost-free remedial actions may be skipped.
+   Judge: The article (Article 20) supports only the answer's claim that each TSO must endeavour to keep its system in the normal state and is responsible for managing operational security violations; it does not contain Article 23(5) or the exemption for local constraints.
+
+Post-hoc (not pre-registered): the same sample restricted to the 42 answerable questions, the population of the FC citation yes rate quoted in the README:
+
+1. `reg_2019_943_art15` judged **partial**; gold: reg_2019_943_art14, reg_2019_943_art15; the answer cites 2: reg_2019_943_art14, reg_2019_943_art15.
+   Q: Once structural congestion has been identified, what must the Member State decide within six months, and, if it opts for an action plan, by what date must the minimum cross-zonal capacity be reached?
+   A: Under Article 14(7) of Regulation 2019/943, within six months of receiving the report that identifies structural congestion, the Member State, in cooperation with its TSOs, must decide either to establish national or multinational action plans under Article 15, or to review and amend its bidding zone configuration. The decision must be notified immediately to the Commission and ACER. If it opts for an action plan, Article 15(2) requires cross-zonal trade capacity to rise annually along a linear trajectory until the minimum capacity in Article 16(8) is reached. That minimum must be reached by 31 December 2025.
+   Judge: The article supports the Article 15(2) points (annual linear increase and the 31 December 2025 deadline), but it is Article 15 only and does not contain Article 14(7), so the six-month decision, the choice between an action plan and a bidding zone review, and the notification to the Commission and ACER are not supported.
+2. `reg_2019_943_art42` judged **partial**; gold: reg_2019_943_art37, reg_2019_943_art16; the answer cites 3: reg_2019_943_art37, reg_2019_943_art16, reg_2019_943_art42.
+   Q: Which body facilitates the regional procurement of balancing capacity, and what may it do as a last resort when the available remedial actions cannot deliver the minimum capacity?
+   A: Regional coordination centres facilitate the regional procurement of balancing capacity (Article 37(1)(k) of Regulation 2019/943). Where they conclude that the available remedial actions in or between capacity calculation regions are not sufficient to reach the linear trajectory or the 70% minimum capacities while respecting operational security limits, they may, as a measure of last resort, set out coordinated actions reducing the cross-zonal capacities accordingly (Article 16(3)). Transmission system operators may deviate from such coordinated actions only in accordance with Article 42(2).
+   Judge: Article 42 only supports the final sentence, that TSOs may deviate from coordinated actions under paragraph 2 when operational security limits would be violated; it does not mention the regional procurement of balancing capacity (Article 37(1)(k)) or the Article 16(3) last-resort capacity reduction.
+3. `reg_2019_943_art10` judged **partial**; gold: reg_2017_2195_art55; the answer cites 2: reg_2017_2195_art55, reg_2019_943_art10.
+   Q: What lower bound applies to the imbalance price for a negative imbalance?
+   A: Under the Electricity Balancing Guideline (Reg. 2017/2195, Art. 55(4)), the imbalance price for a negative imbalance shall not be less than either (a) the weighted average price for positive activated balancing energy from frequency restoration reserves and replacement reserves, or (b) if no balancing energy was activated in either direction during the imbalance settlement period, the value of avoided activation of balancing energy from FRR or RR. If both positive and negative balancing energy were activated in the same period, at least one of these principles must be used (Art. 55(6)). Regulation 2019/943 Art. 10(1) sets no general price limit on imbalance prices.
+   Judge: The article supports only the closing claim about Art. 10(1) (no max or min limit on wholesale prices, including imbalance prices, subject to technical limits); it says nothing about Art. 55 of Reg. 2017/2195, the lower bound for negative imbalance prices, or Art. 55(6), which are the core of the answer.
+4. `reg_2017_2195_art39` judged **no**; gold: reg_2017_2195_art38; the answer cites 6: reg_2017_2195_art38, reg_2017_2195_art40, reg_2017_2195_art41, reg_2017_2195_art42, reg_2019_943_art17, reg_2017_2195_art39.
+   Q: What options exist for setting aside border transmission capacity for the exchange of reserves?
+   A: Under Regulation 2017/2195, TSOs may set aside cross-zonal capacity for exchanging balancing capacity or sharing reserves through three processes: (1) co-optimised allocation (Art. 40), for contracting periods of up to one day and contracted no more than one day ahead, with energy and balancing capacity allocated in a single optimisation; (2) market-based allocation (Art. 41), for contracting periods of up to one day and contracted up to one week ahead, capped at 10% of the previous year's capacity for energy exchange; (3) allocation based on economic efficiency analysis (Art. 42), for contracting periods over one day and contracted more than a week ahead, capped at 5%. The caps may not apply in some cases, e.g. DC interconnectors. Frequency containment reserves use the reliability margin instead (Art. 38(4)). Regulation 2019/943 Art. 17(4) refers to these methodologies.
+   Judge: The cited Article 39 only covers how the market value of cross-zonal capacity is calculated; it does not describe the three allocation processes, their time limits, the caps, or the FCR reliability margin, and its passing mention of Article 41(2) does not support the answer's claims.
+5. `reg_2015_1222_art74` judged **partial**; gold: reg_2019_943_art15, reg_2015_1222_art74; the answer cites 3: reg_2019_943_art15, reg_2015_1222_art74, reg_2019_943_art16.
+   Q: Who pays for the remedial actions needed to reach the cross-zonal capacity trajectory, and how must the cost-sharing methodology treat redispatching with cross-border relevance?
+   A: Under Regulation 2019/943 Article 15(3), the cost of remedial actions needed to achieve the linear trajectory, or to make cross-zonal capacity available on the borders or critical network elements covered by the action plan, is borne by the Member State(s) implementing the action plan. For cross-border redispatching and countertrading, Regulation 2015/1222 Article 74 requires a common cost-sharing methodology per capacity calculation region. It must include cost-sharing solutions for actions of cross-border relevance, with eligible costs determined transparently and auditably, and ensure a fair distribution of costs and benefits between the TSOs. Article 16(13) of Regulation 2019/943 adds that, when allocating remedial-action costs between TSOs, regulatory authorities allocate them by each bidding zone's contribution to congestion from internal flows.
+   Judge: The article (Reg. 2015/1222 Art. 74) supports the answer's claims about a common per-region cost-sharing methodology, cross-border relevance, transparent and auditable eligible costs, and fair distribution, but it says nothing about who pays under Reg. 2019/943 Art. 15(3) or the Art. 16(13) allocation, which are the core of the question.
+6. `reg_2017_2195_art42` judged **partial**; gold: reg_2017_2195_art38, reg_2017_2195_art41; the answer cites 4: reg_2017_2195_art38, reg_2017_2195_art40, reg_2017_2195_art41, reg_2017_2195_art42.
+   Q: Which allocation processes can set aside border capacity for balancing, and how large a share of the previous year's capacity can the market-based one use?
+   A: Under the Electricity Balancing Guideline (Reg. 2017/2195), cross-zonal capacity for exchanging balancing capacity or sharing reserves can be allocated through three processes: the co-optimised allocation process (Art. 40), the market-based allocation process (Art. 41), and the allocation process based on economic efficiency analysis (Art. 42). The market-based process is limited to 10% of the available capacity for energy exchange in the previous calendar year between the bidding zones. For new interconnectors, the limit is 10% of their total installed technical capacity. The limit may not apply where contracting is done no more than two days ahead, or for DC-connected borders until harmonisation at Union level.
+   Judge: Article 42 supports the existence of the economic-efficiency process and its DC-border exemption, but it sets a 5% limit for that process and says nothing about the market-based process (Art. 41) or its 10% limit, which is the figure the question asks about.
+7. `reg_2019_943_art37` judged **partial**; gold: reg_2019_943_art37, reg_2019_943_art16; the answer cites 3: reg_2019_943_art37, reg_2019_943_art16, reg_2019_943_art42.
+   Q: Which body facilitates the regional procurement of balancing capacity, and what may it do as a last resort when the available remedial actions cannot deliver the minimum capacity?
+   A: Regional coordination centres facilitate the regional procurement of balancing capacity (Article 37(1)(k) of Regulation 2019/943). Where they conclude that the available remedial actions in or between capacity calculation regions are not sufficient to reach the linear trajectory or the 70% minimum capacities while respecting operational security limits, they may, as a measure of last resort, set out coordinated actions reducing the cross-zonal capacities accordingly (Article 16(3)). Transmission system operators may deviate from such coordinated actions only in accordance with Article 42(2).
+   Judge: Article 37(1)(k) supports that regional coordination centres facilitate regional procurement of balancing capacity, but the article says nothing about the last-resort reduction of cross-zonal capacities (Article 16(3)) or the Article 42(2) deviation rule.
+8. `reg_2017_1485_art20` judged **partial**; gold: reg_2017_1485_art23; the answer cites 2: reg_2017_1485_art23, reg_2017_1485_art20.
+   Q: Is a grid operator allowed to leave a network overload unresolved, rather than pay for corrective measures, if its effects stay within its own area and no joint handling with neighbouring operators is needed?
+   A: Yes, but only in a narrow case. Under Regulation 2017/1485 Article 23(5), where a constraint affects only the local state within the TSO's control area and the operational security violation does not need coordinated management, the responsible TSO may decide not to activate remedial actions with costs to relieve it. The rule covers only costly remedial actions. Article 20(1) still makes the TSO responsible for managing operational security violations and requires it to endeavour to keep its system in the normal state. The corpus does not say that cost-free remedial actions may be skipped.
+   Judge: The article (Article 20) supports only the answer's claim that each TSO must endeavour to keep its system in the normal state and is responsible for managing operational security violations; it does not contain Article 23(5) or the exemption for local constraints.
+9. `reg_2017_2195_art40` judged **partial**; gold: reg_2017_2195_art38, reg_2017_2195_art41; the answer cites 4: reg_2017_2195_art38, reg_2017_2195_art40, reg_2017_2195_art41, reg_2017_2195_art42.
+   Q: Which allocation processes can set aside border capacity for balancing, and how large a share of the previous year's capacity can the market-based one use?
+   A: Under the Electricity Balancing Guideline (Reg. 2017/2195), cross-zonal capacity for exchanging balancing capacity or sharing reserves can be allocated through three processes: the co-optimised allocation process (Art. 40), the market-based allocation process (Art. 41), and the allocation process based on economic efficiency analysis (Art. 42). The market-based process is limited to 10% of the available capacity for energy exchange in the previous calendar year between the bidding zones. For new interconnectors, the limit is 10% of their total installed technical capacity. The limit may not apply where contracting is done no more than two days ahead, or for DC-connected borders until harmonisation at Union level.
+   Judge: The article (Art. 40) only supports the existence and description of the co-optimised allocation process; it says nothing about the 10% limit for the market-based process (Art. 41), new interconnectors, or the exceptions, which are the core of the answer.
+10. `reg_2019_943_art17` judged **partial**; gold: reg_2017_2195_art38; the answer cites 6: reg_2017_2195_art38, reg_2017_2195_art40, reg_2017_2195_art41, reg_2017_2195_art42, reg_2019_943_art17, reg_2017_2195_art39.
+   Q: What options exist for setting aside border transmission capacity for the exchange of reserves?
+   A: Under Regulation 2017/2195, TSOs may set aside cross-zonal capacity for exchanging balancing capacity or sharing reserves through three processes: (1) co-optimised allocation (Art. 40), for contracting periods of up to one day and contracted no more than one day ahead, with energy and balancing capacity allocated in a single optimisation; (2) market-based allocation (Art. 41), for contracting periods of up to one day and contracted up to one week ahead, capped at 10% of the previous year's capacity for energy exchange; (3) allocation based on economic efficiency analysis (Art. 42), for contracting periods over one day and contracted more than a week ahead, capped at 5%. The caps may not apply in some cases, e.g. DC interconnectors. Frequency containment reserves use the reliability margin instead (Art. 38(4)). Regulation 2019/943 Art. 17(4) refers to these methodologies.
+   Judge: The article only supports the last sentence of the answer (Art. 17(4) refers to the balancing guideline methodologies) and does not contain the Regulation 2017/2195 details (Arts. 40-42, the 10% and 5% caps, the FCR reliability margin rule).
+
+**7. Calls and cost (assumed list prices)**
+
+1432 cached calls (0 live in this run); tokens: input 2,408,841, cache write 99,317, cache read 8,541,262, output 272,484; cost at assumed list prices (3 / 15 USD per M input / output, cache write 1.25x, read 0.1x): 14.25 USD.
+
+| call | calls | USD |
+|---|---|---|
+| CITE | 616 | 4.98 |
+| CORRECT | 206 | 0.62 |
+| FC | 87 | 3.29 |
+| GEN | 346 | 4.19 |
+| SUFF | 177 | 1.16 |
+
+**8. Pre-registered predictions and decision rule**
+
+- L1 article RAG strict 30/42 (>= 32; chunk 14): does not hold
+- L2 paired d article - chunk +0.381 [+0.238, +0.524] (lower bound > 0): holds
+- L3 paired d article - FC -0.262 [-0.405, -0.119] (point in [-0.25, 0)): does not hold
+- L4 context-gap share of non-`yes`: chunk 0.75, article 1.00 (<= 0.30): does not hold
+- L5 article citation yes rate 0.678 (> chunk 0.576 on the same questions, >= 0.70, < 0.85): does not hold
+- L6 is read by hand (section 6; docs/generation_protocol.md). Automated part: among the 39 non-`yes` FC citations on answerable questions, 13 are `partial` on a gold article, 23 `partial` on a non-gold article and 3 `no`.
+- Decision rule (this retriever): strict paired d article - chunk +0.381 [+0.238, +0.524]; lower bound above 0: article context passes for this retriever.

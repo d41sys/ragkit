@@ -199,6 +199,20 @@ def fc_citation_audit(records: Sequence[Record]) -> list[str]:
     return lines
 
 
+def _gold_rows(label: str, records: Sequence[Record], idx: np.ndarray[Any, Any]) -> list[str]:
+    """Rows of the post-hoc table: ``CORRECT`` verdicts by gold article in/out of the context."""
+    verdicts = verdicts_of(records, "gen")
+    rows = []
+    for present in (True, False):
+        chosen = [i for i in idx if (not records[i].retrieval_miss) == present]
+        counts = [sum(1 for i in chosen if verdicts[i] == v) for v in ("yes", "partial", "no")]
+        rows.append(
+            f"| {label} | {'yes' if present else 'no'} | {len(chosen)} | {counts[0]} "
+            f"| {counts[1]} | {counts[2]} |"
+        )
+    return rows
+
+
 def fc_citation_sample(
     records: Sequence[Record],
     articles: Mapping[str, str],
@@ -206,12 +220,14 @@ def fc_citation_sample(
     *,
     n: int = FC_SAMPLE_SIZE,
     seed: int = FC_SAMPLE_SEED,
+    answerable_only: bool = False,
 ) -> list[str]:
     """``n`` random non-``yes`` FC ``CITE`` records with the judge's reason, for a manual read."""
     pool = [
         (rec, cited, verdict)
         for rec in records
         if rec.cites_fc is not None and rec.fc is not None
+        if rec.item.answerable or not answerable_only
         for cited, verdict in rec.cites_fc.items()
         if verdict != "yes"
     ]
@@ -383,12 +399,31 @@ def render_article_report(
         "",
         f"Top-5 chunks: {chunk_miss} of {n_a}. Top-{k} articles: {article_miss} of {n_a}.",
         "",
+        "Post-hoc (not pre-registered): `CORRECT` verdicts of the always-answer rows by whether "
+        "the gold article is in the context.",
+        "",
+        "| Context | gold article in context | questions | yes | partial | no |",
+        "|---|---|---|---|---|---|",
+        *_gold_rows("chunk RAG", chunk_records, idx),
+        *_gold_rows("article RAG", article_records, idx),
+        "",
         "**6. FC citation audit (cache only)**",
         "",
     ]
     lines += fc_citation_audit(chunk_records)
-    lines += ["", f"Random sample (seed {FC_SAMPLE_SEED}) of non-`yes` FC citations:", ""]
+    lines += [
+        "",
+        f"Random sample (seed {FC_SAMPLE_SEED}) of non-`yes` FC citations (all 87 answers):",
+        "",
+    ]
     lines += fc_citation_sample(chunk_records, dict(documents), answerer)
+    lines += [
+        "",
+        f"Post-hoc (not pre-registered): the same sample restricted to the {n_a} answerable "
+        "questions, the population of the FC citation yes rate quoted in the README:",
+        "",
+    ]
+    lines += fc_citation_sample(chunk_records, dict(documents), answerer, answerable_only=True)
     lines += ["", "**7. Calls and cost (assumed list prices)**", ""]
     lines += cost_lines(client)
 
@@ -404,6 +439,17 @@ def render_article_report(
         [float(flags[fc, "strict"][i]) for i in idx],
     )
     verdict = {True: "holds", False: "does not hold"}
+    fc_cites = [
+        (v, c in rec.item.relevant)
+        for rec in chunk_records
+        if rec.item.answerable and rec.cites_fc
+        for c, v in rec.cites_fc.items()
+        if v != "yes"
+    ]
+    fc_nonyes = len(fc_cites)
+    fc_partial_gold = sum(1 for v, gold in fc_cites if v == "partial" and gold)
+    fc_partial_other = sum(1 for v, gold in fc_cites if v == "partial" and not gold)
+    fc_no = sum(1 for v, _ in fc_cites if v == "no")
     lines += [
         f"- L1 article RAG strict {strict_art}/{n_a} (>= {l1_threshold}; chunk {strict_chunk}): "
         + verdict[strict_art >= l1_threshold],
@@ -419,8 +465,10 @@ def render_article_report(
             _cite_rate(article_same) > _cite_rate(chunk_same)
             and 0.70 <= _cite_rate(article_same) < 0.85
         ],
-        "- L6 is read by hand from the sample of section 6 (protocol: most non-`yes` FC citations "
-        "are `partial` on a gold article; at most 2 of 10 are a wrong id): see the docs.",
+        "- L6 is read by hand (section 6; docs/generation_protocol.md). Automated part: among "
+        f"the {fc_nonyes} non-`yes` FC citations on answerable questions, {fc_partial_gold} are "
+        f"`partial` on a gold article, {fc_partial_other} `partial` on a non-gold article and "
+        f"{fc_no} `no`.",
         "- Decision rule (this retriever): strict paired d article - chunk "
         f"{format_signed(d_chunk)}; "
         + (

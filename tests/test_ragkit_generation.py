@@ -311,7 +311,7 @@ def test_answer_cli_replays_a_prefilled_cache_without_a_key(
     answerer.sufficiency(query, passages)
     answerer.generate(query, passages)
     with pytest.raises(SystemExit) as exc:
-        main(["answer", query, "--cache", str(cache), "--gate", "suff"])
+        main(["answer", query, "--cache", str(cache), "--gate", "suff", "--context", "chunk"])
     assert exc.value.code == 0
     out = capsys.readouterr().out
     assert "Sufficient context:" in out and "Answer:" in out
@@ -408,6 +408,7 @@ def test_article_report_has_every_section(tmp_path: Path) -> None:
         "Context-gap answers",
         "FC citation audit",
         "Random sample",
+        "gold article in context",
         "L1 ",
         "L5 ",
         "Decision rule (this retriever)",
@@ -459,6 +460,6 @@ def test_answer_cli_article_context_sends_whole_articles(
     cache = tmp_path / "llm.jsonl"
     LLMAnswerer(CachedMessages(cache, api_key="k", transport=FakeApi())).generate(query, context)
     with pytest.raises(SystemExit) as exc:
-        main(["answer", query, "--cache", str(cache), "--context", "article"])
+        main(["answer", query, "--cache", str(cache)])  # article is the default
     assert exc.value.code == 0  # replayed from the cache: the request used the article context
     assert "Answer:" in capsys.readouterr().out

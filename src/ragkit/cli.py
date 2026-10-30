@@ -896,9 +896,15 @@ def _add_neural_args(parser: argparse.ArgumentParser) -> None:
 
 def _cmd_beir_neural(args: argparse.Namespace) -> int:
     """Neural systems on the BEIR sets of docs/neural_protocol.md."""
-    from ragkit.neuralbench import NEURAL_BEIR, render_neural_beir, run_beir_neural
+    from ragkit.neuralbench import (
+        NEURAL_BEIR,
+        render_beir_mean,
+        render_neural_beir,
+        run_beir_neural,
+    )
 
     names = list(NEURAL_BEIR) if args.dataset == "all" else [args.dataset]
+    runs = []
     for name in names:
         if name not in NEURAL_BEIR:
             print(f"Error: neural protocol covers {list(NEURAL_BEIR)}, not {name}", file=sys.stderr)
@@ -912,8 +918,12 @@ def _cmd_beir_neural(args: argparse.Namespace) -> int:
             max_queries=args.max_queries,
             download=not args.no_download,
         )
+        runs.append(run)
         print()
         print(render_neural_beir(run))
+    if len(runs) > 1:
+        print()
+        print(render_beir_mean(runs))
     return 0
 
 
@@ -1023,14 +1033,14 @@ def _llm_client(model: str, cache: str) -> CachedMessages:
     return CachedMessages(Path(cache), api_key=os.environ.get("ANTHROPIC_API_KEY", ""), model=model)
 
 
-def _add_context_args(parser: argparse.ArgumentParser) -> None:
+def _add_context_args(parser: argparse.ArgumentParser, default: str) -> None:
     """``--context`` and the frozen parent-document parameters (docs/generation_protocol.md)."""
     parser.add_argument(
         "--context",
         choices=("chunk", "article"),
-        default="chunk",
-        help="chunk (default): the retrieved chunks; article: the full text of their distinct "
-        "parent articles in rank order (parent-document / small-to-big, Phase L).",
+        default=default,
+        help="chunk: the retrieved chunks; article: the full text of their distinct parent "
+        f"articles in rank order (parent-document / small-to-big, Phase L). Default: {default}.",
     )
     parser.add_argument(
         "--articles",
@@ -1384,7 +1394,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_ans.add_argument("query", help="Question text.")
     _add_dataset_args(p_ans, questions=False)
     p_ans.add_argument("--top-k", type=int, default=5, help="Number of retrieved chunks.")
-    _add_context_args(p_ans)
+    _add_context_args(p_ans, "article")  # adopted by the Phase L decision rule
     p_ans.add_argument(
         "--retriever",
         choices=("default", "dense", "hybrid", "hybrid+ce"),
@@ -1414,7 +1424,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="default = shipped pipeline (reader signal available); hybrid+ce = secondary run.",
     )
     p_gen.add_argument("--cache", default=str(GENERATION_CACHE), help="JSONL call cache.")
-    _add_context_args(p_gen)
+    _add_context_args(p_gen, "chunk")  # the K-R2 replay; `--context article` is Phase L
     p_gen.add_argument(
         "--compute-reader",
         action="store_true",
