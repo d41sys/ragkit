@@ -151,9 +151,16 @@ file.
 
 Predictions: A1 holds. A2 does not hold (0/45 answered, but 24/42 wrongly abstained against the
 limit of 10; 6 of the 24 are retrieval misses). A3 does not hold (`self` and `suff` both answer
-0 of 45). A4 does not hold (GEN 0.587 against 0.85, FC 0.592 against 0.90; most non-`yes`
-verdicts are `partial`: answers cite two articles and each supports only part). A5 holds
-(`fullctx` 0.976 correct against 0.262 for RAG `self`, 0 unanswerable answered). A6 holds.
+0 of 45). **A4 failed** (GEN 0.587 against the 0.85 target, FC 0.592 against 0.90; most non-`yes`
+verdicts are `partial`: answers cite several articles and each supports only part; Phase L below
+reads the FC citations). A5 holds (`fullctx` 0.976 correct against 0.262 for RAG `self`, 0
+unanswerable answered). Added after the run, from the cached records and confirmed by Phase L:
+the 12/42 of RAG is mostly the 500-character chunks, not retrieval or generation. Across all
+`CORRECT` records of the cache (124 parsed; the Phase L phrase pattern), 22 of the 25 `no` and 25
+of the 34 `partial` verdicts are on answers that say the passages were cut off, not provided or
+do not state the fact (an earlier scan with another pattern found 22 and 20); only 6 of 42
+gold articles are missing from the top 5 chunks; giving `GEN` the full parent articles lifts the
+same retrievers from 12 to 28 and from 14 to 30 of 42. A6 holds.
 
 Decision rule: `suff` minus `reader` balanced accuracy -0.082 [-0.186, +0.031], lower bound not
 above 0: **the sufficiency gate is not adopted**; no detectable effect (CI includes 0, point
@@ -257,3 +264,142 @@ Decision rule: article context becomes the default of `ragkit answer --llm` iff 
 difference article minus chunk has a CI lower bound above 0 for both retrievers; otherwise
 `--context chunk` stays the default. If the rule passes, that is the answer to "why did RAG get
 12/42": the chunks, not the retriever or the generator.
+
+### Phase L outcome (scored; raw output `docs/sota-runs/generation_article_default.txt` and `generation_article_hybrid_ce.txt`, replayed offline by `ragkit generation --context article [--retriever hybrid+ce]`)
+
+Protocol commit `b8b09c9`, code commit `840db6c`, both before any article-context call. 416 new
+cached calls (209 default, 207 `hybrid+ce`; cap 600), 4.53 USD more at the assumed prices (cache
+total 1432 calls, 14.25 USD; the code caps rose to 1616 records and 25 USD for this phase). The
+reader for the `hybrid+ce` chunks was run locally once (`roberta-base-squad2`, the K-R2 revision;
+on 6 default-retriever questions it reproduced the committed scores exactly) and committed as
+`data/llm_cache/reader_scores_hybrid_ce.json`. Everything is LLM-judged by the generator's model
+family, 42 answerable questions, no human check.
+
+Always-answer correctness on the 42 answerable questions (strict = `yes`; lenient = `yes` +
+`partial`; Wilson 95 % CIs; paired differences are bootstrap CIs over questions):
+
+| Retriever | Context | strict | lenient | paired d strict vs chunk | paired d strict vs FC |
+|---|---|---|---|---|---|
+| default | chunk RAG | 12/42 [0.17, 0.44] | 28/42 [0.52, 0.79] | baseline | -0.690 [-0.833, -0.548] |
+| default | article RAG | 28/42 [0.52, 0.79] | 35/42 [0.69, 0.92] | +0.381 [+0.214, +0.548] | -0.310 [-0.452, -0.167] |
+| `hybrid+ce` | chunk RAG | 14/42 [0.21, 0.48] | 31/42 [0.59, 0.85] | baseline | -0.643 [-0.786, -0.500] |
+| `hybrid+ce` | article RAG | 30/42 [0.56, 0.83] | 33/42 [0.64, 0.88] | +0.381 [+0.238, +0.524] | -0.262 [-0.405, -0.119] |
+| both | full context | 41/42 [0.88, 1.00] | 42/42 [0.92, 1.00] | | |
+
+Lenient paired differences, article minus chunk: default +0.167 [+0.024, +0.333], `hybrid+ce`
++0.048 [-0.048, +0.143] (includes 0); article minus FC: -0.167 [-0.286, -0.071] and -0.214
+[-0.333, -0.095].
+
+Gates (the `reader` and `stack` decisions are K-R2's and do not change; only the answer text does).
+Correct answers, strict, of 42, and the paired difference to the chunk-context answers of the
+same gate:
+
+| Retriever | Gate | unanswerable answered | wrongly abstained | chunk | article | paired d |
+|---|---|---|---|---|---|---|
+| default | `reader` | 13/45 | 5/42 | 12 | 27 | +0.357 [+0.190, +0.524] |
+| default | `stack` | 6/45 | 6/42 | 12 | 26 | +0.333 [+0.167, +0.500] |
+| `hybrid+ce` | `reader` | 12/45 | 12/42 | 13 | 24 | +0.262 [+0.143, +0.405] |
+| `hybrid+ce` | `stack` | 2/45 | 4/42 | 14 | 30 | +0.381 [+0.238, +0.524] |
+
+`hybrid+ce` `stack` (balanced accuracy 0.930 [0.871, 0.977]) is a new row: the reader scores for
+those chunks did not exist in K-R2. Its nested-CV gate is not tuned on anything beyond K-R2's
+protocol, but it is the best row of the table and was not chosen in advance.
+
+Citation support, per cited article (LLM-judged), always answering on the 42 answerable
+questions: default chunk 0.424 (28/66), article 0.661 (41/62), FC 0.506 (40/79); `hybrid+ce`
+chunk 0.507 (34/67), article 0.662 (43/65). Gated: `reader` article 0.690 and `stack` 0.656
+(default), 0.667 and 0.655 (`hybrid+ce`). The `CITE` calls cover the 42 answerable questions and
+the unanswerable questions that `reader` or `stack` answers (55 questions default, 54
+`hybrid+ce`); on those the chunk-context yes rate is 0.488 / 0.576 and article context 0.688 /
+0.678. Every row is below A4's 0.85 (and FC's 0.506 / 0.592 below 0.90).
+
+Predictions (the report prints each; `holds` means the pre-registered inequality held):
+
+| | default | `hybrid+ce` |
+|---|---|---|
+| L1 article strict >= 30 / >= 32 | 28: does not hold | 30: does not hold |
+| L2 paired d article - chunk lower bound > 0 | +0.214: holds | +0.238: holds |
+| L3 article - FC in [-0.25, 0) | -0.310: does not hold | -0.262: does not hold |
+| L4 context-gap share of non-`yes` <= 0.30 | 0.86 (chunk 0.87): does not hold | 1.00 (chunk 0.75): does not hold |
+| L5 citation yes in [0.70, 0.85) and above chunk | 0.688 vs 0.488: does not hold | 0.678 vs 0.576: does not hold |
+| L6 (manual read, below) | first part does not hold, second holds | same records |
+
+L1, L3 and L5 miss by a small margin on the side of "worse than predicted": article context
+recovers 18 (default) and 15 (`hybrid+ce`) of the 29 and 27 questions that full context answers
+`yes` and chunk context does not, not all (2 and 0 questions go the other way). L4 was badly
+specified: after the change the non-`yes` verdicts fall from 30 to 14 (default) and from 28 to 12
+(`hybrid+ce`), but most of the remaining ones (9 of 14 and 8 of 12) are questions whose gold
+article is not in the context at all (next paragraph), and then the model rightly says the
+passages do not state the fact, which the phrase pattern counts as a context gap.
+
+Where the remaining failures are (post-hoc, not pre-registered; `CORRECT` verdicts of the
+always-answer rows by whether a gold article is in the context `GEN` sees):
+
+| Retriever | Context | gold in context | questions | yes | partial | no |
+|---|---|---|---|---|---|---|
+| default | chunk | yes | 36 | 11 | 16 | 9 |
+| default | chunk | no | 6 | 1 | 0 | 5 |
+| default | article | yes | 33 | 28 | 4 | 1 |
+| default | article | no | 9 | 0 | 3 | 6 |
+| `hybrid+ce` | chunk | yes | 36 | 14 | 17 | 5 |
+| `hybrid+ce` | chunk | no | 6 | 0 | 0 | 6 |
+| `hybrid+ce` | article | yes | 34 | 30 | 3 | 1 |
+| `hybrid+ce` | article | no | 8 | 0 | 0 | 8 |
+
+So with a gold article in the context, article context is `yes` for 28 of 33 (default) and 30 of
+34 (`hybrid+ce`) against 11 of 36 and 14 of 36 for chunks (different question sets: the article
+context loses 3 and 2 gold articles that five chunks reached, because k = 3 distinct articles
+is fewer than the articles behind five chunks). The remaining gap to FC is retrieval: 9 and 8
+questions have no gold article in the three articles (6 had none in five chunks). k was fixed
+in advance and was not re-tuned; a larger k or a chunk-to-article fallback would address these
+but is untested.
+
+**Judge check: strict against lenient** (the `partial` verdict is frequent, so the strict number
+alone understates chunk RAG): default chunk 12 `yes` + 16 `partial` = 28 lenient, article 28 + 7
+= 35, FC 41 + 1 = 42; `hybrid+ce` chunk 14 + 17 = 31, article 30 + 3 = 33. At the lenient level
+chunk RAG is 0.67 (default) and 0.74 (`hybrid+ce`), not 0.29 and 0.33; the article-minus-chunk
+gain is still above 0 for the default retriever (+0.167 [+0.024, +0.333]) and includes 0 for
+`hybrid+ce` (+0.048 [-0.048, +0.143]). The strict gap is mostly the difference between a
+complete and an incomplete answer, which is what the chunk truncation produces. No human
+re-graded a `partial`.
+
+**Why FC is correct 41/42 and its citations are `yes` only 0.51** (cache only, no new call; the
+0.51 is FC's rate over the 79 articles cited for the 42 answerable questions, the 0.592 of the
+K-R2 outcome is over all 87 answers): the judge is given one cited article at a time and asked
+whether it supports the answer, and FC answers cite every article they used.
+
+- All 42 FC answers cite at least one gold article, so the wrong-id explanation is excluded as the
+  main cause: of the 39 non-`yes` citations, 13 are `partial` on a gold article, 23 `partial` and
+  3 `no` on an article that is not in the gold set.
+- The yes rate depends on how many articles the answer cites: 17 answers cite one article (17 of
+  17 citations `yes`); 25 answers cite two or more (62 citations, 23 `yes`, 0.37).
+- Manual read of the 10 pre-registered records (random, seed 0, over all 87 FC answers, the judge's
+  reason beside each in the raw file): wrong article id 0; correct article judged `partial`
+  because the answer combines claims from several articles, so one whole article supports only
+  part (citation granularity) 3 (records 3, 4, 10); something else 7. The seven are citations
+  attached to FC answers that say the corpus does not state the fact (the question is one of the
+  45 unanswerable ones, FC abstains in substance), citing the nearest article; the judge calls it
+  `partial` because the article supports only the side remark. They are not in the 0.51
+  population (answerable questions only), so a second read was added post-hoc: 10 random
+  non-`yes` citations on the answerable questions (same seed): wrong article id 1 (a `no`: article
+  39 of 2017/2195 is cited for an answer whose claims come from Articles 40 to 42); correct
+  article, `partial` because the answer spans several articles, 9 (3 on a gold article, 6 on a
+  non-gold article that carries one real sub-claim of the answer); something else 0.
+- L6 as pre-registered had two parts. "At most 2 of 10 are a wrong id" holds (0 and 1). "Most
+  non-`yes` FC citations are `partial` on a gold article" does not hold: 13 of 39 on the answerable
+  questions are on a gold article, 23 on a non-gold one that the answer really draws on. The cause
+  is the granularity of the citation check (an article against a multi-article answer), not
+  FC citing wrong articles; a per-claim citation check would score FC higher. This was not run.
+
+**Decision rule**: the strict paired difference article minus chunk has a lower bound above 0 for
+both retrievers (+0.214 and +0.238), so **article context is adopted as the default of `ragkit
+answer`** (`--context chunk` keeps the old behaviour). `ragkit generation` keeps `--context chunk`
+as its default because it is the K-R2 replay. Answer to "why 12/42": mostly the chunks. With the
+whole parent article the same retriever and the same generator answer 28/42 (default) and 30/42
+(`hybrid+ce`) completely, and most of what is still not `yes` (9 of 14, 8 of 12) are questions whose
+gold article is not in the three articles. Full context stays ahead (41/42), and these results say nothing about corpora
+too large for a prompt.
+
+Not claimed: one model family does the answers and the judges; 42 questions resolve differences of
+about 15 points; the three post-hoc tables (gold in context, the answerable-only FC sample, the
+`hybrid+ce` `stack` row) were not pre-registered.

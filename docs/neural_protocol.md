@@ -154,6 +154,14 @@ BEIR nDCG@10 (test; mean of 300, 323, 648 and 1406 queries; CIs are in the raw f
 | published BM25+CE (BEIR paper) | 0.688 | 0.350 | 0.347 | 0.311 | 0.424 |
 | published BGE-base (Pyserini) | 0.741 | 0.373 | 0.406 | 0.636 | 0.539 |
 
+Mean-of-4 interval (added after the scored run, Phase L; the "mean of 4" column above had no CI
+when it was first written): from the same per-query scores, recomputed from the cached BEIR
+matrices (`ragkit beir --retriever dense --dataset all`, `docs/sota-runs/neural_beir_mean.txt`;
+it reproduces the per-dataset rows above), resampling the queries of each dataset independently
+(2000 resamples, seed 0) and averaging the four dataset means: `bm25` 0.409 [0.393, 0.425],
+`dense` 0.517 [0.500, 0.533], paired difference `dense` minus `bm25` +0.107 [+0.095, +0.120]. The
+interval covers query sampling within four datasets, not the choice of datasets.
+
 Predictions:
 
 - P1 holds: `dense` is within 0.003 of MTEB on all four sets (SciFact +0.0000, NFCorpus
