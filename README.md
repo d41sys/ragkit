@@ -51,6 +51,7 @@ uv run ragkit neural --retriever hybrid+ce                         # the same sy
 ANTHROPIC_API_KEY=... uv run ragkit answer "What is imbalance settlement?" --llm claude-sonnet-5-5 --gate suff   # cited LLM answer from the whole top-3 parent articles; --gate none|self|suff; --context chunk for the 500-char chunks
 uv run ragkit generation                                           # replays data/llm_cache/ offline: LLM answers, sufficient-context gates, full-context baseline on the 42 + 45 EU questions
 uv run ragkit generation --context article                         # Phase L replay: answers from the whole parent articles (add --retriever hybrid+ce, needs `[st]`)
+uv run ragkit generation --context article --articles 5 --budget 20000 --since-records 1432   # post-hoc k = 5 replay (add --retriever hybrid+ce; --coverage-only prints retrieval-only gold coverage)
 ```
 
 ## Results
@@ -999,12 +1000,27 @@ With the `reader` and `stack` gates (decisions unchanged from K-R2, so the same 
 
 **Why full context is 41/42 correct and its citation `yes` rate only 0.51.** The citation judge reads one cited article against the whole answer, and full-context answers cite every article they used: 17 answers cite one article (17 of 17 citations `yes`), 25 cite two or more (23 of 62 `yes`, 0.37). Wrong ids are not the cause: all 42 answers cite a gold article, and of the 39 non-`yes` citations 13 are `partial` on a gold article, 23 `partial` and 3 `no` on another article. Hand-read, 10 random non-`yes` FC citations (all 87 answers, protocol sample): wrong id 0, correct article `partial` because the answer spans several articles 3, other 7 (citations attached to answers to unanswerable questions that say the corpus lacks the fact; outside the 0.51 population). Post-hoc second sample of 10 on the 42 answerable questions: wrong id 1, correct article `partial` because the answer spans several articles 9 (3 gold, 6 non-gold articles carrying one real sub-claim), other 0. The metric measures citation granularity, not wrong citations; a per-claim check would score full context higher and was not run.
 
+**Post-hoc: k = 5 articles instead of 3** (20 000-token budget; [`docs/generation_protocol.md`](docs/generation_protocol.md), "Phase L addendum"). Motivated by the 9 and 8 gold articles missing from the top 3 articles, so it is a **post-hoc sensitivity analysis on the same 42 test questions**, not a clean test; the adoption rule (default only if the strict paired CI lower bound is above 0 for both retrievers) and the predictions were committed before any call (`6e14efc`). Retrieval only, k = 5 raises gold coverage from 33 to 36 of 42 (default) and 34 to 36 (`hybrid+ce`); 36 is the ceiling, because articles come from the top-5 chunks. 220 new calls, 3.22 USD. Raw output: `docs/sota-runs/generation_article_k5_default.txt`, `generation_article_k5_hybrid_ce.txt`.
+
+| Always-answer, 42 answerable, strict (`yes`) | default | `hybrid+ce` |
+|---|---|---|
+| k = 3 | 28/42 | 30/42 |
+| k = 5 | 32/42 [0.61, 0.87] | 32/42 [0.61, 0.87] |
+| paired d, k = 5 - k = 3 (gained / lost) | +0.095 [+0.024, +0.190] (4 / 0) | +0.048 [0.000, +0.119] (2 / 0) |
+| paired d, k = 5 - full context (41/42) | -0.214 [-0.357, -0.071] | -0.214 [-0.357, -0.071] |
+| `reader` gate, correct k = 3 to 5 | 27 to 30 | 24 to 24 |
+| `stack` gate, correct k = 3 to 5 | 26 to 30 | 30 to 31 |
+| unanswerable answered (`reader` / `stack`), both k | 13/45 / 6/45 | 12/45 / 2/45 |
+| `GEN` cost per question, k = 3 to 5 | 0.0185 to 0.0227 USD (+23 %) | 0.0164 to 0.0186 USD (+14 %) |
+
+**Not adopted**: the default retriever passes (lower bound +0.024), `hybrid+ce` does not (lower bound 0.000), and both must; `ragkit answer` stays at 3 articles and `--articles 5 --budget 20000` is an option. The gate decisions do not see the context, so unanswerable answered and wrongly abstained are the k = 3 values by construction (the answer text is the only thing that changes). Of the 4 default gains, 3 are questions whose gold article k = 5 adds (the 4th has no gold article in its context); both `hybrid+ce` gains are such questions; no `yes` was lost, citation `yes` rate did not rise (0.688 to 0.644 and 0.678 to 0.659). The remaining 10 questions behind full context are mostly retrieval (6 questions have no gold article in the top-5 chunks at all), not k. Same judge family, no human check; k = 4 and k = 6 were not run.
+
 ### Verdict after Phase K
 
 7. **A small public encoder closes most of the BEIR gap to BGE-base, not to the large models.** Over the four sets, mean nDCG@10 goes 0.409 (BM25) to 0.517 (`dense` bge-small, 0.516 published) against 0.539 for BGE-base: about 80% of the gap to BGE-base, reproduced within 0.003 on every set. The first version of this row had no interval; a paired bootstrap over queries (each dataset resampled separately, seed 0, `docs/sota-runs/neural_beir_mean.txt`) gives 0.409 [0.393, 0.425] and 0.517 [0.500, 0.533], difference +0.107 [+0.095, +0.120] (query sampling within these four datasets only, not the choice of datasets). BM25 + cross-encoder reproduces the BEIR paper on SciFact, NFCorpus and FiQA (0.687, 0.352, 0.346 vs 0.688, 0.350, 0.347); its four-set mean is 0.451 against 0.424 published only because ArguAna differs (0.417 vs 0.311). Reranking adds little over a good first stage. Simple RRF fusion is not safe when BM25 is much weaker than the dense side (FiQA, ArguAna).
 8. **On LegalBench-RAG-mini the gap shrinks but remains**: best 20.4 Recall@8 against 31.9 for the paper's larger embedding model; BM25 13.4.
 9. **On EU text the neural gain is measurable and modest**: pooled Recall@5 0.68 to 0.77 to 0.82 (BM25, `hybrid`, `hybrid+ce`), wrong-act top-1 34 to 26, paired MRR CIs above 0 for `hybrid` and the reranked systems.
-10. **An LLM gate did not beat the small reader on this label set**; a full-context LLM answers 41/42 correctly with no wrong abstention on this 85 k-token corpus. RAG on 500-character chunks answers only 12 to 14 of 42 strictly correctly, and that is mostly the chunks: the whole parent articles of the same top-5 chunks give 28 to 30 of 42 (Phase L). The pre-registered citation targets (A4: 0.85 and 0.90) failed. None of this is comparable with published sufficient-context figures (other corpora, other generators).
+10. **An LLM gate did not beat the small reader on this label set**; a full-context LLM answers 41/42 correctly with no wrong abstention on this 85 k-token corpus. RAG on 500-character chunks answers only 12 to 14 of 42 strictly correctly, and that is mostly the chunks: the whole parent articles of the same top-5 chunks give 28 to 30 of 42 (Phase L; a post-hoc k = 5 instead of 3 gives 32 of 42 for both retrievers and was not adopted). The pre-registered citation targets (A4: 0.85 and 0.90) failed. None of this is comparable with published sufficient-context figures (other corpora, other generators).
 
 Disk used for the models of this phase: about 357 MB in the default Hugging Face cache (bge-small 140 MB, e5-small-v2 129 MB, cross-encoder 88 MB).
 

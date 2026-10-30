@@ -1,0 +1,66 @@
+
+### ragkit generation --context article --articles 5: post-hoc k comparison (hybrid+ce)
+
+POST-HOC sensitivity analysis (k = 5 was chosen after seeing the k = 3 misses on these questions; docs/generation_protocol.md, Phase L addendum). 42 answerable and 45 unanswerable EU questions; model `claude-sonnet-5-5`; context: top-5 distinct parent articles of the top-5 chunks, full text, budget 20000 estimated tokens. LLM-judged, no human check. CIs: Wilson for counts, paired bootstrap over questions (2000 resamples, seed 0) for differences.
+
+**1. Gold coverage (retrieval only)**
+
+Gold article in the context, of 42: top-5 chunks 36, k = 3 34, k = 5 36. Contexts changed from k = 3 to k = 5: 14 answerable, 38 of 87.
+
+**2. Always-answer correctness on the answerable questions**
+
+| Context | strict (of 42) [Wilson 95%] | lenient (of 42) [Wilson 95%] | `no` |
+|---|---|---|---|
+| article RAG, k = 3 | 30/42 (0.71) [0.56, 0.83] | 33/42 (0.79) [0.64, 0.88] | 9 |
+| article RAG, k = 5 | 32/42 (0.76) [0.61, 0.87] | 35/42 (0.83) [0.69, 0.92] | 7 |
+| full context (FC) | 41/42 (0.98) [0.88, 1.00] | 42/42 (1.00) [0.92, 1.00] | 0 |
+
+| Paired difference | strict [95% CI] | lenient [95% CI] | strict: gained / lost |
+|---|---|---|---|
+| k = 5 - k = 3 | +0.048 [+0.000, +0.119] | +0.048 [+0.000, +0.119] | 2 / 0 |
+| k = 5 - full context | -0.214 [-0.357, -0.071] | -0.167 [-0.286, -0.071] | 1 / 10 |
+
+**3. Gates (decisions as in K-R2; the gate does not see the context, so unanswerable answered is the same at both k by construction)**
+
+| Gate | context | unanswerable answered (of 45) | answerable wrongly abstained | correct strict (of 42) | correct lenient (of 42) | paired d strict vs k = 3 | paired d strict vs always-answer FC |
+|---|---|---|---|---|---|---|---|
+| `reader` | k = 3 | 12/45 (0.27) [0.16, 0.41] | 12/42 (0.29) [0.17, 0.44] | 24/42 (0.57) [0.42, 0.71] | 26/42 (0.62) [0.47, 0.75] | - | -0.405 [-0.571, -0.238] |
+| `reader` | k = 5 | 12/45 (0.27) [0.16, 0.41] | 12/42 (0.29) [0.17, 0.44] | 24/42 (0.57) [0.42, 0.71] | 26/42 (0.62) [0.47, 0.75] | +0.000 [+0.000, +0.000] | -0.405 [-0.571, -0.238] |
+| `stack` | k = 3 | 2/45 (0.04) [0.01, 0.15] | 4/42 (0.10) [0.04, 0.22] | 30/42 (0.71) [0.56, 0.83] | 33/42 (0.79) [0.64, 0.88] | - | -0.262 [-0.405, -0.119] |
+| `stack` | k = 5 | 2/45 (0.04) [0.01, 0.15] | 4/42 (0.10) [0.04, 0.22] | 31/42 (0.74) [0.59, 0.85] | 34/42 (0.81) [0.67, 0.90] | +0.024 [+0.000, +0.071] | -0.238 [-0.381, -0.095] |
+
+**4. Citation support (LLM-judged, per cited article)**
+
+| Context | answers | citations | yes | partial | no | invalid | yes rate |
+|---|---|---|---|---|---|---|---|
+| k = 3 (same 54 questions) | 54 | 87 | 59 | 27 | 1 | 0 | 0.678 |
+| k = 5 (same 54 questions) | 54 | 88 | 58 | 29 | 1 | 0 | 0.659 |
+
+**5. Cost (assumed list prices: 3 / 15 USD per M input / output tokens)**
+
+Calls added to the cache for the k = 5 context: 82 (31 live in this run); spend 1.18 USD = 0.0136 USD per question over the 87 questions (on top of the 3-article run, which is cached).
+
+| call | new calls | USD |
+|---|---|---|
+| CITE | 31 | 0.25 |
+| CORRECT | 13 | 0.05 |
+| GEN | 38 | 0.89 |
+
+`GEN` cost per question from the recorded usage of the first-attempt request:
+
+| Context | all 87 questions | 42 answerable |
+|---|---|---|
+| k = 3 | 0.0164 USD | 0.0170 USD |
+| k = 5 | 0.0186 USD | 0.0182 USD |
+
+Change: +13.5% (all), +7.4% (answerable). Cache total after this run: 1652 records, 17.47 USD.
+
+**6. Pre-registered predictions (this retriever) and adoption rule**
+
+- M1 net strict gain +2 questions (at most +4): yes
+- M2 lower bound of the strict paired difference +0.048 [+0.000, +0.119] not above 0: yes
+- M3 k = 5 - full context -0.214 [-0.357, -0.071], upper bound below 0: yes
+- M4 strict `yes` at k = 3 that is not `yes` at k = 5: 0 (at least 1): no
+- M5 `GEN` cost per question rises +13.5% (all questions; predicted 8% to 20%): yes
+- Adoption rule, this retriever: (a) strict paired lower bound above 0: no; (b) unanswerable answered not above its k = 3 value: yes (the gates ignore the context). This retriever fails (a).
+- Adopt k = 5 as the default only if BOTH retrievers pass.

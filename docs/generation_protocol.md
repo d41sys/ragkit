@@ -487,3 +487,80 @@ Predictions (before any k = 5 call):
   retriever (more articles, more distractors).
 - M5 The recorded `GEN` cost per question rises by 15 to 30 % (default) and 8 to 20 %
   (`hybrid+ce`), following the token counts above.
+
+### Phase L addendum outcome (post-hoc sensitivity analysis; raw output `docs/sota-runs/generation_article_k5_default.txt` and `generation_article_k5_hybrid_ce.txt`, replayed offline by `ragkit generation --context article --articles 5 --budget 20000 --since-records 1432 [--retriever hybrid+ce]`)
+
+Pre-registration commit `6e14efc` (rule, predictions, cap) and report code `9db7c95`, both before any
+k = 5 call. Scored in two stages: `GEN` + `CORRECT` without `CITE` first (134 calls, 2.51 USD, commit
+`c72cda8`), then `CITE` (86 calls, 0.71 USD), because the estimate fitted the 4 USD budget. The
+adoption statistic does not depend on `CITE`, so it was already visible after stage 1; `CITE` was
+run as planned and does not enter the rule. Total: **220 new cached calls, 3.22 USD** at assumed
+list prices (default 138 calls, 2.04 USD; `hybrid+ce` 82 calls, 1.18 USD; cache now 1 652 records,
+17.47 USD). Same judge model family as the generator, 42 answerable questions, no human check.
+
+Always-answer correctness, 42 answerable (strict = `yes`; lenient = `yes` + `partial`):
+
+| Retriever | context | strict | lenient | paired d strict vs k = 3 (gained / lost) | paired d strict vs full context |
+|---|---|---|---|---|---|
+| default | k = 3 | 28/42 [0.52, 0.79] | 35/42 | baseline | -0.310 [-0.452, -0.167] |
+| default | **k = 5** | **32/42 [0.61, 0.87]** | 38/42 [0.78, 0.96] | **+0.095 [+0.024, +0.190]** (4 / 0) | -0.214 [-0.357, -0.071] |
+| `hybrid+ce` | k = 3 | 30/42 [0.56, 0.83] | 33/42 | baseline | -0.262 [-0.405, -0.119] |
+| `hybrid+ce` | **k = 5** | **32/42 [0.61, 0.87]** | 35/42 [0.69, 0.92] | **+0.048 [0.000, +0.119]** (2 / 0) | -0.214 [-0.357, -0.071] |
+| both | full context | 41/42 [0.88, 1.00] | 42/42 | | |
+
+Lenient paired d, k = 5 minus k = 3: default +0.071 [0.000, +0.167], `hybrid+ce` +0.048 [0.000,
++0.119]. The k = 3 rows are the Phase L numbers (cache replay).
+
+Gates (the decisions do not see the context, so **unanswerable answered and wrongly abstained are
+identical to k = 3**: default `reader` 13/45 and 5/42, `stack` 6/45 and 6/42; `hybrid+ce` `reader`
+12/45 and 12/42, `stack` 2/45 and 4/42). Correct strict of 42 and paired d vs k = 3 / vs
+always-answer full context (41/42):
+
+| Retriever | Gate | k = 3 | k = 5 | paired d k = 5 vs k = 3 | paired d k = 5 vs FC |
+|---|---|---|---|---|---|
+| default | `reader` | 27 | 30 | +0.071 [0.000, +0.167] | -0.262 [-0.405, -0.119] |
+| default | `stack` | 26 | 30 | +0.095 [+0.024, +0.190] | -0.262 [-0.405, -0.119] |
+| `hybrid+ce` | `reader` | 24 | 24 | +0.000 [0.000, 0.000] | -0.405 [-0.571, -0.238] |
+| `hybrid+ce` | `stack` | 30 | 31 | +0.024 [0.000, +0.071] | -0.238 [-0.381, -0.095] |
+
+Cost at assumed list prices. `GEN` per question from the recorded usage (all 87 questions): default
+0.0185 to 0.0227 USD (+22.9 %), `hybrid+ce` 0.0164 to 0.0186 USD (+13.5 %); on the answerable 42
++18.5 % and +7.4 %. Only 58 (default) and 38 (`hybrid+ce`) of 87 contexts change, so the marginal
+spend of the whole analysis (`GEN` + `CORRECT` + `CITE`, changed contexts only) is 0.0234 and 0.0136
+USD per question over the 87. Serving every question at k = 5 instead of k = 3 adds the `GEN`
+increase above per question; `CORRECT` and `CITE` are evaluation calls, not serving cost.
+
+Citation `yes` rate per cited article (`CITE` run for the 55 / 54 questions of the `reader` or
+`stack` rows plus the answerable ones): default 0.688 (k = 3) to 0.644 (k = 5), `hybrid+ce` 0.678
+to 0.659. The longer context does not raise it; more articles are cited (87 citations against 80,
+88 against 87) and the extra ones are mostly `partial`.
+
+Predictions: M1 holds (net +4 and +2). M2 holds for `hybrid+ce` (lower bound 0.000) and not for the
+default (+0.024), which is what "at least one retriever" allowed. M3 holds (-0.214 [-0.357,
+-0.071] for both). **M4 does not hold**: no strict `yes` at k = 3 turned into a non-`yes` at k = 5
+for either retriever (0 losses). M5 holds (+22.9 %, +13.5 %).
+
+**Adoption rule: not adopted.** Both retrievers must pass (a). The default retriever does (lower
+bound +0.024, 4 gained and 0 lost); `hybrid+ce` does not (+0.048 [0.000, +0.119]: the lower bound
+is exactly 0, so not above 0). (b) holds trivially. `ARTICLE_K` stays 3 and `ragkit answer`
+defaults to 3 articles; `--articles 5 --budget 20000` stays an option. This is a post-hoc rule
+on test questions: even the default retriever's CI would not count as evidence that k = 5
+generalises, and the two retrievers give different answers about the same change.
+
+Where the gains came from (post-hoc, from the cached verdicts): the default retriever's 4 gained
+questions are the 3 whose gold article k = 5 adds (all three go from not `yes` to `yes`) and 1
+whose context still has no gold article (judged `yes` anyway); the two `hybrid+ce` gains are
+its two newly covered gold articles. So the gain is the gold coverage ceiling: 33 to 36 of 42
+(default) and 34 to 36 (`hybrid+ce`), and every question that gained a gold article became `yes`.
+What remains against full context is not a k problem: 10 questions are `yes` for full context and
+not `yes` at k = 5 for both retrievers; in 5 (default) and 6 (`hybrid+ce`) of them no gold article
+is in the context (6 questions have none at any k, because the top-5 chunks miss them), in the other 5
+and 4 a gold article is present and the answer is still not `yes`. Closing the first group needs
+retrieval that finds those 6 articles (more chunks or a better retriever), not more articles.
+
+An offline replay of the committed raw files differs only in the live-call count (0) and in the
+cache-total line of the default file (written before the `hybrid+ce` run: 1 621 records, 17.22 USD).
+
+Not claimed: k = 5 was chosen on these questions, the CI is on the test set, 42 questions resolve
+gaps of about 10 points, one model family answers and judges, and k = 4, k = 6 and a chunk-to-article
+fallback were not run.
