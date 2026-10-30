@@ -9,6 +9,7 @@ Short version:
 2. "Mini" is **not a file**. It is a deterministic runtime sample of 194 queries per source (776 total) taken by `benchmark.py` (§A.3, §E).
 3. The paper has **no BM25 row**. The only BM25-only numbers on mini that I found are in an unreviewed 2026-10-19 arXiv draft (StrucChunk, §D).
 4. The paper's own tables contain internal inconsistencies (§B.3). Do not treat its "ALL" row of Table 4 as a macro-mean.
+5. **Reference ceiling (2026-10-30 audit).** The paper's own dense baseline (Table 4, text-embedding-3-large, R@8 ALL 34.51 printed, 31.86 recomputed) and RCTS (26.30) are not a ceiling. The best published number on the same mini protocol is **StrucChunk + Hybrid (BGE-M3), R@8 ALL 48.18** (arXiv 2610.26313v1, 2026-10-19, §D; single unreviewed preprint, chunker description internally inconsistent). **PAKTON R@8 56.66 (EMNLP 2025 main 403, Table 2) is oracle-document retrieval** (the source document is known and search is in-document, Appendix F.2): not comparable, not a ceiling.
 
 ---
 
@@ -209,14 +210,14 @@ Verdict key: **COMPARABLE** = same mini sample, same char-overlap metric, same k
 - `https://arxiv.org/abs/2610.26313v1` (v1 2026-10-19; 7 days old at compile time; non-peer-reviewed, independent authors). Code: `https://github.com/SinghSuryaDeep/legal-rag-strucchunk-1` (0 stars; has `run_legalbench_rag.py` and `src/benchmarks/legalbench_rag_evaluator.py`).
 - Claims: Char-Recall@8 ALL 48.18% vs 23.59% best baseline (Recursive+Dense BGE-M3) "surpassing the published state of the art by +83%". The +83% compares against RCTS 26.30 and skips the Naive 34.51 row in Table 11 (against 34.51 the gain is ≈ +40%, my arithmetic). One sentence misreads R@32 as R@64 ("Recall@64 dropped from 61.06% to 47.54%"). Draft hygiene flags: an "X/100" placeholder and a "[?]" citation.
 - Baseline chunking is described inconsistently: §4.1 says "500-char fixed-size chunks with no overlap"; §4.5 and Table 6 say RecursiveCharacterTextSplitter at 512 tokens with 15% overlap. "~17K chunks" over the 8.68M-char mini corpus implies ≈ 511 chars per chunk `[INFERENCE]`. Overlapping chunks are double counted by the official metric.
-- **Verdict: PARTLY, unverified.** It states LBR-mini (776 queries, 72 documents, 0.25 weights, char-level P/R, k 1..64, seed 42), so it is the closest independent mini run, but chunker, corpus parsing and sampling are not independently confirmed.
+- **Verdict: PARTLY, unverified; best published comparable number as of 2026-10-30 (R@8 ALL 48.18, StrucChunk + Hybrid with BGE-M3).** It states LBR-mini (776 queries, 72 documents, 0.25 weights, char-level P/R, k 1..64, seed 42), so it is the closest independent mini run, but chunker, corpus parsing and sampling are not independently confirmed. Single unreviewed preprint.
 
 ### C.3 PAKTON (multi-agent legal system)
 - EMNLP 2025 main, paper 403: `https://aclanthology.org/anthology-files/anthology-files/pdf/emnlp/2025.emnlp-main.403.pdf` (read; Table 2 and Appendix F; date: EMNLP 2025, exact date not visible in the text I read).
 - Table 2 reproduces the paper's four baselines verbatim (including the Table 6 duplicate). PAKTON ALL row, **without** LLM filtering, config 1: P@1..64 22.34, 18.37, 11.52, 7.63, 5.26, 4.08, 3.52; R@1..64 26.77, 36.32, 45.26, 56.66, 69.17, 83.50, 89.58. Per-dataset rows (e.g. ContractNLI R@64 99.82, PrivacyQA P@1 19.94) are in their Table 2. The CUAD and ALL cells were misaligned by PDF extraction and I did not verify the column alignment; **re-verify against the PDF before quoting**.
 - Protocol (Appendix F.2): "Each document from the dataset was indexed by the Archivist, and the corresponding queries were directly submitted to the Researcher", with the Researcher doing "only in-document search". GPT-4o query rewriting, BM25 top-100 (threshold 0.6) + dense top-100, RRF, then BAAI/bge-reranker-v2-m3 top-64, RCTS 1,000-char fallback chunks.
 - Whether they use mini or the full set: not stated in the lines I read.
-- **Verdict: NOT comparable.** It is per-document (oracle document known), uses an LLM query optimizer, 1,000-char chunks, and a cross-encoder. It also has no BM25-only row.
+- **Verdict: NOT comparable, oracle-document retrieval.** It is per-document (the source document is known and search runs in-document, Appendix F.2), uses an LLM query optimizer, 1,000-char chunks, and a cross-encoder. It also has no BM25-only row. Its R@8 56.66 is higher than StrucChunk's 48.18 but is not a ceiling for corpus-level retrieval.
 
 ### C.4 Embedding-Free RAG (Goldman Sachs)
 - `https://aclanthology.org/2025.findings-emnlp.1360.pdf` (EMNLP Findings 2025, pp. 24974–24985, Nov 4–9, 2025).

@@ -20,6 +20,9 @@ How I read things: `read`/`curl` on the URLs in section 1; MTEB per-file JSONs w
 | S8 | RankZephyr paper | https://arxiv.org/abs/2312.02724 (read as https://arxiv.org/html/2312.02724) | arXiv 2023-12-05 |
 | S9 | MTEB results repo | https://github.com/embeddings-benchmark/results (pinned commit 7818c6fe5639c8396c2c62879c137077e9a9c60b, committed 2026-10-24) | snapshot 2026-10-24; per-file dates not checked |
 | S10 | MTEB task + metric + model-meta source | https://github.com/embeddings-benchmark/mteb (main; latest release 2.26.23, published 2026-10-25; last main commit 2026-10-25) | 2026-10-25 |
+| S11 | MTEB leaderboard backend, per-task score tables (opened 2026-10-30; the HTML page is client-rendered and has no rows) | https://mteb-leaderboard-backend.hf.space/v1/tasks/SciFact/scores, `/NFCorpus/scores`, `/FiQA2018/scores`, `/ArguAna/scores`, `/v1/benchmarks/BEIR/scores` | read 2026-10-30; `trainedOn` is the leaderboard's own flag, `memoryUsageMb` its size field |
+| S12 | InRanker (distilled rerankers, BEIR tables over BM25 top-100) | https://arxiv.org/html/2508.16757 (EMNLP Findings 2025) | read 2026-10-30 |
+| S13 | jina-reranker-v3 / v3.5 papers | https://arxiv.org/abs/2509.25085 (v3 2025-10-03); https://arxiv.org/abs/2607.18152 (2026-07-20) | read 2026-10-30 |
 
 ## 2. Pyserini BEIR regression: retrieval parameters as documented
 
@@ -103,25 +106,24 @@ Values to 3 decimals (MTEB values rounded from 4+). "—" = not published for th
 
 ### 3.1 Best listed per dataset (nDCG@10)
 
-Only rows in this file; † rows excluded from the first-stage column.
+Corrected 2026-10-30. The first version of this table took the best row inside this file (Conan-embedding-v2 for five tasks), which is not the best published number. The first-stage column below is the per-task MTEB leader read from the leaderboard backend (S11); † = the leaderboard's own `trainedOn` flag lists the dataset. SCIDOCS, TREC-COVID and Quora were not re-checked against S11, so those rows still mean "best row in this file".
 
-| Dataset | Best 1st-stage retriever listed (not flagged †) | value | Best reranked/2-stage listed | value |
-|---|---|---:|---|---:|
-| SciFact | Conan-embedding-v2 (MTEB) | 0.843 | monoT5 (3B) rerank BM25 top-100 | 0.766 |
-| NFCorpus | Conan-embedding-v2 (MTEB) | 0.557 | monoT5 (3B) rerank BM25 top-100 | 0.390 |
-| FiQA-2018 | Conan-embedding-v2 (MTEB) | 0.719 | BM25+CE (BEIR paper) | 0.347 |
-| ArguAna | Conan-embedding-v2 (MTEB) | 0.778 | BM25+CE (BEIR paper) | 0.311 |
-| SCIDOCS | Qwen3-Embedding-8B (MTEB) | 0.327 | BM25+CE (BEIR paper) | 0.166 |
-| TREC-COVID | Qwen3-Embedding-8B (MTEB) | 0.950 | RankGPT-4 rerank SPLADE++ ED top-100 | 0.879 |
-| Quora | Conan-embedding-v2 (MTEB) | 0.923 | BM25+CE (BEIR paper) | 0.825 |
+| Dataset | Best first-stage retriever on MTEB (S11, 2026-10-30) | value | Other leaders and best clean open | Best reranked/2-stage listed in this file | value |
+|---|---|---:|---|---|---:|
+| SciFact | papr-ai/papr-embed-code-1-4b † (open, 15 GB, released 2026-10-22) | 0.868 | MiniCPM-Embedding 0.866 (open, 5.2 GB, 2024-09-04, trainedOn unknown); SFR-Embedding-2_R 0.859 (open, cc-by-nc, not †); inf-retriever-v1 0.854 †; voyage-3-m-exp 0.851 †. Conan 0.843 is not #1; NV-Embed-v2 is rank 10, Qwen3-Embedding-8B rank 20 | monoT5 (3B) rerank BM25 top-100 (InRanker-3b 0.783 is higher, see 3.2b) | 0.766 |
+| NFCorpus | TencentBAC/Conan-embedding-v2 (rank 1, not †) | 0.557 | #2 voyage-3-m-exp 0.470 †; best clean open NV-Embed-v2 0.450; Qwen3-Embedding-8B 0.414 (rank 15). Conan is a 0.09 outlier over #2 with incomplete metadata: suspect, not a ceiling | monoT5 (3B) rerank BM25 top-100 (same value in S12: 38.97) | 0.390 |
+| FiQA-2018 | ai-sage/Giga-Embeddings-instruct (open MIT, 3.2B, 12.9 GB, 2025-09-23, trainedOn unknown) | 0.821 | voyage-3-m-exp 0.780 †; Conan 0.719 (†-flagged on FiQA); best clean major open model Qwen3-Embedding-8B 0.646 (rank 7). Giga's 0.8206 is also in the raw MTEB results JSON (`results/ai-sage__Giga-Embeddings-instruct/0ad5b29b…/FiQA2018.json`, mteb 1.38.54); it is 0.17 above the next clean model, so contamination is plausible `[INFERENCE]`. NV-Embed-v2 0.657 is †-flagged | BM25+CE (BEIR paper) | 0.347 |
+| ArguAna | voyage-3-m-exp † (closed) | 0.898 | LGAI-Embedding-Preview 0.870 † (open); google/gemini-embedding-001 0.864 (closed, not †, 2025-07-14); geevec-embeddings-1.0 0.863 (closed); best clean open: geevec-embeddings-1.0-lite 0.827, Octen-Embedding-8B 0.783. Conan 0.778 is †-flagged on ArguAna and far from #1; NV-Embed-v2 is rank 33, Qwen3-Embedding-8B rank 17 | BM25+CE (BEIR paper) | 0.311 |
+| SCIDOCS | Qwen3-Embedding-8B (MTEB), best in this file only | 0.327 | not re-checked | BM25+CE (BEIR paper) | 0.166 |
+| TREC-COVID | Qwen3-Embedding-8B (MTEB), best in this file only | 0.950 | not re-checked | RankGPT-4 rerank SPLADE++ ED top-100 | 0.879 |
+| Quora | Conan-embedding-v2 (MTEB), best in this file only | 0.923 | not re-checked | BM25+CE (BEIR paper) | 0.825 |
 
-
-Caution on this table: Conan-embedding-v2 is not flagged by mteb metadata but is far above every other unflagged model on 5 of 7 datasets, and its metadata resolves to a generic E5-Mistral set [INFERENCE: metadata may be incomplete]. Qwen3-Embedding-8B TREC-COVID 0.950 exceeds every published reranker row in this file; I did not verify why. Treat both as unreplicated.
+Conan-embedding-v2 is the leader on NFCorpus only. Its BEIR aggregate (15 tasks) is 0.664 with `zeroShotPct` 60, and its `trainedOn` list includes ArguAna, FEVER, FiQA, HotpotQA, MSMARCO and NQ (S11, `/v1/benchmarks/BEIR/scores`), so it is not a zero-shot reference on FiQA or ArguAna. Earlier note, kept: Conan is not flagged by the mteb results-repo metadata but its metadata resolves to a generic E5-Mistral set [INFERENCE: metadata may be incomplete]. Qwen3-Embedding-8B TREC-COVID 0.950 exceeds every published reranker row in this file; I did not verify why. Treat these as unreplicated.
 
 
 ### 3.2 MTEB leaders on these 7 tasks, computed by me
 
-The live MTEB leaderboard (HF Space) was not opened. Instead I scanned every model directory in the results repo (S9) that has all 7 tasks (union over its revision dirs, non-`external` file preferred): 238 models. Ranking by the mean of the 7 test nDCG@10 values:
+Computed 2026-10-26 from the results repo; the per-task leaders in 3.1 supersede it where they differ. The live MTEB leaderboard page is client-rendered and has no rows, but its backend score endpoints (S11) were opened on 2026-10-30 and are the source of 3.1 and of 3.2a to 3.2c. For this table I scanned every model directory in the results repo (S9) that has all 7 tasks (union over its revision dirs, non-`external` file preferred): 238 models. Ranking by the mean of the 7 test nDCG@10 values:
 
 | Rank | Model dir | Mean nDCG@10 (7 tasks) | mteb training_datasets check |
 |---:|---|---:|---|
@@ -137,6 +139,39 @@ The live MTEB leaderboard (HF Space) was not opened. Instead I scanned every mod
 | 10 | NovaSearch__jasper_en_vision_language_v1 | 0.6434 | not checked |
 
 The rank-1 and rank-4 rows list the evaluated datasets among their own training data (S10), so they are not zero-shot leaders. Several rows come from `external` files (model-card metadata, no harness version): Linq, SFR, NV-Embed-v1, bge-en-icl, LENS, gte-Qwen2-1.5B are all mostly `external`.
+
+#### 3.2a Size class: open weights, ≤1 GB (what bge-small, 127 MB, competes with)
+
+Size filter on the leaderboard's `memoryUsageMb` ≤ 1024 (S11). bge-small is not at the top of its own size class on any of the four sets (also true of bge-base, 390 MB).
+
+| Dataset | our bge-small `dense` (MTEB rank) | best ≤1 GB open, any | best ≤1 GB open, not †/flagged | gap to best |
+|---|---|---|---|---|
+| SciFact | 0.7127 (121) | uibk-embedding-v1 0.7857 (†, ColBERT, 683 MB, 2026-10-10) | lightonai/ColBERT-Zero-unsupervised 0.7660; gte-modernbert-base 0.7641 (284 MB) | +0.07 (+0.05 clean) |
+| NFCorpus | 0.3438 (138) | lightonai/DenseOn 0.3903 (568 MB, 2026-04-21) | same | +0.05 |
+| FiQA-2018 | 0.4035 (155) | DenseOn 0.5386 (†, 568 MB) | DenseOn-unsupervised 0.5234; Giga-Embeddings-instruct-480M-0826 0.5214 (923 MB, training unknown) | +0.14 (+0.12 clean) |
+| ArguAna | 0.6061 (88) | gte-modernbert-base 0.7456 (284 MB, apache-2.0) | same | +0.14 |
+
+Best in class, rounded: 0.786 / 0.390 / 0.539 / 0.746 (SciFact / NFCorpus / FiQA / ArguAna) against bge-small's 0.713 / 0.344 / 0.403 / 0.606.
+
+#### 3.2b BM25 first stage plus reranker (BM25 top-100 only)
+
+| Dataset | rows already in this file | newer / higher found 2026-10-30 | verdict |
+|---|---|---|---|
+| SciFact | monoT5 (3B) 0.766 | InRanker-3b **78.31** over BM25 top-100 (S12, EMNLP Findings 2025); in the same paper RankGPT gpt-4 74.95, mxbai-rerank-large 75.1 | a better one exists (+1.7) |
+| NFCorpus | monoT5 (3B) 0.390 | monoT5-3B 38.97 in S12; InRanker-3b 38.25 | our reference was the best |
+| FiQA-2018 | BM25+CE 0.347 (BEIR paper) | no newer BM25-first-stage row found | unresolved |
+| ArguAna | BM25+CE 0.311 (BEIR paper) | no newer BM25-first-stage row found | unresolved |
+
+Rerankers with a **dense** first stage are a different protocol and are not rows for a BM25 + reranker column (trap T9). SciFact / NFCorpus / FiQA / ArguAna nDCG@10 over the top-100 of jina-embeddings-v3 (S13, arXiv 2509.25085): jina-reranker-v3 76.51 / 37.66 / 49.16 / 73.43; mxbai-rerank-large-v2 78.86 / 37.76 / 52.75 / 74.55; Qwen3-Reranker-4B 78.41 / 41.56 / 52.29 / 58.82. jina-reranker-v3.5 (arXiv 2607.18152, 2026-07-20; first stage jina-embeddings-v5-text-small): FiQA 50.83, ArguAna 77.90 (with ArguAna LoRA adapters), NFCorpus 38.45. The Jina model cards are CC-BY-NC, so they are not a commercial-use baseline.
+
+#### 3.2c Late interaction (ColBERT-style), best on MTEB vs the ColBERTv2 row in this file
+
+| Dataset | ColBERTv2 (S5) | best late-interaction on MTEB (S11) | verdict |
+|---|---:|---|---|
+| SciFact | 0.693 | uibk-embedding-v1 0.7857 †; LateOn 0.7661 †; ColBERT-Zero 0.7633 and GTE-ModernColBERT-v1 0.7633 (not †) | a better one exists (+0.07) |
+| NFCorpus | 0.338 | uibk-embedding-v1 0.3879; GTE-ModernColBERT-v1 0.3783 | a better one exists (+0.04) |
+| FiQA-2018 | 0.356 | uibk-embedding-v1 0.5373 †; LateOn 0.5312 † | a better one exists (+0.18) |
+| ArguAna | 0.463 | mLateOn 0.5981; ColBERT-Zero 0.5282 | a better one exists (+0.13) |
 
 
 ## 4. Recall@100 (BEIR test split)
