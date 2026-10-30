@@ -189,3 +189,99 @@ Window size and overlap of article units, BM25 on windows instead of the whole a
 blend of cross-encoder and first stage, other cross-encoders or embedders, query rewriting or
 expansion, context-prefixed chunks with the neural stack, a larger top-k of units for the
 generator, and per-question depth.
+
+## Outcome (scored runs; raw output in `docs/sota-runs/retrieval_miss_*.txt`)
+
+Runs: `ragkit retrieval-miss tune` (tuning set: fresh 29 + synthetic 40; frozen in
+`docs/sota-runs/retrieval_miss_tuning.json`), `ragkit retrieval-miss score` (held-out pooled 130
+questions, one run; `docs/sota-runs/retrieval_miss_heldout.txt`) and `ragkit retrieval-miss
+diagnose` (`docs/sota-runs/retrieval_miss_diagnosis.txt`).
+
+### 1. Diagnosis of the misses (descriptive)
+
+A miss is an answerable question with no gold article among the first five chunks of B0.
+Length bounds (10th / 90th percentile of all 159 answerable EU questions): 14.0 and 31.0 words.
+
+| set | misses | vocabulary mismatch | chunk boundary split | near-duplicate outranked | query too short | query too long | unexplained |
+|---|---|---|---|---|---|---|---|
+| original 42 (42) | 6 | 4 | 1 | 0 | 1 | 0 | 0 |
+| hard 39 (39) | 4 | 4 | 0 | 0 | 0 | 0 | 0 |
+| keyword-free 49 (49) | 21 | 21 | 0 | 0 | 0 | 0 | 0 |
+
+Primary cause for 29 of the 31 misses across the 130 held-out questions is vocabulary mismatch
+(under 50% query content terms in the whole gold article). On the original 42:
+
+1. Q1 (`reg_2019_943_art19`): chunk boundary split (term coverage 0.50 article vs 0.25 chunk;
+   13 words, too short). Ranks: bm25 5 (c5), dense 9 (c14), hybrid 7 (c15), h+ce 12 (c24), F1 6 (c6).
+2. Q2 (`dir_2019_944_art32`): vocabulary mismatch (term coverage 0.48). BM25, dense and hybrid all
+   rank chunk 1 or 2; cross-encoder demotes it to c7 (article rank 6). F1 article units recovers
+   it at article rank 3.
+3. Q3 (`reg_2019_943_art17`): query too short (13 words, term coverage 0.50). BM25 rank 2, hybrid 2;
+   cross-encoder demotes to c8 (article rank 6). F1 recovers at article rank 2.
+4. Q4 (`reg_2017_1485_art23`): vocabulary mismatch (term coverage 0.17; 34 words, too long).
+   Ranks: bm25 20 (c27), dense 6 (c10), hybrid 4 (c4), h+ce article rank 5 but chunk rank c7
+   (5 chunk slots filled by earlier articles).
+5. Q5 (`dir_2019_944_art40`): vocabulary mismatch (term coverage 0.25; 13 words). Ranks: bm25 5
+   (c5), dense 10 (c18), hybrid 11 (c22), h+ce 7 (c16), F1 6 (c6).
+6. Q6 (`reg_2015_1222_art72`): vocabulary mismatch (term coverage 0.25). BM25 rank 2, hybrid 3,
+   h+ce article rank 2 but chunk rank c9 (chunk pushed past top-5 chunks by earlier articles).
+   F1 article units recovers at article rank 2.
+
+Near-duplicate outranking (max bigram Jaccard with an outranker >= 0.30) fired on 0 of the 6
+misses (highest Jaccard was 0.22 on Q2 with a same-act article).
+
+### 2. Tuning outcome (fresh 29 + synthetic 40, hybrid+ce)
+
+Objective: mean of the two set-level MRR values. B0 objective: 0.9765 (fresh MRR 0.966,
+synthetic MRR 0.988).
+
+- F1 (article units): objective 0.9478 (-0.0287 vs B0; fresh MRR dropped to 0.908).
+- F2 (depth): 50, 100, 200 all tied at 0.9765; tie-break chose 100 (= B0).
+- F3 (fusion): RRF and all alphas in {0.1, ..., 0.9} tied at 0.9765; tie-break chose RRF (= B0).
+- F4 (no query instruction): tied at 0.9765; fixed to `instruction=False` by definition.
+- S (joint stack): all top cells tied at 0.9765; tie-break chose B0.
+
+### 3. Held-out scoring outcome (pooled 130 questions: 42 original, 39 hard, 49 keyword-free)
+
+Mean [bootstrap 95% CI over questions, 2000 resamples, seed 0]; paired differences against B0:
+
+| system | configuration | MRR | Recall@5 | G@3 (prod) | G@5 (prod) | d MRR vs B0 | d G@5 (prod) vs B0 | wrong-act |
+|---|---|---|---|---|---|---|---|---|
+| B0 | `chunk/inst=on/rrf/D100/hybrid+ce` | 0.664 [0.596, 0.732] | 0.796 [0.727, 0.865] | 0.723 [0.646, 0.800] | 0.762 [0.685, 0.831] | baseline | baseline | 32 / 130 |
+| F1 | `article/inst=on/rrf/D100/hybrid+ce` | 0.630 [0.561, 0.700] | 0.788 [0.719, 0.854] | 0.700 [0.623, 0.777] | 0.792 [0.723, 0.862] | -0.034 [-0.089, +0.016] | +0.031 [-0.023, +0.085] | 38 / 130 |
+| F4 | `chunk/inst=off/rrf/D100/hybrid+ce` | 0.664 [0.596, 0.733] | 0.796 [0.727, 0.865] | 0.723 [0.646, 0.800] | 0.762 [0.685, 0.831] | +0.000 [-0.004, +0.004] | +0.000 [+0.000, +0.000] | 32 / 130 |
+
+Synthetic guard: B0 0.988 [0.963, 1.000]; F1 dMRR +0.000 [-0.037, +0.037]; F4 dMRR +0.000
+[+0.000, +0.000].
+
+Sensitivity rows (pooled 130):
+- Depth 50: MRR 0.662, dMRR -0.002 [-0.022, +0.012], wrong-act 32.
+- Depth 200: MRR 0.659, dMRR -0.005 [-0.009, -0.001], wrong-act 32.
+- Hybrid RRF (no CE): MRR 0.615, dMRR -0.049 [-0.097, -0.002], wrong-act 37.
+- Sensitivity without original 42 (88 questions): B0 MRR 0.627; F1 dMRR -0.059 [-0.127, +0.007],
+  wrong-act 33 vs 25; F4 dMRR -0.002 [-0.006, +0.000].
+
+### 4. Decision rule verdicts
+
+- **F1 article units**: not adopted (no evidence). Pooled MRR CI lower bound (-0.089) is not above 0;
+  wrong-act count increased from 32 to 38.
+- **F2 depth**: tuning selected B0 (no candidate to score); sensitivity shows D50/D200 do not help.
+- **F3 fusion**: tuning selected B0 (no candidate to score).
+- **F4 no query instruction**: not adopted (no evidence). Paired dMRR +0.000 [-0.004, +0.004] (CI
+  includes 0; identical on 127 of 130 questions).
+- **S joint stack**: tuning selected B0.
+
+**Verdict: default unchanged (B0: chunk/inst=on/rrf/D100/hybrid+ce).**
+
+### 5. Prediction assessment
+
+- D1 partly held: vocabulary mismatch was primary for 4 of 6 (predicted >= 2) and chunk split for
+  1 (predicted <= 1); near-duplicate was 0 (predicted >= 3; highest Jaccard 0.22 < 0.30).
+- D2 did not hold on the 6 misses: BM25 ranked the gold article better than dense on 4 of the 6
+  questions (dense only beat BM25 on Q4: rank 6 vs 20).
+- P-F1 partly held: G@5 (prod) rose by +0.031 as predicted, but wrong-act rose (+6) rather than
+  falling, MRR fell by -0.034, and S selected B0, not article units.
+- P-F2 held: depth had no detectable pooled MRR effect; tuning picked 100.
+- P-F3 held: convex vs RRF had no detectable effect on hybrid+ce; tuning picked RRF.
+- P-F4 held: instruction off had no detectable effect (+0.000 [-0.004, +0.004]).
+- P-adopt held: no candidate passed the adoption rule.

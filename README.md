@@ -1032,12 +1032,38 @@ With the `reader` and `stack` gates (decisions unchanged from K-R2, so the same 
 
 **Not adopted**: the default retriever passes (lower bound +0.024), `hybrid+ce` does not (lower bound 0.000), and both must; `ragkit answer` stays at 3 articles and `--articles 5 --budget 20000` is an option. The gate decisions do not see the context, so unanswerable answered and wrongly abstained are the k = 3 values by construction (the answer text is the only thing that changes). Of the 4 default gains, 3 are questions whose gold article k = 5 adds (the 4th has no gold article in its context); both `hybrid+ce` gains are such questions; no `yes` was lost, citation `yes` rate did not rise (0.688 to 0.644 and 0.678 to 0.659). The remaining 10 questions behind full context are mostly retrieval (6 questions have no gold article in the top-5 chunks at all), not k. Same judge family, no human check; k = 4 and k = 6 were not run.
 
+
+### Retrieval-miss diagnosis and candidate fixes, Phase K-R3 ([`docs/retrieval_miss_protocol.md`](docs/retrieval_miss_protocol.md))
+
+Six of the 42 answerable EU questions have no gold article in the top-5 chunks of `hybrid+ce@100`, capping article-RAG at 32/42. A pre-registered study diagnosed the misses and evaluated four candidate fixes (article-level indexing, depth 50/100/200, convex fusion vs RRF, query instruction on/off), tuned only on fresh 29 + synthetic 40, and scored once on the pooled held-out sets (130 questions: original 42, hard 39, keyword-free 49; `docs/sota-runs/retrieval_miss_heldout.txt`, `retrieval_miss_diagnosis.txt`).
+
+**Diagnosis of the 6 misses on original 42**:
+- 4 are primary vocabulary mismatch (<50% query content terms in the gold article: Q2, Q4, Q5, Q6).
+- 1 is a chunk boundary split (Q1: term coverage 0.50 article vs 0.25 chunk; 13 words).
+- 1 is query too short (Q3: 13 words, term coverage 0.50).
+- In 3 of the 6 misses (Q2, Q3, Q6), the first-stage hybrid placed the gold chunk at rank 1, 2 or 3, but cross-encoder reranking demoted it or allowed chunks from earlier articles to push it past the top-5 chunks.
+- Near-duplicate outranking (word-bigram Jaccard with an outranker >= 0.30) fired on 0 of the 6 misses (highest was 0.22 on Q2).
+- Across all 31 misses of the 130 held-out questions, 29 have vocabulary mismatch as primary cause.
+
+**Candidate evaluation on pooled held-out (130 questions)**:
+
+| System | configuration | MRR | G@3 (prod) | G@5 (prod) | paired d MRR vs B0 | paired d G@5 (prod) | wrong-act |
+|---|---|---|---|---|---|---|---|
+| B0 (baseline) | `chunk/inst=on/rrf/D100/hybrid+ce` | 0.664 [0.596, 0.732] | 0.723 [0.646, 0.800] | 0.762 [0.685, 0.831] | baseline | baseline | 32 / 130 |
+| F1 article units | `article/inst=on/rrf/D100/hybrid+ce` | 0.630 [0.561, 0.700] | 0.700 [0.623, 0.777] | 0.792 [0.723, 0.862] | -0.034 [-0.089, +0.016] | +0.031 [-0.023, +0.085] | 38 / 130 |
+| F4 no instruction | `chunk/inst=off/rrf/D100/hybrid+ce` | 0.664 [0.596, 0.733] | 0.723 [0.646, 0.800] | 0.762 [0.685, 0.831] | +0.000 [-0.004, +0.004] | +0.000 [+0.000, +0.000] | 32 / 130 |
+
+Tuning selected B0 for F2 (depth 100), F3 (RRF) and S (joint stack). Sensitivity rows: depth 50 dMRR -0.002 [-0.022, +0.012], depth 200 dMRR -0.005 [-0.009, -0.001], hybrid RRF without CE dMRR -0.049 [-0.097, -0.002]. Without the original 42 (88 questions), F1 dMRR is -0.059 [-0.127, +0.007] and wrong-act 33 vs 25.
+
+**Verdict**: none adopted per the decision rule (F1: MRR CI lower bound <= 0 and wrong-act rose; F4: CI spans 0). Default retrieval remains chunk-level `hybrid+ce@100`.
+
 ### Verdict after Phase K
 
 7. **A small public encoder closes most of the BEIR gap to BGE-base, not to the large models.** Over the four sets, mean nDCG@10 goes 0.409 (BM25) to 0.517 (`dense` bge-small, 0.516 published) against 0.539 for BGE-base: about 80% of the gap to BGE-base, reproduced within 0.003 on every set. The first version of this row had no interval; a paired bootstrap over queries (each dataset resampled separately, seed 0, `docs/sota-runs/neural_beir_mean.txt`) gives 0.409 [0.393, 0.425] and 0.517 [0.500, 0.533], difference +0.107 [+0.095, +0.120] (query sampling within these four datasets only, not the choice of datasets). BM25 + cross-encoder reproduces the BEIR paper on SciFact, NFCorpus and FiQA (0.687, 0.352, 0.346 vs 0.688, 0.350, 0.347); its four-set mean is 0.451 against 0.424 published only because ArguAna differs (0.417 vs 0.311). Reranking adds little over a good first stage. Simple RRF fusion is not safe when BM25 is much weaker than the dense side (FiQA, ArguAna).
 8. **On LegalBench-RAG-mini the gap shrinks but remains**: best 20.4 Recall@8 against 31.9 for the paper's larger embedding model and 48.2 for StrucChunk + Hybrid (unreviewed preprint); BM25 13.4.
 9. **On EU text the neural gain is measurable and modest**: pooled Recall@5 0.68 to 0.77 to 0.82 (BM25, `hybrid`, `hybrid+ce`), wrong-act top-1 34 to 26, paired MRR CIs above 0 for `hybrid` and the reranked systems.
 10. **An LLM gate did not beat the small reader on this label set**; a full-context LLM answers 41/42 correctly with no wrong abstention on this 85 k-token corpus. RAG on 500-character chunks answers only 12 to 14 of 42 strictly correctly, and that is mostly the chunks: the whole parent articles of the same top-5 chunks give 28 to 30 of 42 (Phase L; a post-hoc k = 5 instead of 3 gives 32 of 42 for both retrievers and was not adopted). The pre-registered citation targets (A4: 0.85 and 0.90) failed. None of this is comparable with published sufficient-context figures (other corpora, other generators).
+11. **Retrieval misses are primarily vocabulary mismatch, not chunk boundary splits or near-duplicates.** On the 6 misses of the original 42 questions, 4 are primary vocabulary mismatch, 1 a chunk boundary split, 1 query too short; in 3 cases the cross-encoder demoted chunks the first stage had ranked in the top 3. Across all 130 held-out questions, 29 of 31 misses are vocabulary mismatch. None of four candidate fixes (article-level indexing, deeper first stage, convex fusion, instruction off) passed the adoption rule on pooled held-out data; default retrieval remains chunk-level `hybrid+ce@100`.
 
 Disk used for the models of this phase: about 357 MB in the default Hugging Face cache (bge-small 140 MB, e5-small-v2 129 MB, cross-encoder 88 MB).
 

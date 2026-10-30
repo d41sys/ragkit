@@ -195,3 +195,26 @@ numpy-only pipeline stays the default; `--retriever dense|hybrid|hybrid+ce` is o
 The cross-encoder depth rows (20, 50, 100) of `hybrid+ce` differ by at most 0.015 nDCG@10 on
 SciFact, NFCorpus and FiQA, by about 0.013 pooled MRR on EU, and by 0.038 on ArguAna (0.453 at
 `@20`, 0.415 at `@100`); no depth is better everywhere.
+
+## Phase K-R3: retrieval misses and candidate fixes (protocol: `docs/retrieval_miss_protocol.md`)
+
+Six of the original 42 answerable EU questions have no gold article in the top-5 chunks of
+`hybrid+ce@100` (which caps article-RAG at 32/42). A follow-up study diagnosed the misses and
+tested four candidate fixes (article-level indexing, depth 50/100/200, convex fusion, query
+instruction on/off), tuned only on fresh 29 + synthetic 40, and scored once on the pooled
+held-out sets (130 questions: original 42, hard 39, keyword-free 49).
+
+Outcome (`docs/sota-runs/retrieval_miss_heldout.txt`, `retrieval_miss_diagnosis.txt`):
+- **Diagnosis**: 4 of the 6 misses were primary vocabulary mismatch (<50% term overlap), 1 chunk
+  boundary split (term overlap 0.50 article vs 0.25 chunk), 1 query too short (13 words).
+  For 3 of the 6 questions the cross-encoder demoted an article that the first stage had placed in
+  the top 2; on 2 questions the article had a high article rank (2, 5) but its chunks were
+  displaced past rank 5 by earlier articles.
+- **Tuning**: F2 (depth 100), F3 (RRF), F4 (instruction off) and S (joint stack) all tied with B0
+  at objective 0.9765; tie-break chose B0 for F2, F3 and S. F1 (article units) scored 0.9478.
+- **Held-out scoring (130 questions)**:
+  - B0 (`chunk/inst=on/rrf/D100/hybrid+ce`): MRR 0.664 [0.596, 0.732], G@5 (prod) 0.762, wrong-act 32.
+  - F1 (`article` units): MRR 0.630, dMRR -0.034 [-0.089, +0.016], G@5 (prod) 0.792 (+0.031),
+    wrong-act 38 (+6). Not adopted (no evidence; MRR CI spans 0, wrong-act increased).
+  - F4 (`inst=off`): MRR 0.664, dMRR +0.000 [-0.004, +0.004], wrong-act 32. Not adopted (no evidence).
+- **Verdict**: default unchanged (B0: chunk/inst=on/rrf/D100/hybrid+ce).
