@@ -1,0 +1,1610 @@
+{
+  "baseline": {
+    "alpha": null,
+    "depth": 100,
+    "instruction": true,
+    "stage": "hybrid+ce",
+    "unit": "chunk"
+  },
+  "cells": [
+    {
+      "config": {
+        "alpha": null,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": null,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": null,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": null,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": null,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": null,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "chunk"
+      },
+      "g5_prod_fresh": 1.0,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": null,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 50,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": null,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 100,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": null,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 200,
+        "instruction": true,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": null,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 50,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": null,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 100,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": null,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.1,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.2,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.3,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.4,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.5,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.6,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.7,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.8,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    },
+    {
+      "config": {
+        "alpha": 0.9,
+        "depth": 200,
+        "instruction": false,
+        "stage": "hybrid+ce",
+        "unit": "article"
+      },
+      "g5_prod_fresh": 0.9655172413793104,
+      "g5_prod_synthetic": 1.0,
+      "mrr_fresh": 0.9080459770114943,
+      "mrr_synthetic": 0.9875
+    }
+  ],
+  "chosen": {
+    "F1": {
+      "alpha": null,
+      "depth": 100,
+      "instruction": true,
+      "stage": "hybrid+ce",
+      "unit": "article"
+    },
+    "F2": {
+      "alpha": null,
+      "depth": 100,
+      "instruction": true,
+      "stage": "hybrid+ce",
+      "unit": "chunk"
+    },
+    "F3": {
+      "alpha": null,
+      "depth": 100,
+      "instruction": true,
+      "stage": "hybrid+ce",
+      "unit": "chunk"
+    },
+    "F4": {
+      "alpha": null,
+      "depth": 100,
+      "instruction": false,
+      "stage": "hybrid+ce",
+      "unit": "chunk"
+    },
+    "S": {
+      "alpha": null,
+      "depth": 100,
+      "instruction": true,
+      "stage": "hybrid+ce",
+      "unit": "chunk"
+    }
+  },
+  "n_fresh": 29,
+  "n_synthetic": 40
+}
