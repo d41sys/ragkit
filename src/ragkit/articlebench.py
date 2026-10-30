@@ -29,9 +29,9 @@ from ragkit.genbench import (
     judge_citations,
     verdicts_of,
 )
-from ragkit.generation import LLMAnswerer
+from ragkit.generation import LLMAnswerer, Passage
 from ragkit.llm import CachedMessages
-from ragkit.parent import ARTICLE_BUDGET_TOKENS, ARTICLE_K, parent_articles
+from ragkit.parent import ARTICLE_BUDGET_TOKENS, ARTICLE_K, estimate_tokens, parent_articles
 
 # Fixed before the scored run (docs/generation_protocol.md, Phase L): a text match, no judge.
 CONTEXT_GAP = re.compile(
@@ -96,6 +96,54 @@ def run_article_generation(
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         return list(pool.map(one, range(len(chunk_records))))
+
+
+def render_coverage(
+    items: Sequence[Any],
+    passages: Sequence[Sequence[Passage]],
+    documents: Sequence[tuple[str, str]],
+    settings: Sequence[tuple[int, int]],
+    *,
+    title: str,
+) -> str:
+    """Retrieval-only gold coverage of the article contexts for ``settings`` = (k, budget).
+
+    No LLM call: for each (k, budget) the number of answerable questions whose context holds a
+    gold article, the context size in estimated tokens, and how many questions get a context
+    different from the first setting's (each of those needs new ``GEN`` calls).
+    """
+    articles = dict(documents)
+    idx = [i for i, it in enumerate(items) if it.answerable]
+    top5 = sum(1 for i in idx if set(items[i].relevant) & {p.article_id for p in passages[i]})
+    k0, budget0 = settings[0]
+    lines = [
+        f"### {title}",
+        "",
+        f"{len(idx)} answerable and {len(items) - len(idx)} unanswerable questions; retrieval "
+        "only, no LLM call. Gold coverage = answerable questions whose context holds a gold "
+        "article.",
+        "",
+        "Top-5 chunks (the ceiling of any k, since the articles are taken from these chunks): "
+        f"{top5} of {len(idx)}.",
+        "",
+        "| k | budget (est. tokens) | gold article in context | mean context tokens "
+        f"(all {len(items)}) | max | contexts different from k = {k0} (answerable / all) |",
+        "|---|---|---|---|---|---|",
+    ]
+    base = [
+        [p.article_id for p in parent_articles(ps, articles, k=k0, budget_tokens=budget0)]
+        for ps in passages
+    ]
+    for k, budget in settings:
+        contexts = [parent_articles(ps, articles, k=k, budget_tokens=budget) for ps in passages]
+        hit = sum(1 for i in idx if set(items[i].relevant) & {p.article_id for p in contexts[i]})
+        tokens = [sum(estimate_tokens(p.text) for p in ctx) for ctx in contexts]
+        differs = [[p.article_id for p in c] != b for c, b in zip(contexts, base, strict=True)]
+        lines.append(
+            f"| {k} | {budget} | {hit} of {len(idx)} | {sum(tokens) / len(tokens):.0f} "
+            f"| {max(tokens)} | {sum(differs[i] for i in idx)} / {sum(differs)} |"
+        )
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------------------------

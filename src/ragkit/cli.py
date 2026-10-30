@@ -28,7 +28,12 @@ from ragkit.abstention import (
     paired_auroc_ci,
     risk_at_coverage,
 )
-from ragkit.articlebench import cite_mask, render_article_report, run_article_generation
+from ragkit.articlebench import (
+    cite_mask,
+    render_article_report,
+    render_coverage,
+    run_article_generation,
+)
 from ragkit.beir import (
     BEIR_DATASETS,
     DEFAULT_BEIR_DIR,
@@ -1110,6 +1115,18 @@ def cmd_generation(args: argparse.Namespace) -> int:
     items = items_from_records(_read_jsonl(ds.qa_path), _read_jsonl(ds.unanswerable_path))
     pipeline = _make_pipeline(args.retriever, 0.0)
     passages = retrieve_passages(pipeline, documents, items, top_k=5)
+    if args.coverage_only:
+        print()
+        print(
+            render_coverage(
+                items,
+                passages,
+                documents,
+                [(ARTICLE_K, ARTICLE_BUDGET_TOKENS), (4, 20_000), (5, 20_000)],
+                title=f"ragkit generation --coverage-only ({args.retriever})",
+            )
+        )
+        return 0
     reader_path = _reader_cache_path(args)
     if args.build_reader_cache:
         assert reader_path is not None
@@ -1447,6 +1464,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         default=None,
         help="Copy the needed reader scores from this score cache into --reader-cache and exit "
         "(with --compute-reader, this file is the score cache the reader fills).",
+    )
+    p_gen.add_argument(
+        "--coverage-only",
+        action="store_true",
+        help="Print the retrieval-only gold coverage of article contexts at k = 3, 4, 5 (no LLM "
+        "call, no cache) and exit.",
     )
 
     # Fetch-EU command

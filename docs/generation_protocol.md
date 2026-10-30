@@ -403,3 +403,85 @@ too large for a prompt.
 Not claimed: one model family does the answers and the judges; 42 questions resolve differences of
 about 15 points; the three post-hoc tables (gold in context, the answerable-only FC sample, the
 `hybrid+ce` `stack` row) were not pre-registered.
+
+## Phase L addendum: k = 5 articles, 20 000-token budget (POST-HOC; frozen before any k = 5 call)
+
+**Status: post-hoc.** k = 3 was frozen in advance (Phase L above). k = 5 is not: it was chosen
+after the Phase L result showed that 9 (default) and 8 (`hybrid+ce`) of the 42 gold articles are not
+among the three articles, i.e. it is motivated by misses on the very 42 answerable questions it is
+scored on. There is no held-out set for this question (the other EU question files have no
+unanswerable counterpart and no reader scores), so the result cannot be a clean test. It is
+reported as a **post-hoc sensitivity analysis**: it can say whether k = 5 would have helped on
+these questions, not that it generalises, and a CI that excludes 0 here would still be selected on
+the test set. Only k = 5 (with the budget below) is run: not k = 4, not k = 6, so no further
+choice is made on these questions. 5 is the number of chunks retrieved, so it is the largest k that
+can still add an article (a context of every distinct article behind the top-5 chunks).
+
+Setting: `--context article --articles 5 --budget 20000`. Everything else is Phase L (same
+questions, retrieval, `GEN`/`CORRECT`/`CITE` prompts, `reader` and `stack` gate decisions, judge,
+bootstrap). The budget is 20 000 estimated tokens (chars / 4); it does not bind here (largest
+context 10 403 estimated tokens). For every question the k = 3 articles are the first three
+articles of the k = 5 context (same rank order), so k = 5 only appends articles.
+
+**Retrieval-only coverage, computed before any LLM call** (`ragkit generation --context article
+--coverage-only [--retriever hybrid+ce]`, raw output `docs/sota-runs/article_coverage_default.txt`
+and `article_coverage_hybrid_ce.txt`). Answerable questions whose context holds a gold article:
+
+| Retriever | top-5 chunks | k = 3 | k = 4 (not run) | k = 5 | contexts that change k = 3 to 5 (answerable / all 87) | mean context tokens k = 3 to 5 |
+|---|---|---|---|---|---|---|
+| default | 36/42 | 33/42 | 35/42 | 36/42 | 26 / 58 | 3 790 to 4 966 |
+| `hybrid+ce` | 36/42 | 34/42 | 34/42 | 36/42 | 14 / 38 | 3 232 to 3 858 |
+
+So k = 5 can add a gold article for at most 3 (default) and 2 (`hybrid+ce`) questions: the ceiling
+is the top-5 chunks, 36/42, because articles are only taken from those chunks. Even if every one of
+them were answered `yes`, the strict gain is at most +3 and +2 questions; 6 questions have no gold
+article at any k and a retrieval-side change (not a larger k) would be needed for them. The paired
+bootstrap CI of a gain of 3 of 42 with no losses has a lower bound of 0 (4.5 % of resamples
+contain none of the three questions, above the 2.5 % tail), so **the adoption rule below cannot
+pass with a net gain of 3 or fewer questions**; it needs at least 4 net gains (default) with few
+losses, and for `hybrid+ce` with only 2 gold articles to add it needs gains from non-gold
+articles. This was worked out before scoring and is stated so the rule is not read as a real test of
+a likely effect.
+
+Calls (new, on top of the 1 432-record, 14.25 USD cache; hard budget 4 USD at assumed list prices,
+enforced in code as a cumulative cap of 18.10 USD): `GEN` only for questions whose context differs
+from k = 3 (the other `GEN`, and the `CORRECT` and `CITE` of an unchanged answer, are cache hits);
+`CORRECT` for the changed answerable questions; `CITE` as in Phase L (every answerable question
+and every unanswerable question that `reader` or `stack` answers, only for changed answers).
+Estimated from the k = 3 call prices: `GEN` 58 + 38 calls about 2.3 USD, `CORRECT` about 0.1 USD,
+`CITE` about 0.5 USD. Two stages: `GEN` and `CORRECT` first (`--no-cite`); `CITE` only if the spend
+so far plus its estimate stays under 4 USD. Skipped `CITE` is reported as skipped, not imputed. The
+unanswerable questions' `GEN` answers matter only through `CITE`; `unanswerable answered` is
+decided by the gates, not by the context, so it equals the k = 3 figure by construction
+(default 13/45 `reader` and 6/45 `stack`; `hybrid+ce` 12/45 and 2/45).
+
+Reported (per retriever, both gates, LLM-judged, no human check):
+
+1. Strict and lenient correct of 42 (Wilson CI), `reader` and `stack` gates and always answering,
+   for k = 3, k = 5 and full context.
+2. Unanswerable answered under both gates (k = 3 vs k = 5; equal by construction, printed as a
+   check).
+3. Cost per question: marginal spend of this run in total and per question, and the recorded
+   `GEN` call cost per question at k = 3 and k = 5 (list prices, from the cached usage).
+4. Paired differences (paired bootstrap over questions, 2000 resamples, seed 0) k = 5 minus k = 3
+   and k = 5 minus full context, strict and lenient, with the counts of questions gained and lost.
+5. Gold coverage and, among the strict-`yes` k = 3 answers, how many are lost at k = 5.
+
+**Adoption rule (fixed here):** k = 5 (budget 20 000) becomes the default of `ragkit answer` only if
+for **both** retrievers (a) the always-answer strict paired difference k = 5 minus k = 3 has a 95 %
+CI lower bound above 0, and (b) `unanswerable answered` under `reader` and `stack` does not rise
+above its k = 3 value. Otherwise `ARTICLE_K` stays 3 and k = 5 is a documented option
+(`--articles 5 --budget 20000`). Gate-level differences are reported but do not enter the rule.
+
+Predictions (before any k = 5 call):
+
+- M1 The net strict gain k = 5 minus k = 3 is at most +4 questions for both retrievers (the
+  gold-coverage ceiling is +3 and +2).
+- M2 The lower bound of the strict paired difference is not above 0 for at least one retriever,
+  so k = 5 is not adopted.
+- M3 k = 5 stays below full context: the strict difference k = 5 minus FC is negative with a CI
+  upper bound below 0 for both retrievers.
+- M4 At least one question that k = 3 answers `yes` is not `yes` at k = 5 for at least one
+  retriever (more articles, more distractors).
+- M5 The recorded `GEN` cost per question rises by 15 to 30 % (default) and 8 to 20 %
+  (`hybrid+ce`), following the token counts above.

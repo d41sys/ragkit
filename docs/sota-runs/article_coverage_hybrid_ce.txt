@@ -1,0 +1,12 @@
+
+### ragkit generation --coverage-only (hybrid+ce)
+
+42 answerable and 45 unanswerable questions; retrieval only, no LLM call. Gold coverage = answerable questions whose context holds a gold article.
+
+Top-5 chunks (the ceiling of any k, since the articles are taken from these chunks): 36 of 42.
+
+| k | budget (est. tokens) | gold article in context | mean context tokens (all 87) | max | contexts different from k = 3 (answerable / all) |
+|---|---|---|---|---|---|
+| 3 | 12000 | 34 of 42 | 3232 | 5769 | 0 / 0 |
+| 4 | 20000 | 34 of 42 | 3680 | 7607 | 14 / 38 |
+| 5 | 20000 | 36 of 42 | 3858 | 7607 | 14 / 38 |
