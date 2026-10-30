@@ -28,6 +28,7 @@ from ragkit.abstention import (
     paired_auroc_ci,
     risk_at_coverage,
 )
+from ragkit.articlebench import cite_mask, render_article_report, run_article_generation
 from ragkit.beir import (
     BEIR_DATASETS,
     DEFAULT_BEIR_DIR,
@@ -60,6 +61,7 @@ from ragkit.eval import (
     wilson_interval,
 )
 from ragkit.genbench import (
+    build_reader_subset,
     decide,
     items_from_records,
     offline_reader_scorers,
@@ -81,6 +83,7 @@ from ragkit.lexical_explain import render_explanation
 from ragkit.llm import MODEL, CachedMessages
 from ragkit.modelsignals import DEFAULT_CACHE, MODEL_SIGNALS, ModelScorers, load_model_scorers
 from ragkit.nokw import load_index, render_rule_status
+from ragkit.parent import ARTICLE_BUDGET_TOKENS, ARTICLE_K, parent_articles
 from ragkit.pipeline import ABSTAIN_TEXT, DEFAULT_MIN_SUPPORT, RAGPipeline, query_support
 from ragkit.rerank import LexicalReranker
 from ragkit.rewrite import HyDERewriter, TemplateLLM
@@ -1012,6 +1015,7 @@ def cmd_legalbench(args: argparse.Namespace) -> int:
 DEFAULT_LLM_CACHE = Path(".ragkit") / "llm_cache.jsonl"
 GENERATION_CACHE = Path("data/llm_cache/generation.jsonl")
 READER_CACHE = Path("data/llm_cache/reader_scores.json")
+READER_CACHE_HCE = Path("data/llm_cache/reader_scores_hybrid_ce.json")
 
 
 def _llm_client(model: str, cache: str) -> CachedMessages:
@@ -1019,19 +1023,60 @@ def _llm_client(model: str, cache: str) -> CachedMessages:
     return CachedMessages(Path(cache), api_key=os.environ.get("ANTHROPIC_API_KEY", ""), model=model)
 
 
+def _add_context_args(parser: argparse.ArgumentParser) -> None:
+    """``--context`` and the frozen parent-document parameters (docs/generation_protocol.md)."""
+    parser.add_argument(
+        "--context",
+        choices=("chunk", "article"),
+        default="chunk",
+        help="chunk (default): the retrieved chunks; article: the full text of their distinct "
+        "parent articles in rank order (parent-document / small-to-big, Phase L).",
+    )
+    parser.add_argument(
+        "--articles",
+        type=int,
+        default=ARTICLE_K,
+        help="--context article: number of distinct parent articles (frozen: 3).",
+    )
+    parser.add_argument(
+        "--budget",
+        type=int,
+        default=ARTICLE_BUDGET_TOKENS,
+        help="--context article: token budget of the articles, chars/4 (frozen: 12000).",
+    )
+
+
+def _reader_cache_path(args: argparse.Namespace) -> Path | None:
+    """The reader-score file of a generation run (hybrid+ce has one only for Phase L)."""
+    if args.reader_cache:
+        return Path(args.reader_cache)
+    if args.retriever == "default":
+        return READER_CACHE
+    if args.context == "article" or args.build_reader_cache:
+        return READER_CACHE_HCE
+    return None
+
+
 def cmd_answer(args: argparse.Namespace) -> int:
     """Retrieve, optionally gate on sufficient context, then answer with article citations."""
     ds = _resolve_dataset(args)
     pipeline = _make_pipeline(args.retriever, 0.0)
-    pipeline.index_documents(_load_documents(ds.corpus_dir))
+    documents = _load_documents(ds.corpus_dir)
+    pipeline.index_documents(documents)
     passages = [Passage(c.doc_id, c.text) for c in pipeline.retrieve(args.query, args.top_k)]
+    context = (
+        parent_articles(passages, dict(documents), k=args.articles, budget_tokens=args.budget)
+        if args.context == "article"
+        else passages
+    )
     answerer = LLMAnswerer(_llm_client(args.llm, args.cache))
     print(f"Question: {args.query}\n")
+    # The sufficiency check keeps seeing the retrieved chunks, as in the K-R2 experiment.
     suff = answerer.sufficiency(args.query, passages) if args.gate == "suff" else None
     if suff is not None:
         print(f"Sufficient context: {suff.sufficient} (confidence {suff.confidence:.0f}/100)")
         print(f"  {suff.reasoning}\n")
-    answer = answerer.generate(args.query, passages)
+    answer = answerer.generate(args.query, context)
     abstain = (suff is not None and not suff.sufficient) or (
         args.gate == "self" and not answer.supports
     )
@@ -1046,35 +1091,78 @@ def cmd_answer(args: argparse.Namespace) -> int:
 
 
 def cmd_generation(args: argparse.Namespace) -> int:
-    """K-R2 on the 42 + 45 EU questions (docs/generation_protocol.md); replays the cache."""
+    """K-R2 on the 42 + 45 EU questions (docs/generation_protocol.md); replays the cache.
+
+    ``--context article`` is Phase L: the same questions, answered from whole parent articles.
+    """
     ds = BUNDLED_DATASETS["eu"]
     documents = _load_documents(ds.corpus_dir)
     items = items_from_records(_read_jsonl(ds.qa_path), _read_jsonl(ds.unanswerable_path))
     pipeline = _make_pipeline(args.retriever, 0.0)
     passages = retrieve_passages(pipeline, documents, items, top_k=5)
-    reader_path = Path(args.reader_cache)
+    reader_path = _reader_cache_path(args)
     if args.build_reader_cache:
-        n = subset_score_cache(Path(args.build_reader_cache), reader_path, items, passages)
+        assert reader_path is not None
+        if args.compute_reader:
+            scorers = load_model_scorers(Path(args.build_reader_cache))
+            n = build_reader_subset(reader_path, items, passages, scorers)
+        else:
+            n = subset_score_cache(Path(args.build_reader_cache), reader_path, items, passages)
         print(f"Wrote {n} reader scores to {reader_path}")
         return 0
+    article = args.context == "article"
+    if article and args.no_fullcontext:
+        print("Error: --context article needs the full-context records", file=sys.stderr)
+        return 2
     client = CachedMessages(
         Path(args.cache),
         api_key=os.environ.get("ANTHROPIC_API_KEY", "") if args.live else "",
     )
+    answerer = LLMAnswerer(client)
     records = run_generation(
         items,
         passages,
         documents,
-        LLMAnswerer(client),
+        answerer,
         full_context=not args.no_fullcontext,
         workers=args.workers,
     )
     reader = (
         reader_scores(offline_reader_scorers(reader_path), items, passages)
-        if args.retriever == "default"
+        if reader_path is not None
         else None
     )
     decisions = decide(records, reader)
+    if article:
+        if reader is None:
+            print("Error: --context article needs reader scores (--reader-cache)", file=sys.stderr)
+            return 2
+        article_records = run_article_generation(
+            records,
+            documents,
+            answerer,
+            cite_mask(decisions).tolist(),
+            k=args.articles,
+            budget_tokens=args.budget,
+            workers=args.workers,
+        )
+        title = f"ragkit generation --context article: parent articles ({args.retriever})"
+        print()
+        print(
+            render_article_report(
+                records,
+                article_records,
+                decisions,
+                client,
+                answerer,
+                documents,
+                title=title,
+                k=args.articles,
+                budget_tokens=args.budget,
+                l1_threshold=30 if args.retriever == "default" else 32,
+            )
+        )
+        return 0
     title = f"ragkit generation: EU answers, sufficient-context gates (retriever {args.retriever})"
     print()
     print(render_generation(records, decisions, client, title=title))
@@ -1296,6 +1384,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_ans.add_argument("query", help="Question text.")
     _add_dataset_args(p_ans, questions=False)
     p_ans.add_argument("--top-k", type=int, default=5, help="Number of retrieved chunks.")
+    _add_context_args(p_ans)
     p_ans.add_argument(
         "--retriever",
         choices=("default", "dense", "hybrid", "hybrid+ce"),
@@ -1325,7 +1414,19 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="default = shipped pipeline (reader signal available); hybrid+ce = secondary run.",
     )
     p_gen.add_argument("--cache", default=str(GENERATION_CACHE), help="JSONL call cache.")
-    p_gen.add_argument("--reader-cache", default=str(READER_CACHE), help="Reader score cache.")
+    _add_context_args(p_gen)
+    p_gen.add_argument(
+        "--compute-reader",
+        action="store_true",
+        help="With --build-reader-cache: run the SQuAD2 reader on the retrieved chunks (needs "
+        "`[st]`) and write only the qa_answerable scores, instead of copying from a score cache.",
+    )
+    p_gen.add_argument(
+        "--reader-cache",
+        default=None,
+        help="Reader score cache (default: data/llm_cache/reader_scores.json for the default "
+        "retriever; the hybrid+ce file with --context article).",
+    )
     p_gen.add_argument(
         "--live", action="store_true", help="Allow API calls (needs ANTHROPIC_API_KEY)."
     )
@@ -1334,7 +1435,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_gen.add_argument(
         "--build-reader-cache",
         default=None,
-        help="Copy the needed reader scores from this score cache into --reader-cache and exit.",
+        help="Copy the needed reader scores from this score cache into --reader-cache and exit "
+        "(with --compute-reader, this file is the score cache the reader fills).",
     )
 
     # Fetch-EU command

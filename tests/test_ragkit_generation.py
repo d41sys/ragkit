@@ -1,17 +1,25 @@
 """Tests for the cached Messages client, the LLM calls and the K-R2 report (no key, no network)."""
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pytest
 
+from ragkit.articlebench import (
+    cite_mask,
+    render_article_report,
+    run_article_generation,
+    says_context_gap,
+)
 from ragkit.cli import _load_documents, main
 from ragkit.genbench import (
     Item,
     balacc_ci,
     balanced_accuracy,
+    build_reader_subset,
     decide,
     items_from_records,
     offline_reader_scorers,
@@ -30,7 +38,17 @@ from ragkit.generation import (
     parse_json_object,
 )
 from ragkit.llm import CachedMessages, CacheMiss, request_key, usage_cost
-from ragkit.modelsignals import CE_MODEL, CE_REVISION, QA_MODEL, QA_REVISION, ScoreCache, _key
+from ragkit.modelsignals import (
+    CE_MODEL,
+    CE_REVISION,
+    QA_MODEL,
+    QA_REVISION,
+    CachedScorer,
+    ModelScorers,
+    ScoreCache,
+    _key,
+)
+from ragkit.parent import CHARS_PER_TOKEN, estimate_tokens, parent_articles
 from ragkit.pipeline import RAGPipeline
 
 USAGE = {"input_tokens": 1000, "output_tokens": 100}
@@ -297,3 +315,150 @@ def test_answer_cli_replays_a_prefilled_cache_without_a_key(
     assert exc.value.code == 0
     out = capsys.readouterr().out
     assert "Sufficient context:" in out and "Answer:" in out
+
+
+# ---------------------------------------------------------------------------------------------
+# Phase L: parent-document (article) context
+# ---------------------------------------------------------------------------------------------
+
+ARTICLES = {"a1": "A" * 400, "a2": "B" * 800, "a3": "C" * 4000, "a4": "D" * 40}
+
+
+def test_parent_articles_are_distinct_in_rank_order_and_limited_to_k() -> None:
+    chunks = [Passage(i, "x") for i in ("a2", "a1", "a2", "a3", "a4")]
+    got = parent_articles(chunks, ARTICLES, k=3, budget_tokens=10_000)
+    assert [p.article_id for p in got] == ["a2", "a1", "a3"]
+    assert got[0].text == ARTICLES["a2"]  # the whole article, not a chunk
+    assert [p.article_id for p in parent_articles(chunks, ARTICLES, k=1)] == ["a2"]
+
+
+def test_parent_articles_budget_drops_later_articles_and_cuts_only_the_first() -> None:
+    chunks = [Passage(i, "x") for i in ("a1", "a3", "a4")]
+    # a1 = 100 tokens, a3 = 1000 tokens, a4 = 10 tokens: a3 does not fit, so a4 is not reached
+    assert [p.article_id for p in parent_articles(chunks, ARTICLES, k=3, budget_tokens=500)] == [
+        "a1"
+    ]
+    first_too_big = parent_articles(
+        [Passage("a3", "x"), Passage("a1", "x")], ARTICLES, budget_tokens=50
+    )
+    assert [p.article_id for p in first_too_big] == ["a3"]
+    assert len(first_too_big[0].text) == 50 * CHARS_PER_TOKEN
+    with pytest.raises(ValueError):
+        parent_articles(chunks, ARTICLES, k=0)
+    assert estimate_tokens("abcde") == 2
+
+
+def test_context_gap_phrases() -> None:
+    assert says_context_gap("The passages cut off after point (a).")
+    assert says_context_gap("The text of that paragraph is not provided.")
+    assert says_context_gap("The passages do not say how often.")
+    assert not says_context_gap("The deadline is 31 December 2025.")
+
+
+def _article_setup(tmp_path: Path) -> tuple[list[Any], Any, LLMAnswerer, CachedMessages]:
+    items = [Item(f"wanted {i}", True, f"ref {i}", ("art1",)) for i in range(6)]
+    items += [Item(f"nothing {i}", False, kind="national_rule") for i in range(6)]
+    passages = [[Passage("art1" if i % 2 == 0 else "art2", f"p{i}")] for i in range(12)]
+    client = _client(tmp_path)
+    answerer = LLMAnswerer(client)
+    records = run_generation(items, passages, DOCS, answerer, workers=2)
+    reader = np.array([3.0, 2.5, 2.0, -1.0, 3.5, 1.0, -2.0, -3.0, 0.5, -4.0, -2.5, -3.5])
+    return records, decide(records, reader), answerer, client
+
+
+def test_article_generation_shows_whole_articles_and_reuses_the_chunk_calls(
+    tmp_path: Path,
+) -> None:
+    records, decisions, answerer, client = _article_setup(tmp_path)
+    before = {k: sum(1 for r in client.records.values() if r["kind"] == k) for k in ("SUFF", "FC")}
+    mask = cite_mask(decisions).tolist()
+    article = run_article_generation(records, DOCS, answerer, mask, workers=2)
+    after = {k: sum(1 for r in client.records.values() if r["kind"] == k) for k in ("SUFF", "FC")}
+    assert before == after  # no new SUFF or FC call
+    first = article[0]
+    assert [p.article_id for p in first.passages] == ["art1"]
+    assert first.passages[0].text == "Article one text"
+    assert first.suff is records[0].suff and first.correct_fc is records[0].correct_fc
+    assert first.correct_gen is not None and first.cites_gen is not None
+    # an unanswerable question that no gate answers gets no CITE judgement
+    skipped = [i for i, ok in enumerate(mask) if not ok]
+    assert skipped and all(article[i].cites_gen is None for i in skipped)
+    assert all(article[i].correct_gen is None for i in range(6, 12))
+
+
+def test_article_report_has_every_section(tmp_path: Path) -> None:
+    records, decisions, answerer, client = _article_setup(tmp_path)
+    article = run_article_generation(records, DOCS, answerer, cite_mask(decisions).tolist())
+    text = render_article_report(
+        records,
+        article,
+        decisions,
+        client,
+        answerer,
+        DOCS,
+        title="T",
+        k=3,
+        budget_tokens=12_000,
+        l1_threshold=30,
+    )
+    for needle in (
+        "strict",
+        "lenient",
+        "article RAG - chunk RAG",
+        "Context-gap answers",
+        "FC citation audit",
+        "Random sample",
+        "L1 ",
+        "L5 ",
+        "Decision rule (this retriever)",
+    ):
+        assert needle in text
+
+
+def test_reader_scores_need_only_the_reader_and_a_subset_builds_from_a_real_scorer(
+    tmp_path: Path,
+) -> None:
+    class Reader:
+        scorer_id = f"{QA_MODEL}@{QA_REVISION}"
+
+        def score(self, question: str, passages: Sequence[str]) -> list[float]:
+            return [float(len(p)) for p in passages]
+
+    class Relevance(Reader):
+        scorer_id = f"{CE_MODEL}@{CE_REVISION}"
+
+        def score(self, question: str, passages: Sequence[str]) -> list[float]:
+            raise AssertionError("the cross-encoder must not run for the reader gate")
+
+    source = ScoreCache(tmp_path / "src.json")
+    scorers = ModelScorers(
+        relevance=CachedScorer(Relevance(), source),
+        answerability=CachedScorer(Reader(), source),
+        cache=source,
+    )
+    items = [Item("q one", True), Item("q two", False)]
+    passages = [[Passage("a", "xx"), Passage("a", "xxxx")], [Passage("b", "xxx")]]
+    out = tmp_path / "sub.json"
+    assert build_reader_subset(out, items, passages, scorers) == 3
+    assert (tmp_path / "src.json").is_file()
+    offline = offline_reader_scorers(out)  # QA-only file: the CE scorer is never asked
+    assert reader_scores(offline, items, passages).tolist() == [4.0, 3.0]
+
+
+def test_answer_cli_article_context_sends_whole_articles(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from ragkit.cli import DEFAULT_CORPUS_DIR
+
+    query = "What is imbalance settlement?"
+    documents = _load_documents(DEFAULT_CORPUS_DIR)
+    chunks = retrieve_passages(RAGPipeline(), documents, [Item(query, True)], top_k=5)[0]
+    context = parent_articles(chunks, dict(documents))
+    assert 1 <= len(context) <= 3 and len({p.article_id for p in context}) == len(context)
+    cache = tmp_path / "llm.jsonl"
+    LLMAnswerer(CachedMessages(cache, api_key="k", transport=FakeApi())).generate(query, context)
+    with pytest.raises(SystemExit) as exc:
+        main(["answer", query, "--cache", str(cache), "--context", "article"])
+    assert exc.value.code == 0  # replayed from the cache: the request used the article context
+    assert "Answer:" in capsys.readouterr().out

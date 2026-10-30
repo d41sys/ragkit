@@ -120,7 +120,7 @@ def retrieve_passages(
 # ---------------------------------------------------------------------------------------------
 
 
-def _judge_citations(
+def judge_citations(
     answerer: LLMAnswerer,
     item: Item,
     answer: GenAnswer,
@@ -173,11 +173,11 @@ def run_generation(
             rec.correct_gen = answerer.judge_correct(item.question, item.reference, gen.answer)
             if full is not None:
                 rec.correct_fc = answerer.judge_correct(item.question, item.reference, full.answer)
-        rec.cites_gen = _judge_citations(
+        rec.cites_gen = judge_citations(
             answerer, item, gen, {p.article_id for p in rec.passages}, articles
         )
         if full is not None:
-            rec.cites_fc = _judge_citations(answerer, item, full, set(articles), articles)
+            rec.cites_fc = judge_citations(answerer, item, full, set(articles), articles)
         return rec
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -229,14 +229,41 @@ def subset_score_cache(
 def reader_scores(
     scorers: ModelScorers, items: Sequence[Item], passages: Sequence[Sequence[Passage]]
 ) -> FloatArray:
-    """``qa_answerable`` of every question on its retrieved chunk texts."""
+    """``qa_answerable`` (max SQuAD2 reader score) of every question on its chunk texts."""
     return np.asarray(
         [
-            scorers.signals(item.question, [p.text for p in psg])["qa_answerable"]
+            max(scorers.answerability.score(item.question, [p.text for p in psg]), default=0.0)
             for item, psg in zip(items, passages, strict=True)
         ],
         dtype=np.float64,
     )
+
+
+def build_reader_subset(
+    destination: Path,
+    items: Sequence[Item],
+    passages: Sequence[Sequence[Passage]],
+    scorers: ModelScorers,
+) -> int:
+    """Run the real reader on these chunks and write only their ``qa_answerable`` scores.
+
+    ``scorers`` come from ``load_model_scorers`` (its cache file keeps every score); the
+    destination holds just the entries these questions need, so it replays offline.
+    """
+    if scorers.cache is None:
+        raise ValueError("scorers need a score cache")
+    qa_id = f"{QA_MODEL}@{QA_REVISION}"
+    wanted: dict[str, float] = {}
+    for item, psg in zip(items, passages, strict=True):
+        texts = [p.text for p in psg]
+        scorers.answerability.score(item.question, texts)
+        for text in texts:
+            key = _key(qa_id, item.question, text)
+            wanted[key] = scorers.cache.data[key]
+    scorers.save()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(wanted, sort_keys=True))
+    return len(wanted)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -317,7 +344,7 @@ def paired_balacc_ci(
     return balanced_accuracy(a, labels) - balanced_accuracy(b, labels), float(lo), float(hi)
 
 
-def _verdicts(records: Sequence[Record], source: str) -> list[str | None]:
+def verdicts_of(records: Sequence[Record], source: str) -> list[str | None]:
     out: list[str | None] = []
     for r in records:
         v = r.correct_fc if source == "fc" else r.correct_gen
@@ -327,7 +354,7 @@ def _verdicts(records: Sequence[Record], source: str) -> list[str | None]:
 
 def correct_flags(records: Sequence[Record], source: str) -> np.ndarray[Any, Any]:
     """Per question: judged ``yes`` (answerable only; False elsewhere)."""
-    return np.array([v == "yes" for v in _verdicts(records, source)], dtype=np.bool_)
+    return np.array([v == "yes" for v in verdicts_of(records, source)], dtype=np.bool_)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -335,12 +362,12 @@ def correct_flags(records: Sequence[Record], source: str) -> np.ndarray[Any, Any
 # ---------------------------------------------------------------------------------------------
 
 
-def _rate(hit: int, total: int) -> str:
+def format_rate(hit: int, total: int) -> str:
     lo, hi = wilson_interval(hit, total)
     return f"{hit}/{total} ({hit / max(1, total):.2f}) [{lo:.2f}, {hi:.2f}]"
 
 
-def _signed(t: tuple[float, float, float]) -> str:
+def format_signed(t: tuple[float, float, float]) -> str:
     return f"{t[0]:+.3f} [{t[1]:+.3f}, {t[2]:+.3f}]"
 
 
@@ -419,17 +446,17 @@ def render_generation(
     lines += [head, "|---|---|---|---|---|---|---|---|"]
     for system, answered in decisions.answered.items():
         ya, _, yu, _ = accept_counts(answered, labels)
-        verdicts = _verdicts(records, _source_of(system))
+        verdicts = verdicts_of(records, _source_of(system))
         yes = sum(1 for i in ans_idx if answered[i] and verdicts[i] == "yes")
         partial = sum(1 for i in ans_idx if answered[i] and verdicts[i] == "partial")
         bal = balacc_ci(answered, labels)
         if base is None or system == "reader":
             delta = "baseline" if system == "reader" else "-"
         else:
-            delta = _signed(paired_balacc_ci(answered, base, labels))
+            delta = format_signed(paired_balacc_ci(answered, base, labels))
         lines.append(
-            f"| `{system}` | {_rate(n_u - yu, n_u)} | {_rate(n_a - ya, n_a)} "
-            f"| {bal[0]:.3f} [{bal[1]:.3f}, {bal[2]:.3f}] | {delta} | {_rate(yes, n_a)} "
+            f"| `{system}` | {format_rate(n_u - yu, n_u)} | {format_rate(n_a - ya, n_a)} "
+            f"| {bal[0]:.3f} [{bal[1]:.3f}, {bal[2]:.3f}] | {delta} | {format_rate(yes, n_a)} "
             f"| {partial} | {yes}/{max(1, ya)} |"
         )
     lines += [
@@ -466,7 +493,7 @@ def render_generation(
     lines += ["", "**Full context vs RAG (accuracy on the answerable questions, LLM-judged)**", ""]
     lines += _fullctx_lines(records, decisions)
     lines += ["", "**Calls and cost (assumed list prices)**", ""]
-    lines += _cost_lines(client)
+    lines += cost_lines(client)
     lines += ["", "**Pre-registered predictions and decision rule**", ""]
     lines += _prediction_lines(records, decisions)
     return "\n".join(lines)
@@ -494,11 +521,11 @@ def _fullctx_lines(records: Sequence[Record], decisions: Decisions) -> list[str]
     for label, system, ok in rows:
         flags = [bool(ok[i] and (system is None or decisions.answered[system][i])) for i in idx]
         d = paired_bootstrap_ci([float(f) for f in flags], [float(r) for r in ref])
-        lines.append(f"| {label} | {_rate(sum(flags), len(idx))} | {_signed(d)} |")
+        lines.append(f"| {label} | {format_rate(sum(flags), len(idx))} | {format_signed(d)} |")
     return lines
 
 
-def _cost_lines(client: CachedMessages) -> list[str]:
+def cost_lines(client: CachedMessages) -> list[str]:
     records = list(client.records.values())
     totals = usage_totals(records)
     lines = [
@@ -580,7 +607,7 @@ def _prediction_lines(records: Sequence[Record], decisions: Decisions) -> list[s
         )
         diff = paired_balacc_ci(d["suff"], d["reader"], labels)
         out.append(
-            f"- Decision rule: balanced accuracy `suff` minus `reader` {_signed(diff)}; "
+            f"- Decision rule: balanced accuracy `suff` minus `reader` {format_signed(diff)}; "
             + (
                 "CI lower bound above 0: the sufficiency check is adopted as the `--llm` gate."
                 if diff[1] > 0
@@ -590,5 +617,7 @@ def _prediction_lines(records: Sequence[Record], decisions: Decisions) -> list[s
         )
         for system in ("stack", "strict", "lenient"):
             sec = paired_balacc_ci(d[system], d["reader"], labels)
-            out.append(f"- secondary: `{system}` minus `reader` balanced accuracy {_signed(sec)}.")
+            out.append(
+                f"- secondary: `{system}` minus `reader` balanced accuracy {format_signed(sec)}."
+            )
     return out
