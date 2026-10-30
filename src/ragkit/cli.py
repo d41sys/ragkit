@@ -975,6 +975,93 @@ def cmd_neural(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_retrieval_miss(args: argparse.Namespace) -> int:
+    """Study of why six gold articles miss the top-5 chunks (docs/retrieval_miss_protocol.md)."""
+    from ragkit.modelsignals import CE_MODEL, CE_REVISION, CrossEncoderScorer
+    from ragkit.neural import bge_small, default_device
+    from ragkit.retrievalmiss import (
+        Tuning,
+        build_indexes,
+        diagnose,
+        dump_json,
+        render_diagnosis,
+        render_heldout,
+        render_tuning,
+        run_heldout,
+        tune,
+    )
+
+    device = args.device or default_device()
+    cache_dir = Path(args.cache_dir)
+    bge_on = bge_small(device)
+    bge_off = bge_on.with_query_prefix("")
+    ce = CrossEncoderScorer(CE_MODEL, CE_REVISION, device=device)
+
+    eu_docs = _load_documents(EU_CORPUS_DIR)
+    syn_docs = _load_documents(DEFAULT_CORPUS_DIR)
+    eu_indexes = build_indexes(eu_docs, bge_on, bge_off, ce, cache_dir)
+    syn_indexes = build_indexes(syn_docs, bge_on, bge_off, ce, cache_dir)
+
+    def load(path: Path) -> list[Question]:
+        return questions_from_records(_read_jsonl(path))
+
+    fresh_qs = load(EU_FRESH_QA_PATH)
+    syn_qs = load(DEFAULT_QA_PATH)
+    tuning_path = Path(args.tuning_json)
+
+    def emit(text: str) -> None:
+        print()
+        print(text)
+        if args.out:
+            out = Path(args.out)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(text + "\n", encoding="utf-8")
+
+    if args.action == "tune":
+        tuning = tune(eu_indexes, syn_indexes, fresh_qs, syn_qs)
+        dump_json(tuning_path, tuning.to_json())
+        emit(render_tuning(tuning))
+        return 0
+
+    if not tuning_path.is_file():
+        print(
+            f"Error: tuning JSON not found at {tuning_path}.\n"
+            "Run `ragkit retrieval-miss tune` first.",
+            file=sys.stderr,
+        )
+        return 2
+    tuning = Tuning.from_json(json.loads(tuning_path.read_text(encoding="utf-8")))
+
+    heldout_sets = {
+        "original 42": load(EU_QA_PATH),
+        "hard 39": load(EU_HARD_QA_PATH),
+        "keyword-free 49": load(EU_NOKW_QA_PATH),
+    }
+
+    if args.action == "score":
+        run = run_heldout(eu_indexes, syn_indexes, heldout_sets, syn_qs, tuning)
+        emit(render_heldout(run, tuning))
+        return 0
+
+    if args.action == "diagnose":
+        all_qs = [
+            *fresh_qs,
+            *heldout_sets["original 42"],
+            *heldout_sets["hard 39"],
+            *heldout_sets["keyword-free 49"],
+        ]
+        misses, sizes = diagnose(
+            heldout_sets, eu_indexes["chunk"], eu_indexes["article"], eu_docs, all_qs
+        )
+        from ragkit.retrievalmiss import length_bounds
+
+        emit(render_diagnosis(misses, sizes, length_bounds(all_qs), focus="original 42"))
+        return 0
+
+    raise ValueError(f"unknown action {args.action!r}")
+    return 0
+
+
 def cmd_beir(args: argparse.Namespace) -> int:
     """Retrievers on a BEIR test set (docs/beir_protocol.md); nDCG@10 and Recall@100."""
     if args.retriever != "bm25":
@@ -1436,6 +1523,21 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_neural.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
     p_neural.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
 
+    # Retrieval-miss diagnosis and candidate evaluation (protocol: docs/retrieval_miss_protocol.md)
+    p_rm = subparsers.add_parser(
+        "retrieval-miss",
+        help="Diagnose the 6/42 top-5 misses and evaluate candidate fixes on EU held-out sets.",
+    )
+    p_rm.add_argument("action", choices=("tune", "score", "diagnose"), help="Study stage to run.")
+    p_rm.add_argument(
+        "--tuning-json",
+        default="docs/sota-runs/retrieval_miss_tuning.json",
+        help="Tuned candidate configurations.",
+    )
+    p_rm.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
+    p_rm.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
+    p_rm.add_argument("--out", default=None, help="Write the report to this file as well.")
+
     # LLM answer command
     p_ans = subparsers.add_parser(
         "answer",
@@ -1560,6 +1662,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_answer(parsed))
     elif parsed.subcommand == "generation":
         sys.exit(cmd_generation(parsed))
+    elif parsed.subcommand == "retrieval-miss":
+        sys.exit(cmd_retrieval_miss(parsed))
 
 
 if __name__ == "__main__":

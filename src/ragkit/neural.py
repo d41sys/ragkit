@@ -9,6 +9,7 @@ of the fused or BM25 top ``depth``. Rankings are lists of ``(unit index, score)`
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import re
 from collections import defaultdict
@@ -132,6 +133,13 @@ class SentenceEmbedder:
         vec: np.ndarray = self.embed_queries([text])[0]
         return vec
 
+    def with_query_prefix(self, prefix: str) -> SentenceEmbedder:
+        """A copy that shares this embedder's loaded model but uses another query prefix."""
+        clone = copy.copy(self)
+        clone._model = self._load()
+        clone.query_prefix = prefix
+        return clone
+
 
 def bge_small(device: str | None = None) -> SentenceEmbedder:
     """``BAAI/bge-small-en-v1.5`` with its retrieval query instruction."""
@@ -229,10 +237,15 @@ class DenseSide:
             for q, vec in zip(todo, self.embedder.embed_queries(todo), strict=True):
                 self.queries[q] = vec
 
+    def unit_scores(self, query: str) -> np.ndarray:
+        """Score of every unit for an already prepared query (cosine; overridden for pooling)."""
+        scores: np.ndarray = self.matrix @ self.queries[query]
+        return scores
+
     def search(self, query: str, k: int, exclude: int | None = None) -> Hits:
         """Top ``k`` units by cosine (units are unit-norm), best first."""
         self.prepare([query])
-        scores = self.matrix @ self.queries[query]
+        scores = self.unit_scores(query)
         want = k + 1 if exclude is not None else k
         want = min(want, len(scores))
         top = np.argpartition(-scores, want - 1)[:want] if want < len(scores) else np.arange(want)
