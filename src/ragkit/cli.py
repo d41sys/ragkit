@@ -32,6 +32,7 @@ from ragkit.articlebench import (
     cite_mask,
     render_article_report,
     render_coverage,
+    render_k_report,
     run_article_generation,
 )
 from ragkit.beir import (
@@ -1146,6 +1147,7 @@ def cmd_generation(args: argparse.Namespace) -> int:
         api_key=os.environ.get("ANTHROPIC_API_KEY", "") if args.live else "",
     )
     answerer = LLMAnswerer(client)
+    keys_before = set(client.records)
     records = run_generation(
         items,
         passages,
@@ -1164,15 +1166,40 @@ def cmd_generation(args: argparse.Namespace) -> int:
         if reader is None:
             print("Error: --context article needs reader scores (--reader-cache)", file=sys.stderr)
             return 2
+        cites = cite_mask(decisions).tolist()
         article_records = run_article_generation(
             records,
             documents,
             answerer,
-            cite_mask(decisions).tolist(),
+            [False] * len(cites) if args.no_cite else cites,
             k=args.articles,
             budget_tokens=args.budget,
             workers=args.workers,
         )
+        if (args.articles, args.budget) != (ARTICLE_K, ARTICLE_BUDGET_TOKENS):
+            # Post-hoc sensitivity analysis (Phase L addendum): the cached k = 3 run is the base.
+            base_records = run_article_generation(
+                records, documents, answerer, cites, workers=args.workers
+            )
+            print()
+            print(
+                render_k_report(
+                    records,
+                    base_records,
+                    article_records,
+                    decisions,
+                    client,
+                    answerer,
+                    title=f"ragkit generation --context article --articles {args.articles}: "
+                    f"post-hoc k comparison ({args.retriever})",
+                    k_base=ARTICLE_K,
+                    k_new=args.articles,
+                    budget_new=args.budget,
+                    keys_before=keys_before,
+                    m5_range=(0.15, 0.30) if args.retriever == "default" else (0.08, 0.20),
+                )
+            )
+            return 0
         title = f"ragkit generation --context article: parent articles ({args.retriever})"
         print()
         print(
@@ -1470,6 +1497,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         action="store_true",
         help="Print the retrieval-only gold coverage of article contexts at k = 3, 4, 5 (no LLM "
         "call, no cache) and exit.",
+    )
+    p_gen.add_argument(
+        "--no-cite",
+        action="store_true",
+        help="--context article: make no new CITE call for the --articles run (the budget stage "
+        "of the post-hoc k = 5 analysis).",
     )
 
     # Fetch-EU command

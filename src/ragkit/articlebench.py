@@ -30,7 +30,7 @@ from ragkit.genbench import (
     verdicts_of,
 )
 from ragkit.generation import LLMAnswerer, Passage
-from ragkit.llm import CachedMessages
+from ragkit.llm import CachedMessages, usage_cost
 from ragkit.parent import ARTICLE_BUDGET_TOKENS, ARTICLE_K, estimate_tokens, parent_articles
 
 # Fixed before the scored run (docs/generation_protocol.md, Phase L): a text match, no judge.
@@ -524,5 +524,211 @@ def render_article_report(
             if d_chunk[1] > 0
             else "lower bound not above 0: article context does not pass for this retriever."
         ),
+    ]
+    return "\n".join(lines)
+
+
+def _gen_costs(answerer: LLMAnswerer, records: Sequence[Record]) -> list[float | None]:
+    """Recorded USD of each record's first-attempt ``GEN`` call (``None`` if not cached)."""
+    out: list[float | None] = []
+    for rec in records:
+        usage = answerer.gen_usage(rec.item.question, rec.passages)
+        out.append(usage_cost(usage) if usage is not None else None)
+    return out
+
+
+def _mean_cost(costs: Sequence[float | None], where: Sequence[int]) -> float:
+    return float(np.mean([c for i in where if (c := costs[i]) is not None]))
+
+
+def render_k_report(
+    chunk_records: Sequence[Record],
+    base_records: Sequence[Record],
+    new_records: Sequence[Record],
+    decisions: Decisions,
+    client: CachedMessages,
+    answerer: LLMAnswerer,
+    *,
+    title: str,
+    k_base: int,
+    k_new: int,
+    budget_new: int,
+    keys_before: set[str],
+    m5_range: tuple[float, float],
+) -> str:
+    """Post-hoc sensitivity analysis: ``k_new`` parent articles against ``k_base``.
+
+    Protocol, adoption rule and predictions M1 to M5: ``docs/generation_protocol.md`` (Phase L
+    addendum). ``keys_before`` is the set of cache keys before this run, so the new spend is
+    measured from the records this run added.
+    """
+    labels = decisions.labels
+    idx = np.flatnonzero(labels)
+    n_a, n_u = len(idx), int((~labels).sum())
+    base, new = f"k = {k_base}", f"k = {k_new}"
+    contexts = {
+        f"article RAG, {base}": (base_records, "gen"),
+        f"article RAG, {new}": (new_records, "gen"),
+        "full context (FC)": (chunk_records, "fc"),
+    }
+    flags = {
+        (name, level): level_flags(recs, source, level)
+        for name, (recs, source) in contexts.items()
+        for level in LEVELS
+    }
+    f_base, f_new, f_fc = (f"{n}" for n in contexts)
+    differs = [b.passages != n.passages for b, n in zip(base_records, new_records, strict=True)]
+    changed, changed_a = sum(differs), sum(differs[i] for i in idx)
+    lines = [
+        f"### {title}",
+        "",
+        "POST-HOC sensitivity analysis (k = 5 was chosen after seeing the k = 3 misses on these "
+        "questions; docs/generation_protocol.md, Phase L addendum). "
+        f"{n_a} answerable and {n_u} unanswerable EU questions; model `{client.model}`; context: "
+        f"top-{k_new} distinct parent articles of the top-5 chunks, full text, budget "
+        f"{budget_new} estimated tokens. LLM-judged, no human check. CIs: Wilson for counts, "
+        "paired bootstrap over questions (2000 resamples, seed 0) for differences.",
+        "",
+        "**1. Gold coverage (retrieval only)**",
+        "",
+        f"Gold article in the context, of {n_a}: top-5 chunks "
+        f"{n_a - sum(r.retrieval_miss for r in chunk_records)}, {base} "
+        f"{n_a - sum(r.retrieval_miss for r in base_records)}, {new} "
+        f"{n_a - sum(r.retrieval_miss for r in new_records)}. Contexts changed from {base} to "
+        f"{new}: {changed_a} answerable, {changed} of {len(new_records)}.",
+        "",
+        "**2. Always-answer correctness on the answerable questions**",
+        "",
+        f"| Context | strict (of {n_a}) [Wilson 95%] | lenient (of {n_a}) [Wilson 95%] | `no` |",
+        "|---|---|---|---|",
+    ]
+    for name, (recs, source) in contexts.items():
+        verdicts = verdicts_of(recs, source)
+        no = sum(1 for i in idx if verdicts[i] == "no")
+        strict = int(flags[name, "strict"][idx].sum())
+        lenient = int(flags[name, "lenient"][idx].sum())
+        lines.append(
+            f"| {name} | {format_rate(strict, n_a)} | {format_rate(lenient, n_a)} | {no} |"
+        )
+    lines += [
+        "",
+        "| Paired difference | strict [95% CI] | lenient [95% CI] | strict: gained / lost |",
+        "|---|---|---|---|",
+    ]
+    for label, a, b in ((f"{new} - {base}", f_new, f_base), (f"{new} - full context", f_new, f_fc)):
+        cells = [_paired(flags[a, level], flags[b, level], idx) for level in LEVELS]
+        gained = int((flags[a, "strict"][idx] & ~flags[b, "strict"][idx]).sum())
+        lost = int((~flags[a, "strict"][idx] & flags[b, "strict"][idx]).sum())
+        lines.append(f"| {label} | {cells[0]} | {cells[1]} | {gained} / {lost} |")
+
+    lines += [
+        "",
+        "**3. Gates (decisions as in K-R2; the gate does not see the context, so unanswerable "
+        "answered is the same at both k by construction)**",
+        "",
+        f"| Gate | context | unanswerable answered (of {n_u}) | answerable wrongly abstained "
+        f"| correct strict (of {n_a}) | correct lenient (of {n_a}) "
+        f"| paired d strict vs {base} | paired d strict vs always-answer FC |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    fc_strict = flags[f_fc, "strict"]
+    for system in ("reader", "stack"):
+        answered = decisions.answered[system]
+        ya, _, yu, _ = accept_counts(answered, labels)
+        got_base = flags[f_base, "strict"] & answered
+        for label, name in ((base, f_base), (new, f_new)):
+            got = flags[name, "strict"] & answered
+            got_len = flags[name, "lenient"] & answered
+            vs_base = _paired(got, got_base, idx) if name == f_new else "-"
+            lines.append(
+                f"| `{system}` | {label} | {format_rate(n_u - yu, n_u)} "
+                f"| {format_rate(n_a - ya, n_a)} | {format_rate(int(got[idx].sum()), n_a)} "
+                f"| {format_rate(int(got_len[idx].sum()), n_a)} | {vs_base} "
+                f"| {_paired(got, fc_strict, idx)} |"
+            )
+
+    mask = [r.cites_gen is not None for r in new_records]
+    lines += ["", "**4. Citation support (LLM-judged, per cited article)**", ""]
+    if sum(mask):
+        same_base = _cite_counts(base_records, mask, "gen")
+        same_new = _cite_counts(new_records, mask, "gen")
+        lines += [
+            "| Context | answers | citations | yes | partial | no | invalid | yes rate |",
+            "|---|---|---|---|---|---|---|---|",
+            _cite_row(f"{base} (same {sum(mask)} questions)", same_base),
+            _cite_row(f"{new} (same {sum(mask)} questions)", same_new),
+        ]
+    else:
+        lines.append("`CITE` skipped for this run (budget); no citation rows for the new context.")
+
+    added = [r for key, r in client.records.items() if key not in keys_before]
+    spend = sum(usage_cost(r.get("usage", {})) for r in added)
+    by_kind: dict[str, tuple[int, float]] = {}
+    for r in added:
+        calls, cost = by_kind.get(str(r["kind"]), (0, 0.0))
+        by_kind[str(r["kind"])] = (calls + 1, cost + usage_cost(r.get("usage", {})))
+    gen_base = _gen_costs(answerer, base_records)
+    gen_new = _gen_costs(answerer, new_records)
+    every = list(range(len(new_records)))
+    answerable = idx.tolist()
+    rise = {
+        "all": _mean_cost(gen_new, every) / _mean_cost(gen_base, every) - 1.0,
+        "answerable": _mean_cost(gen_new, answerable) / _mean_cost(gen_base, answerable) - 1.0,
+    }
+    lines += [
+        "",
+        "**5. Cost (assumed list prices: 3 / 15 USD per M input / output tokens)**",
+        "",
+        f"New calls of this run: {len(added)} ({client.live_calls} live); spend "
+        f"{spend:.2f} USD = {spend / len(new_records):.4f} USD per question over the "
+        f"{len(new_records)} questions (on top of the {k_base}-article run, which is cached).",
+        "",
+        "| call | new calls | USD |",
+        "|---|---|---|",
+        *(f"| {kind} | {n} | {cost:.2f} |" for kind, (n, cost) in sorted(by_kind.items())),
+        "",
+        "`GEN` cost per question from the recorded usage of the first-attempt request:",
+        "",
+        f"| Context | all {len(new_records)} questions | {n_a} answerable |",
+        "|---|---|---|",
+        f"| {base} | {_mean_cost(gen_base, every):.4f} USD "
+        f"| {_mean_cost(gen_base, answerable):.4f} USD |",
+        f"| {new} | {_mean_cost(gen_new, every):.4f} USD "
+        f"| {_mean_cost(gen_new, answerable):.4f} USD |",
+        "",
+        f"Change: {rise['all']:+.1%} (all), {rise['answerable']:+.1%} (answerable). "
+        f"Cache total after this run: {len(client.records)} records, {client.spent():.2f} USD.",
+    ]
+
+    d_base = paired_bootstrap_ci(
+        [float(flags[f_new, "strict"][i]) for i in idx],
+        [float(flags[f_base, "strict"][i]) for i in idx],
+    )
+    d_fc = paired_bootstrap_ci(
+        [float(flags[f_new, "strict"][i]) for i in idx],
+        [float(flags[f_fc, "strict"][i]) for i in idx],
+    )
+    yes = {True: "yes", False: "no"}
+    lost_yes = int((~flags[f_new, "strict"][idx] & flags[f_base, "strict"][idx]).sum())
+    net = int(flags[f_new, "strict"][idx].sum()) - int(flags[f_base, "strict"][idx].sum())
+    rule_a = d_base[1] > 0
+    lo, hi = m5_range
+    lines += [
+        "",
+        "**6. Pre-registered predictions (this retriever) and adoption rule**",
+        "",
+        f"- M1 net strict gain {net:+d} questions (at most +4): " + yes[net <= 4],
+        f"- M2 lower bound of the strict paired difference {format_signed(d_base)} not above 0: "
+        + yes[not rule_a],
+        f"- M3 {new} - full context {format_signed(d_fc)}, upper bound below 0: "
+        + yes[d_fc[2] < 0],
+        f"- M4 strict `yes` at {base} that is not `yes` at {new}: {lost_yes} (at least 1): "
+        + yes[lost_yes >= 1],
+        f"- M5 `GEN` cost per question rises {rise['all']:+.1%} (all questions; predicted "
+        f"{lo:.0%} to {hi:.0%}): " + yes[lo <= rise["all"] <= hi],
+        f"- Adoption rule, this retriever: (a) strict paired lower bound above 0: {yes[rule_a]}; "
+        "(b) unanswerable answered not above its k = 3 value: yes (the gates ignore the "
+        "context). " + ("This retriever passes." if rule_a else "This retriever fails (a)."),
+        "- Adopt k = 5 as the default only if BOTH retrievers pass.",
     ]
     return "\n".join(lines)

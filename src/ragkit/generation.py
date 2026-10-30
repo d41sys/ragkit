@@ -19,7 +19,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ragkit.llm import CachedMessages
+from ragkit.llm import CachedMessages, request_key
 
 GEN_MAX_TOKENS = 1200
 JUDGE_MAX_TOKENS = 800
@@ -197,17 +197,27 @@ class LLMAnswerer:
             supports=_as_bool(parsed.get("context_supports")),
         )
 
+    @staticmethod
+    def _gen_request(
+        question: str, passages: Sequence[Passage]
+    ) -> tuple[list[dict[str, Any]], str]:
+        user = f"Context passages:\n\n{context_block(passages)}\n\nQuestion: {question}"
+        return [{"type": "text", "text": GEN_INSTRUCTIONS}], user
+
     def generate(self, question: str, passages: Sequence[Passage]) -> GenAnswer:
         """``GEN``: best-effort answer from the retrieved chunks."""
-        user = f"Context passages:\n\n{context_block(passages)}\n\nQuestion: {question}"
+        system, user = self._gen_request(question, passages)
         parsed = self._json(
-            "GEN",
-            [{"type": "text", "text": GEN_INSTRUCTIONS}],
-            user,
-            GEN_MAX_TOKENS,
-            ("answer", "citations", "context_supports"),
+            "GEN", system, user, GEN_MAX_TOKENS, ("answer", "citations", "context_supports")
         )
         return self._gen(parsed)
+
+    def gen_usage(self, question: str, passages: Sequence[Passage]) -> dict[str, int] | None:
+        """Token usage recorded for the first-attempt ``GEN`` request (``None`` if not cached)."""
+        system, user = self._gen_request(question, passages)
+        key = request_key(self.client.payload(system, user, GEN_MAX_TOKENS))
+        record = self.client.records.get(key)
+        return dict(record.get("usage", {})) if record is not None else None
 
     def sufficiency(self, question: str, passages: Sequence[Passage]) -> Sufficiency:
         """``SUFF``: is the retrieved context sufficient (question and chunks only)?"""

@@ -11,12 +11,15 @@ import pytest
 from ragkit.articlebench import (
     cite_mask,
     render_article_report,
+    render_coverage,
+    render_k_report,
     run_article_generation,
     says_context_gap,
 )
 from ragkit.cli import _load_documents, main
 from ragkit.genbench import (
     Item,
+    Record,
     balacc_ci,
     balanced_accuracy,
     build_reader_subset,
@@ -414,6 +417,59 @@ def test_article_report_has_every_section(tmp_path: Path) -> None:
         "Decision rule (this retriever)",
     ):
         assert needle in text
+
+
+def test_k_report_compares_with_the_base_and_prints_the_adoption_rule(tmp_path: Path) -> None:
+    records, decisions, answerer, client = _article_setup(tmp_path)
+    cites = cite_mask(decisions).tolist()
+    base = run_article_generation(records, DOCS, answerer, cites, k=1)
+    keys_before = set(client.records)
+    # a second chunk of another article changes the k = 2 context of every even question
+    wider = [
+        Record(r.item, [*r.passages, Passage("art2", "q")], r.gen, r.suff, r.fc, None, r.correct_fc)
+        for r in records
+    ]
+    new = run_article_generation(wider, DOCS, answerer, [False] * len(cites), k=2)
+    text = render_k_report(
+        records,
+        base,
+        new,
+        decisions,
+        client,
+        answerer,
+        title="T",
+        k_base=1,
+        k_new=2,
+        budget_new=20_000,
+        keys_before=keys_before,
+        m5_range=(0.0, 1.0),
+    )
+    for needle in (
+        "POST-HOC",
+        "k = 2 - k = 1",
+        "k = 2 - full context",
+        "`CITE` skipped",
+        "gained / lost",
+        "M1 ",
+        "M5 ",
+        "Adopt k = 5 as the default only if BOTH",
+    ):
+        assert needle in text
+    added = [r for key, r in client.records.items() if key not in keys_before]
+    assert added and all(r["kind"] in ("GEN", "CORRECT") for r in added)  # no CITE call
+
+
+def test_coverage_counts_gold_articles_per_k() -> None:
+    items = [Item("q1", True, "ref", ("art2",)), Item("q2", False)]
+    passages = [
+        [Passage("art1", "x"), Passage("art1", "y"), Passage("art2", "z")],
+        [Passage("art1", "x")],
+    ]
+    text = render_coverage(items, passages, DOCS, [(1, 12_000), (2, 20_000)], title="C")
+    assert "since the articles are taken from these chunks): 1 of 1" in text
+    assert "| 1 | 12000 | 0 of 1 |" in text
+    assert "| 2 | 20000 | 1 of 1 |" in text
+    assert "| 1 / 1 |" in text  # the one answerable context differs; the other question does not
 
 
 def test_reader_scores_need_only_the_reader_and_a_subset_builds_from_a_real_scorer(

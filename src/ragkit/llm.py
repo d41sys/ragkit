@@ -21,8 +21,8 @@ from typing import Any
 from ragkit.hardset_review import post_message
 
 MODEL = "claude-sonnet-5-5"
-MAX_CALLS = 1616  # cached records: the 1016 of K-R2 plus the 600 new calls of Phase L
-MAX_COST_USD = 25.0  # cumulative at the assumed prices (K-R2: 9.72 USD; Phase L adds about 7)
+MAX_CALLS = 1832  # cached records: K-R2 and Phase L (1432) plus at most 400 for the k = 5 analysis
+MAX_COST_USD = 18.10  # cumulative at the assumed prices: 14.25 after Phase L plus 3.85 (cap 4)
 # Assumed list prices in USD per million tokens (not read from the API).
 INPUT_PER_MTOK = 3.0
 OUTPUT_PER_MTOK = 15.0

@@ -437,11 +437,13 @@ is the top-5 chunks, 36/42, because articles are only taken from those chunks. E
 them were answered `yes`, the strict gain is at most +3 and +2 questions; 6 questions have no gold
 article at any k and a retrieval-side change (not a larger k) would be needed for them. The paired
 bootstrap CI of a gain of 3 of 42 with no losses has a lower bound of 0 (4.5 % of resamples
-contain none of the three questions, above the 2.5 % tail), so **the adoption rule below cannot
-pass with a net gain of 3 or fewer questions**; it needs at least 4 net gains (default) with few
-losses, and for `hybrid+ce` with only 2 gold articles to add it needs gains from non-gold
-articles. This was worked out before scoring and is stated so the rule is not read as a real test of
-a likely effect.
+contain none of the three questions, above the 2.5 % tail). Checked with the report's own
+bootstrap on 0/1 differences (gains / losses: lower bound): 3 / 0: 0.000; 4 / 0: +0.024; 4 / 1:
+-0.024; 5 / 1: 0.000; 6 / 2: -0.024. So **the adoption rule below cannot pass with a net gain of 3
+or fewer questions**; it needs 4 gains and no loss, or more (default). For `hybrid+ce`, where a
+gold article can be added for only 2 questions, it needs gains from questions whose gold article
+was already in the context. This was worked out before scoring and is stated so the rule is not
+read as a real test of a likely effect.
 
 Calls (new, on top of the 1 432-record, 14.25 USD cache; hard budget 4 USD at assumed list prices,
 enforced in code as a cumulative cap of 18.10 USD): `GEN` only for questions whose context differs
