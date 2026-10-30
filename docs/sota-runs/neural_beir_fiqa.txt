@@ -1,0 +1,32 @@
+
+### ragkit beir --retriever: fiqa (test)
+
+648 test queries, 57638 documents; mean [bootstrap 95% CI over queries]; dense encoding 805 s (cached matrices reload in seconds).
+
+| System | nDCG@10 | paired dnDCG@10 vs bm25 | Recall@100 | s (ranking, incl. CE) |
+|---|---|---|---|---|
+| bm25 | 0.235 [0.211, 0.259] | baseline | 0.538 [0.507, 0.569] | 1 |
+| dense | 0.403 [0.374, 0.432] | +0.168 [+0.144, +0.192] | 0.696 [0.668, 0.723] | 1 |
+| dense-e5 | 0.375 [0.348, 0.402] | +0.140 [+0.116, +0.164] | 0.681 [0.652, 0.710] | 0 |
+| hybrid | 0.361 [0.335, 0.388] | +0.126 [+0.111, +0.141] | 0.690 [0.661, 0.717] | 0 |
+| hybrid-convex | 0.419 [0.390, 0.448] | +0.184 [+0.163, +0.205] | 0.690 [0.662, 0.717] | 0 |
+| bm25+ce@20 | 0.302 [0.275, 0.330] | +0.067 [+0.051, +0.082] | 0.538 [0.507, 0.569] | 650 |
+| bm25+ce@50 | 0.330 [0.303, 0.357] | +0.095 [+0.077, +0.112] | 0.538 [0.507, 0.569] | 0 |
+| bm25+ce@100 | 0.346 [0.320, 0.374] | +0.111 [+0.093, +0.129] | 0.538 [0.507, 0.569] | 0 |
+| hybrid+ce@20 | 0.373 [0.347, 0.401] | +0.138 [+0.119, +0.159] | 0.690 [0.661, 0.717] | 292 |
+| hybrid+ce@50 | 0.371 [0.344, 0.399] | +0.136 [+0.116, +0.156] | 0.690 [0.661, 0.717] | 0 |
+| hybrid+ce@100 | 0.371 [0.343, 0.399] | +0.136 [+0.116, +0.156] | 0.690 [0.661, 0.717] | 0 |
+
+`hybrid-convex` alpha = 0.3 (weight of BM25), chosen on fiqa dev dev nDCG@10 0.419 (grid 0.0: 0.409, 0.1: 0.416, 0.2: 0.417, 0.3: 0.419, 0.4: 0.409, 0.5: 0.392, 0.6: 0.360, 0.7: 0.322, 0.8: 0.298, 0.9: 0.278, 1.0: 0.258).
+
+Published, same dataset, split and metrics (nDCG@10 / Recall@100):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.236 | 0.539 |
+| bge-small-en-v1.5 (MTEB) | 0.4034 | 0.6955 |
+| e5-small-v2 (MTEB) | 0.3743 | 0.6819 |
+| BM25+CE (BEIR paper; rerank of BM25 top 100, nDCG@10 only) | 0.347 | = BM25 |
+| BGE-base-en-v1.5 (Pyserini) | 0.406 | 0.742 |
+
+Reproduction check: our bge-small `dense` nDCG@10 0.4035 vs MTEB 0.4034, gap +0.0001, within the pre-registered 0.015 tolerance.

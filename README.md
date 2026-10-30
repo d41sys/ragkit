@@ -19,7 +19,7 @@ flowchart LR
   S -->|yes| G[extractive generator with chunk_id citations]
   S -->|no| A[abstain]
 ```
-Optional extras: `[st]` swaps in `all-MiniLM-L6-v2` embeddings and the `ms-marco-MiniLM-L-6-v2` cross-encoder, and enables the model-based abstention signals (`ce_top`, `qa_answerable`: `ms-marco-MiniLM-L-6-v2` and `deepset/roberta-base-squad2`); `[llm]` adds `AnthropicLLM` (needs `ANTHROPIC_API_KEY`) for rewriting.
+Optional extras: `[st]` swaps in `all-MiniLM-L6-v2` embeddings and the `ms-marco-MiniLM-L-6-v2` cross-encoder, enables the model-based abstention signals (`ce_top`, `qa_answerable`: `ms-marco-MiniLM-L-6-v2` and `deepset/roberta-base-squad2`), and provides the neural retrievers of `--retriever dense|hybrid|hybrid+ce` (`BAAI/bge-small-en-v1.5`, `intfloat/e5-small-v2`, `cross-encoder/ms-marco-MiniLM-L-6-v2`; no model library is imported unless one of those flags is used); `[llm]` adds `AnthropicLLM` (needs `ANTHROPIC_API_KEY`) for rewriting. `ragkit answer` and `ragkit generation` call the Anthropic Messages API with the standard library only (no SDK); every call is cached in `data/llm_cache/`, so replays need no key and no network.
 
 ## Quickstart
 ```bash
@@ -45,6 +45,11 @@ uv run ragkit ctxprefix --nokw                                   # the same pref
 uv run ragkit beir --dataset scifact                              # BEIR test set, model-free; `--dataset all` for the six datasets below, `--ladder` for the BM25-vs-Pyserini ladder
 uv run ragkit legalbench                                          # LegalBench-RAG-mini (776 queries, 72 contracts), official character-overlap metric
 # any of eval / abstention / ablation also take --corpus-dir, --qa-file, --unanswerable-file, --cohort
+uv run ragkit ask "What is imbalance settlement?" --retriever hybrid+ce   # opt-in neural retrieval (needs `uv sync --extra st`); also `dense`, `hybrid`
+uv run ragkit beir --dataset scifact --retriever hybrid+ce        # neural rows: dense, e5, RRF hybrid, dev-chosen convex hybrid, BM25/hybrid + cross-encoder at 20/50/100 (`legalbench` takes the same flag)
+uv run ragkit neural --retriever hybrid+ce                         # the same systems on the EU sets (original 42 as dev; fresh, hard, keyword-free and pooled as test)
+ANTHROPIC_API_KEY=... uv run ragkit answer "What is imbalance settlement?" --llm claude-sonnet-5-5 --gate suff   # cited LLM answer; --gate none|self|suff
+uv run ragkit generation                                           # replays data/llm_cache/ offline: LLM answers, sufficient-context gates, full-context baseline on the 42 + 45 EU questions
 ```
 
 ## Results
@@ -767,13 +772,13 @@ Draft-label run, for comparison (recall@5 / MRR): BM25 0.845 / 0.650, + dense 0.
 - English original texts only; not consolidated; amendments after 2019 are absent, so a question about current law may differ from what the corpus says.
 - Article-level documents are long (up to about 11k characters), so the 500-character chunks lose the article heading in most chunks; doc-level labels hide that.
 - Abstention-signal comparison: 45 unanswerable questions give AUROC CIs about 0.24 wide (0.30 to 0.39 with the original 12), so differences below roughly 0.05 to 0.15 AUROC remain unresolved (see that section); the combined model's CIs ignore refit variance; the model-based signals are covered by the caveats of the model-signals section (no independent test set, two models only).
-- The hashing embedder and lexical reranker are the offline defaults. Neural embeddings (`[st]` extra) were not run, so "dense retrieval does not help" applies to the hashing embedder only.
+- The hashing embedder and lexical reranker are the offline defaults. The tables in this section ran no neural model; "dense retrieval does not help" applies to the hashing embedder only. Neural retrievers were run afterwards under a separate protocol, see "Neural retrieval" after the verdict below.
 
 ## Comparison with SOTA
 
 Question: how far is a model-free lexical stack from published state of the art on the same public benchmarks? Two benchmarks, protocols committed before scoring ([`docs/beir_protocol.md`](docs/beir_protocol.md), [`docs/legalbench_protocol.md`](docs/legalbench_protocol.md)). Raw command output: [`docs/sota-runs/`](docs/sota-runs/). Survey of the field, 2023 to 2026: [`docs/sota-review.md`](docs/sota-review.md). Every published number, with the URL, table and date I read it from: [`docs/beir-published-numbers.md`](docs/beir-published-numbers.md), [`docs/legalbench-rag-published-numbers.md`](docs/legalbench-rag-published-numbers.md).
 
-No model was run or downloaded for this section. Published rows are copied, not reproduced. A published number sits in the main tables only if dataset, split, metric and cutoff are identical; everything else is in the "not comparable" table.
+The lexical tables below ran no model. The published rows in the lexical tables are copied, not reproduced; the neural subsections after the verdict ran models and reproduce the published bge-small rows as a check. A published number sits in the main tables only if dataset, split, metric and cutoff are identical; everything else is in the "not comparable" table.
 
 ```bash
 uv run ragkit beir --dataset all          # downloads ~117 MB of BEIR zips into data/raw/beir (gitignored), then scores
@@ -906,6 +911,81 @@ Independent cross-check: a 2026-10-19 preprint, [StrucChunk, arXiv 2610.26313v1]
 6. **On LegalBench-RAG-mini we lose by roughly 2x to 3.5x on recall.** `bm25-naive500` has Recall@8 9.89 against 31.86 for the paper's dense baseline (Recall@1 2.36 vs 8.48, Recall@64 32.05 vs 63.49), and Precision@8 1.30 against 5.25. Lucene-matched BM25 improves to 13.37 and 1.93 and still loses at every cutoff on ALL and on every source at Recall@8. Rerank is worse than BM25 again (7.84).
 
 What this says about ragkit: the value of the project is the measurement discipline and the model-free ablations, not retrieval quality. For corpora like those above, a dense or learned-sparse retriever is the baseline to use. Abstention is a separate result: ragkit's EU-regulation answerability work (signals compared in the sections above) sits next to UAEval4RAG and sufficient-context in `docs/sota-review.md` section 7, but those papers use different corpora and generators, so there is no head-to-head number.
+
+### Neural retrieval: dense, hybrid, cross-encoder ([`docs/neural_protocol.md`](docs/neural_protocol.md))
+
+Question: how much of the gap above does a small public encoder close? Protocol, predictions and decision rule were committed before any scored run (commit `736517d`). Models, all ungated and MIT-licensed, pinned by revision: `BAAI/bge-small-en-v1.5` (`5c38ec7c`, with its query instruction), `intfloat/e5-small-v2` (`ffb93f3b`), cross-encoder `cross-encoder/ms-marco-MiniLM-L-6-v2` (`233902d2`) reranking the top 20, 50 or 100; Apple MPS; raw output in `docs/sota-runs/neural_*.txt`. TREC-COVID and Quora were not run (corpus size).
+
+**Reproduction check passed**: our bge-small `dense` nDCG@10 is within 0.003 of the MTEB value on all four BEIR sets (SciFact 0.7127 vs 0.7127, NFCorpus 0.3438 vs 0.3426, FiQA 0.4035 vs 0.4034, ArguAna 0.6061 vs 0.6035).
+
+BEIR, nDCG@10 on the test split (CIs over queries are in the raw files; the `hybrid-convex` weight of BM25 was chosen on each set's dev split only: 0.4, 0.4, 0.3; ArguAna has no dev split, so no row):
+
+| System | SciFact | NFCorpus | FiQA | ArguAna | mean of 4 |
+|---|---|---|---|---|---|
+| `bm25` (Lucene-matched, same as above) | 0.678 | 0.320 | 0.235 | 0.404 | 0.409 |
+| `dense` bge-small | 0.713 | 0.344 | 0.403 | 0.606 | 0.517 |
+| `dense-e5` e5-small-v2 | 0.687 | 0.326 | 0.375 | 0.420 | 0.452 |
+| `hybrid` (BM25 + bge-small, RRF 60) | 0.727 | 0.362 | 0.361 | 0.535 | 0.496 |
+| `hybrid-convex` | 0.734 | 0.363 | 0.419 | n/a | n/a |
+| `bm25+ce@100` | 0.687 | 0.352 | 0.346 | 0.417 | 0.451 |
+| `hybrid+ce@100` (`@20`) | 0.688 (0.703) | 0.353 (0.362) | 0.371 (0.373) | 0.415 (0.453) | 0.457 (0.473) |
+| published: bge-small (MTEB) | 0.7127 | 0.3426 | 0.4034 | 0.6035 | 0.516 |
+| published: BM25 + cross-encoder (BEIR paper) | 0.688 | 0.350 | 0.347 | 0.311 | 0.424 |
+| published: BGE-base (Pyserini) | 0.741 | 0.373 | 0.406 | 0.636 | 0.539 |
+
+Recall@100: `dense` 0.942 / 0.311 / 0.696 / 0.988 against published bge-small 0.945 / 0.3116 / 0.6955 / 0.9879; BM25 0.925 / 0.246 / 0.538 / 0.933. Paired differences to `bm25`, with 95% CIs over queries: `dense` +0.035, +0.023, +0.168, +0.202, all above 0. Pre-registered predictions: P1 (reproduction), P2 (dense beats BM25 everywhere) and P6, P7 hold; P3 does not (RRF hybrid, mean 0.496, is 0.020 below `dense`: it pulls FiQA and ArguAna down); P4 and P5 hold in part (BM25 + cross-encoder reproduces the BEIR paper on SciFact, NFCorpus and FiQA, but is not worse than BM25 on ArguAna: 0.417 vs 0.404, paper 0.311). Details per prediction are in the protocol.
+
+LegalBench-RAG-mini, Recall@8 ALL (%; the paper's `text-embedding-3-large` baseline is 31.86 recomputed, 34.51 as printed):
+
+| System | `naive500` | `recursive500` |
+|---|---|---|
+| `bm25` (Lucene-matched) | 13.37 [11.5, 15.3] | 11.84 [10.0, 13.8] |
+| `dense` bge-small | 18.51 [16.4, 20.7] | 17.14 [15.0, 19.3] |
+| `dense-e5` | 19.69 [17.5, 22.0] | 20.40 [18.2, 22.8] |
+| `hybrid` (RRF) | 17.48 [15.3, 19.7] | 16.16 [13.9, 18.4] |
+| `hybrid+ce@50` | 16.78 [14.7, 18.9] | 16.56 [14.4, 18.7] |
+
+The small encoders close about a third of the gap to the paper's baseline (best 20.40 against BM25's 13.37 and 31.86) but do not close it; on `maud` every system is below 6% at Recall@8. The cross-encoder adds nothing over `hybrid`.
+
+EU sets (chunks 500/50, top-10 chunks deduplicated to articles; the original 42 were the dev set for the convex weight, 0.6; the three held-out sets are the test). Pooled 117 held-out questions, paired differences to `bm25`:
+
+| System | Recall@5 | MRR | paired dMRR [95% CI] | wrong-act top-1 (of 117) | keyword-free 49: Recall@5 |
+|---|---|---|---|---|---|
+| `bm25` | 0.679 | 0.600 | baseline | 34 | 0.347 |
+| `dense` | 0.774 | 0.657 | +0.057 [-0.009, +0.123] | 33 | 0.490 |
+| `hybrid` | 0.774 | 0.659 | +0.059 [+0.010, +0.110] | 31 | 0.531 |
+| `hybrid-convex` | 0.748 | 0.656 | +0.056 [+0.022, +0.093] | 32 | 0.490 |
+| `hybrid+ce@20` | 0.816 | 0.714 | +0.114 [+0.065, +0.166] | 27 | 0.612 |
+| `hybrid+ce@100` | 0.816 | 0.711 | +0.111 [+0.058, +0.166] | 26 | 0.612 |
+
+Decision rule (paired MRR CI lower bound above 0 and wrong-act count not above `bm25`'s): `hybrid`, `hybrid-convex` and every cross-encoder variant are recommended for EU-style text; `dense` and `dense-e5` are not (CI includes 0). The keyword-free set stays hard: even the best system retrieves the gold article in the top 5 for about 61% of questions. The numpy-only default is unchanged; the neural retrievers are opt-in.
+
+### LLM answers and sufficient-context abstention ([`docs/generation_protocol.md`](docs/generation_protocol.md))
+
+Question: does a Sonnet-class sufficient-context check beat the SQuAD2-reader gate, and how does an LLM read the whole corpus? `claude-sonnet-5-5`; 42 answerable and 45 unanswerable EU questions (the labels are agent-reviewed, see Caveats); protocol, predictions and decision rule committed before the scored run. 1016 cached calls (one cache file, `data/llm_cache/generation.jsonl`), 1.27 M input, 0.10 M cache-write, 8.54 M cache-read and 0.20 M output tokens, **about 9.7 USD at assumed list prices** (3 / 15 USD per M input / output, cache write 1.25x, read 0.1x; not read from the API). The API rejected `temperature` for this model, so none is sent. Correctness and citation support are judged by the same model family (no human check).
+
+| System (top-5 chunks of the shipped pipeline) | unanswerable answered (of 45) | answerable wrongly abstained (of 42) | balanced acc. | paired d vs reader [95% CI] |
+|---|---|---|---|---|
+| `reader` (SQuAD2, 5-fold CV; existing) | 13 | 5 | 0.796 | baseline |
+| `self` (answerer says the context does not support it) | 0 | 25 | 0.702 | -0.094 [-0.195, +0.013] |
+| `suff` (sufficient-context judge) | 0 | 24 | 0.714 | -0.082 [-0.186, +0.031] |
+| `strict` (`suff` and reader) | 0 | 25 | 0.702 | -0.094 [-0.191, +0.011] |
+| `lenient` (`suff` or reader) | 13 | 4 | 0.808 | +0.012 [+0.000, +0.036] |
+| `stack` (logistic on reader + `SUFF.confidence`, nested CV) | 6 | 6 | 0.862 | +0.066 [-0.025, +0.150] |
+| `fullctx` (whole 94-article corpus, about 85 k tokens, prompt-cached) | 0 | 0 | 1.000 | +0.204 [+0.125, +0.285] |
+
+Abstention AUROC: `SUFF.confidence` 0.967 [0.933, 0.990] against `qa_answerable` 0.858 [0.772, 0.928]. Decision rule: the sufficiency gate would be the default `--llm` gate only if its paired balanced-accuracy CI lower bound were above 0; it is -0.186, **so the result is no detectable effect, with a point-estimate loss, and `ragkit answer` defaults to `--gate none`** (`--gate suff` and `--gate self` stay as options). The binary verdicts are conservative on 500-character chunks (none of the unanswerable questions answered, 24 of 42 answerable refused; 6 of those are retrieval misses), while the confidence carries the signal.
+
+Answer quality (LLM-judged against the reference answers): RAG always-answer 12/42 correct, full context 41/42. With `hybrid+ce` chunks (no reader signal; secondary run) `SUFF.confidence` reaches AUROC 0.987 [0.963, 0.999], `suff` answers 0/45 and refuses 17/42, and RAG answers 14/42 correctly. Citation support (does the cited article support the answer, LLM-judged): `yes` for 0.59 of cited articles in both RAG and full-context answers, 0.76 to 0.80 for the answers that pass the `self` or `suff` gate; most remaining verdicts are `partial` (pre-registered target 0.85 and 0.90: not met). The full-context result holds for a corpus that fits in a prompt, which this one does; it says nothing about larger corpora.
+
+### Verdict after Phase K
+
+7. **A small public encoder closes most of the BEIR gap to BGE-base, not to the large models.** Over the four sets, mean nDCG@10 goes 0.409 (BM25) to 0.517 (`dense` bge-small, 0.516 published) against 0.539 for BGE-base: about 80% of the gap to BGE-base, reproduced within 0.003 on every set. BM25 + cross-encoder reproduces the BEIR paper on SciFact, NFCorpus and FiQA (0.687, 0.352, 0.346 vs 0.688, 0.350, 0.347); its four-set mean is 0.451 against 0.424 published only because ArguAna differs (0.417 vs 0.311). Reranking adds little over a good first stage. Simple RRF fusion is not safe when BM25 is much weaker than the dense side (FiQA, ArguAna).
+8. **On LegalBench-RAG-mini the gap shrinks but remains**: best 20.4 Recall@8 against 31.9 for the paper's larger embedding model; BM25 13.4.
+9. **On EU text the neural gain is measurable and modest**: pooled Recall@5 0.68 to 0.77 to 0.82 (BM25, `hybrid`, `hybrid+ce`), wrong-act top-1 34 to 26, paired MRR CIs above 0 for `hybrid` and the reranked systems.
+10. **An LLM gate did not beat the small reader on this label set**; a full-context LLM answers 41/42 correctly with no wrong abstention on this 85 k-token corpus. Neither number is comparable with published sufficient-context figures (other corpora, other generators).
+
+Disk used for the models of this phase: about 357 MB in the default Hugging Face cache (bge-small 140 MB, e5-small-v2 129 MB, cross-encoder 88 MB).
 
 ## Design decisions
 - **Protocols for every model boundary** (`Embedder`, `Reranker`, `LLM`, `Generator`): offline defaults keep tests deterministic, and neural models plug in through extras.

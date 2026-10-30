@@ -129,3 +129,61 @@ Published bge-small / BGE-base rows come from other harnesses; differences below
 interpreted. SciFact's train split, used here as dev for `alpha`, may overlap bge's training data
 (`[INFERENCE]`; the model card does not list it). Hybrid weights chosen on one dataset's dev
 split are not transferred to another. The EU labels are agent-reviewed (README caveat).
+
+## Outcome (scored runs; raw output in `docs/sota-runs/neural_*.txt`)
+
+Runs: `ragkit beir --dataset <d> --retriever hybrid+ce` (four sets), `ragkit legalbench --retriever
+hybrid+ce`, `ragkit neural --retriever hybrid+ce`; Apple MPS, models pinned as above. TREC-COVID
+and Quora were not run (encoding predicted above the 20-minute rule). The header line of
+`neural_legalbench_mini.txt` was relabelled from "model-free" to "neural" by hand after the run;
+the code now prints that title.
+
+BEIR nDCG@10 (test; mean of 300, 323, 648 and 1406 queries; CIs are in the raw files):
+
+| System | SciFact | NFCorpus | FiQA | ArguAna | mean of 4 |
+|---|---|---|---|---|---|
+| `bm25` (Lucene-matched) | 0.678 | 0.320 | 0.235 | 0.404 | 0.409 |
+| `dense` bge-small | 0.713 | 0.344 | 0.403 | 0.606 | 0.517 |
+| `dense-e5` e5-small-v2 | 0.687 | 0.326 | 0.375 | 0.420 | 0.452 |
+| `hybrid` (RRF 60) | 0.727 | 0.362 | 0.361 | 0.535 | 0.496 |
+| `hybrid-convex` (alpha on dev) | 0.734 (0.4) | 0.363 (0.4) | 0.419 (0.3) | none | n/a |
+| `bm25+ce@100` | 0.687 | 0.352 | 0.346 | 0.417 | 0.451 |
+| `hybrid+ce@20` | 0.703 | 0.362 | 0.373 | 0.453 | 0.473 |
+| `hybrid+ce@100` | 0.688 | 0.353 | 0.371 | 0.415 | 0.457 |
+| published bge-small (MTEB) | 0.7127 | 0.3426 | 0.4034 | 0.6035 | 0.516 |
+| published BM25+CE (BEIR paper) | 0.688 | 0.350 | 0.347 | 0.311 | 0.424 |
+| published BGE-base (Pyserini) | 0.741 | 0.373 | 0.406 | 0.636 | 0.539 |
+
+Predictions:
+
+- P1 holds: `dense` is within 0.003 of MTEB on all four sets (SciFact +0.0000, NFCorpus
+  +0.0012, FiQA +0.0001, ArguAna +0.0026).
+- P2 holds: `dense` beats `bm25` on every set (paired differences +0.035, +0.023, +0.168,
+  +0.202, all CIs above 0); the largest gaps are ArguAna and FiQA.
+- P3 does not hold: `hybrid` mean 0.496 exceeds `bm25` (0.409) but is 0.020 below `dense`
+  (0.517): RRF with a much weaker BM25 pulls FiQA (0.361 vs 0.403) and ArguAna (0.535 vs 0.606)
+  down. The dev-chosen convex weight fixes FiQA (0.419) but ArguAna has no dev split.
+- P4 partly holds: `bm25+ce@100` reproduces the BEIR-paper BM25+CE within 0.02 on SciFact
+  (0.687 vs 0.688), NFCorpus (0.352 vs 0.350) and FiQA (0.346 vs 0.347). It is not below `bm25`
+  on ArguAna (0.417 vs 0.404; the paper's 0.311 is not reproduced), and `hybrid+ce` does not
+  improve on `hybrid` on SciFact (0.688 vs 0.727); on FiQA it does (0.371 vs 0.361, unpaired).
+- P5 partly holds: `dense` and `hybrid` Recall@8 exceed BM25 (18.51 and 17.48 against 13.37 on
+  `naive500`; 17.14 and 16.16 against 11.84 on `recursive500`) and none reaches 31.86 (best:
+  `dense-e5` + `recursive500`, 20.40). The cross-encoder does not help `hybrid` (16.4 to 17.7
+  against 17.48), but it raises BM25 (15.2 to 16.5 against 13.37; CIs overlap).
+- P6 holds: keyword-free Recall@5 is 0.490 (`dense`) and 0.531 (`hybrid`) against 0.347; the
+  paired CI excludes 0 for `hybrid` ([+0.061, +0.306]) and not for `dense` ([-0.041, +0.306]).
+- P7 holds: pooled wrong-act count 31 for `hybrid` against 34 for `bm25`.
+
+EU decision rule (pooled 117 held-out questions, paired MRR difference to `bm25` with CI lower
+bound above 0, and wrong-act count not above `bm25`'s 34): `hybrid` (+0.059 [+0.010, +0.110],
+31), `hybrid-convex` (alpha 0.6 chosen on the original 42; +0.056 [+0.022, +0.093], 32), every
+`+ce` row (+0.081 to +0.114; wrong-act 26 to 29) are recommended; `dense` (+0.057 [-0.009,
++0.123]) and `dense-e5` (+0.017 [-0.052, +0.088], 36) are not. The best row, `hybrid+ce@20`,
+has pooled Recall@5 0.816 and MRR 0.714 against 0.679 and 0.600 for `bm25`. The keyword-free
+set stays hard: `hybrid+ce@100` Recall@5 0.612 [0.469, 0.735]. Defaults are unchanged: the
+numpy-only pipeline stays the default; `--retriever dense|hybrid|hybrid+ce` is opt-in.
+
+The cross-encoder depth rows (20, 50, 100) of `hybrid+ce` differ by at most 0.015 nDCG@10 on
+SciFact, NFCorpus and FiQA, by about 0.013 pooled MRR on EU, and by 0.038 on ArguAna (0.453 at
+`@20`, 0.415 at `@100`); no depth is better everywhere.

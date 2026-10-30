@@ -293,7 +293,7 @@ def test_answer_cli_replays_a_prefilled_cache_without_a_key(
     answerer.sufficiency(query, passages)
     answerer.generate(query, passages)
     with pytest.raises(SystemExit) as exc:
-        main(["answer", query, "--cache", str(cache)])
+        main(["answer", query, "--cache", str(cache), "--gate", "suff"])
     assert exc.value.code == 0
     out = capsys.readouterr().out
     assert "Sufficient context:" in out and "Answer:" in out

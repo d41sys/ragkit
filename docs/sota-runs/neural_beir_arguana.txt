@@ -1,0 +1,31 @@
+
+### ragkit beir --retriever: arguana (test)
+
+1406 test queries, 8674 documents; mean [bootstrap 95% CI over queries]; dense encoding 81 s (cached matrices reload in seconds).
+
+| System | nDCG@10 | paired dnDCG@10 vs bm25 | Recall@100 | s (ranking, incl. CE) |
+|---|---|---|---|---|
+| bm25 | 0.404 [0.387, 0.423] | baseline | 0.933 [0.920, 0.945] | 0 |
+| dense | 0.606 [0.588, 0.623] | +0.202 [+0.184, +0.220] | 0.988 [0.982, 0.994] | 0 |
+| dense-e5 | 0.420 [0.400, 0.439] | +0.016 [-0.003, +0.034] | 0.924 [0.910, 0.937] | 0 |
+| hybrid | 0.535 [0.518, 0.553] | +0.131 [+0.120, +0.141] | 0.986 [0.980, 0.992] | 0 |
+| bm25+ce@20 | 0.425 [0.407, 0.444] | +0.021 [+0.005, +0.038] | 0.933 [0.920, 0.945] | 735 |
+| bm25+ce@50 | 0.424 [0.406, 0.442] | +0.020 [+0.001, +0.038] | 0.933 [0.920, 0.945] | 0 |
+| bm25+ce@100 | 0.417 [0.399, 0.435] | +0.013 [-0.006, +0.031] | 0.933 [0.920, 0.945] | 0 |
+| hybrid+ce@20 | 0.453 [0.435, 0.471] | +0.049 [+0.031, +0.067] | 0.986 [0.980, 0.992] | 336 |
+| hybrid+ce@50 | 0.424 [0.406, 0.442] | +0.020 [-0.000, +0.038] | 0.986 [0.980, 0.992] | 0 |
+| hybrid+ce@100 | 0.415 [0.397, 0.434] | +0.011 [-0.009, +0.030] | 0.986 [0.980, 0.992] | 0 |
+
+No dev split for this dataset: RRF only, no `hybrid-convex` row.
+
+Published, same dataset, split and metrics (nDCG@10 / Recall@100):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.397 | 0.932 |
+| bge-small-en-v1.5 (MTEB) | 0.6035 | 0.9879 |
+| e5-small-v2 (MTEB) | 0.4179 | 0.9239 |
+| BM25+CE (BEIR paper; rerank of BM25 top 100, nDCG@10 only) | 0.311 | = BM25 |
+| BGE-base-en-v1.5 (Pyserini) | 0.636 | 0.992 |
+
+Reproduction check: our bge-small `dense` nDCG@10 0.6061 vs MTEB 0.6035, gap +0.0026, within the pre-registered 0.015 tolerance.

@@ -4,11 +4,11 @@ Written 2026-10-26. Scope: retrieval-augmented generation (RAG) for regulation t
 
 ## Summary (five findings)
 
-1. **Retrieval:** on BEIR, BM25 is beaten by a base-size dense encoder on most sets (FiQA, ArguAna, NQ, SciDocs, SciFact) and wins only on Touché-2020 in the Pyserini table (section 2a). ragkit has run no neural embedder.
+1. **Retrieval:** on BEIR, BM25 is beaten by a base-size dense encoder on most sets (FiQA, ArguAna, NQ, SciDocs, SciFact) and wins only on Touché-2020 in the Pyserini table (section 2a). Phase K ran bge-small and e5-small-v2 in ragkit and reproduced the published bge-small nDCG@10 within 0.003 on SciFact, NFCorpus, FiQA and ArguAna (section 8).
 2. **Rerankers:** LLM and cross-encoder rerankers add several nDCG points on BEIR (RankGPT, Qwen3-Reranker), but one legal benchmark (LegalBench-RAG) reported a commercial reranker worse than none (sections 1 and 3).
 3. **Abstention:** published work uses LLM generators and LLM judges (UAEval4RAG, Sufficient Context); the closest small-model work is RINSE (2026). ragkit's reader-based gate (AUROC 0.858 on 87 questions) is the same idea at a much smaller scale (section 5).
 4. **No number in ragkit's abstention tables can be compared with a published number as it stands**: models, corpora, label sources and metrics all differ (section 7.3).
-5. **Largest gaps in ragkit, by expected benefit:** neural retrieval, a sufficiency judge, a human-labelled test set (section 7b).
+5. **Largest gaps in ragkit, by expected benefit:** after Phase K, a human-labelled test set and a retriever or generator larger than the small public models tested (section 7b). Neural retrieval and a sufficiency judge were run: the first helps measurably, the second did not beat the existing reader gate on 87 questions.
 
 ## 0. How to read this document
 
@@ -215,17 +215,19 @@ Conclusion: none of these can be compared as stated. The honest comparison is to
 1. **Tiny, agent-labelled set.** 42 + 45 questions; AUROC CIs about 0.24 wide on the cheap signals; differences below roughly 0.05 to 0.15 cannot be resolved. No human domain expert saw any label.
 2. **Labels were filtered against retrieval-style signals.** The 33 added questions were checked against BM25, dense and hybrid top-10 lists (README caveat). That favours neural readers over lexical signals and may overstate `qa_answerable`'s advantage on questions written by other people.
 3. **Much of the best signal is question phrasing.** The mismatched control leaves `qa_answerable` at 0.752. RINSE's authors warn that such constructions "can reveal labels"; ragkit's control is the right check, but its result says the reader partly recognises how SQuAD2-style unanswerable questions are written `[INFERENCE]`.
-4. **No LLM generator.** The extractive generator copies corpus sentences, so faithfulness is 1.000 by construction (synthetic-corpus pipeline table) and Answer F1 there is about 0.23. Every published abstention number above is measured on LLM-generated answers.
-5. **No sufficiency autorater.** The one component that sufficient-context shows matters (a judge reading question plus context) is replaced by a 124M-class reader and a 22M-class cross-encoder `[INFERENCE on sizes]`.
+4. **LLM generator: added in Phase K, reported separately.** The default `ask` generator is still extractive (faithfulness 1.000 by construction; Answer F1 about 0.23 on the synthetic corpus). `ragkit answer --llm claude-sonnet-5-5` and `ragkit generation` generate cited answers with an LLM; on the 42 answerable EU questions an LLM judge (same model family, no human check) rates 41 full-context answers correct and 12 to 14 RAG answers correct (top 5 chunks of 500 characters). Citation `yes` rates are 0.59 (RAG) and 0.59 (full context): the judge marks most cited articles `partial`. See `docs/generation_protocol.md`.
+5. **Sufficiency autorater: added in Phase K; it did not beat the reader gate.** `SUFF` (Sonnet, question plus 5 chunks, no gold) has AUROC 0.967 [0.933, 0.990] against the reader's 0.858 [0.772, 0.928], but its own yes/no verdict answers 0/45 unanswerable and refuses 24/42 answerable questions (balanced accuracy 0.714, paired difference to the reader -0.082 [-0.186, +0.031]): no detectable effect, point estimate a loss, so it is not the default gate. Six of the 24 refusals are retrieval misses. Same label set, same 87 questions, so the caveats in items 1 to 3 still apply.
 6. **One corpus, one language, original (unconsolidated) Official Journal texts.** No amendments, no cross-act reasoning beyond 8 multi-hop questions.
 7. **Two models, one aggregation.** Max over five chunks; nothing else was tried. No independent test set: all 87 questions feed every number.
-8. **No neural retrieval in the reported tables.** "Dense retrieval does not help" is true only of the hashing embedder.
+8. **Neural retrieval: added in Phase K, opt-in.** `--retriever dense|hybrid|hybrid+ce` (bge-small, e5-small-v2, MiniLM cross-encoder). The shipped numpy-only pipeline is unchanged, and "dense retrieval does not help" is still true of its hashing embedder only. On the pooled 117 held-out EU questions `hybrid` and the reranked systems beat BM25 (paired MRR CI above 0); plain `dense` does not (CI includes 0). Small encoders only: BGE-M3, Qwen3-Embedding and the large rerankers were not run.
 
 What ragkit does that the cited work mostly does not: paired bootstrap CIs and multi-seed nested CV on every abstention number; a matched/mismatched control; per-miss-type breakdown on near-miss unanswerables from a single closed corpus; pre-registered protocols with commit hashes; and a model-free-first ordering that shows how weak lexical signals are on on-topic unanswerables (AUROC 0.587).
 
 ## 7b. What ragkit does not have
 
-Ranked by expected benefit, each tied to evidence in this document. "Expected" is my judgement, `[INFERENCE]`; none was tested in ragkit.
+Ranked by expected benefit, each tied to evidence in this document. "Expected" is my judgement, `[INFERENCE]`; when this table was written none was tested in ragkit (what Phase K then measured is below).
+
+**Status after Phase K** (measured in ragkit; protocols `docs/neural_protocol.md`, `docs/generation_protocol.md`): row 1 was run with small encoders (reproduction within 0.003 of published on four BEIR sets; EU pooled Recall@5 0.679 for BM25, 0.774 `hybrid`, 0.816 `hybrid+ce`; keyword-free 0.347 to 0.531 to 0.612). Row 2 was run with a Sonnet judge and did not beat the reader gate (balanced accuracy 0.714 vs 0.796, paired difference -0.082 [-0.186, +0.031]); `SUFF.confidence` AUROC is 0.967 [0.933, 0.990]. Row 5 was run with a MiniLM cross-encoder: it reproduces the BEIR-paper BM25+CE on three of four sets, helps BM25 on EU, and adds nothing to a hybrid on LegalBench-RAG-mini. Row 6 was run (LLM generator with an LLM citation judge, no NLI model): citation `yes` 0.59, below the 0.85 target. Rows 3, 4, 7 and 8 were not run. The ranking below is the pre-Phase-K one and is kept for the record.
 
 | Rank | Missing component | Evidence for benefit | Evidence against or limit | Rough cost |
 |---|---|---|---|---|
@@ -240,7 +242,7 @@ Ranked by expected benefit, each tied to evidence in this document. "Expected" i
 
 ## 8. Head-to-head on public benchmarks
 
-Measured by `ragkit beir` and `ragkit legalbench`, no model run or downloaded; protocols in `docs/beir_protocol.md` and `docs/legalbench_protocol.md`, raw output in `docs/sota-runs/`, full tables, sources and the "not comparable" list in the README section "Comparison with SOTA". Published rows with URL, table and date: `docs/beir-published-numbers.md`, `docs/legalbench-rag-published-numbers.md`.
+Measured by `ragkit beir` and `ragkit legalbench`; the lexical tables of this section ran no model, the neural ones are in 8b. Protocols in `docs/beir_protocol.md` and `docs/legalbench_protocol.md`, raw output in `docs/sota-runs/`, full tables, sources and the "not comparable" list in the README section "Comparison with SOTA". Published rows with URL, table and date: `docs/beir-published-numbers.md`, `docs/legalbench-rag-published-numbers.md`.
 
 Mean nDCG@10 over SciFact, NFCorpus, FiQA, ArguAna, TREC-COVID, Quora (SCIDOCS not run):
 
@@ -256,3 +258,19 @@ Mean nDCG@10 over SciFact, NFCorpus, FiQA, ArguAna, TREC-COVID, Quora (SCIDOCS n
 LegalBench-RAG-mini Recall@8, ALL: ragkit BM25 9.89 (Lucene-matched 13.37), paper's dense text-embedding-3-large baseline 31.86 (mean of its four printed dataset rows).
 
 Reading: the Lucene-matched BM25 reproduces Pyserini within 0.007 on every dataset, so the implementation is sound; ragkit's retrieval quality is a BM25 baseline and trails every dense or learned-sparse system listed above on BEIR mean nDCG@10, and the dense baseline on LegalBench-RAG-mini.
+
+### 8b. After Phase K: neural retrieval and LLM answers
+
+Same four BEIR sets as above, nDCG@10 (ragkit measured; published rows copied from `docs/beir-published-numbers.md` and the MTEB results repo, commit `7818c6fe`):
+
+| System | SciFact | NFCorpus | FiQA | ArguAna | mean of 4 |
+|---|---|---|---|---|---|
+| ragkit `bm25-lucene` | 0.678 | 0.320 | 0.235 | 0.404 | 0.409 |
+| ragkit `dense` (bge-small-en-v1.5) | 0.713 | 0.344 | 0.403 | 0.606 | 0.517 |
+| bge-small-en-v1.5, MTEB (published) | 0.7127 | 0.3426 | 0.4034 | 0.6035 | 0.516 |
+| ragkit `hybrid` (RRF 60) | 0.727 | 0.362 | 0.361 | 0.535 | 0.496 |
+| ragkit `bm25+ce@100` | 0.687 | 0.352 | 0.346 | 0.417 | 0.451 |
+| BM25 + cross-encoder, BEIR paper (published) | 0.688 | 0.350 | 0.347 | 0.311 | 0.424 |
+| BGE-base-en-v1.5, Pyserini (published) | 0.741 | 0.373 | 0.406 | 0.636 | 0.539 |
+
+LegalBench-RAG-mini Recall@8 ALL: BM25 13.37, `dense` 18.51, `dense-e5` 19.69, `hybrid` 17.48 (`naive500`); best 20.40 (`dense-e5`, `recursive500`); paper's text-embedding-3-large baseline 31.86 recomputed. EU abstention with `claude-sonnet-5-5`: reader gate 13/45 unanswerable answered and 5/42 answerable refused; sufficiency gate 0/45 and 24/42; full-context prompt (about 85 k tokens, cached) 0/45 and 0/42, 41/42 correct (LLM-judged). The sufficient-context paper's and UAEval4RAG's numbers remain not comparable (section 7.3): other corpora, models and label construction. Costs: about 9.7 USD of API calls at assumed list prices and about 357 MB of local models.

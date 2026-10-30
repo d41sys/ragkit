@@ -265,13 +265,17 @@ def evaluate_system(
     return result
 
 
-def render_legalbench_report(bench: MiniBenchmark, results: Sequence[LegalResult]) -> str:
+def render_legalbench_report(
+    bench: MiniBenchmark,
+    results: Sequence[LegalResult],
+    title: str = "### ragkit legalbench: LegalBench-RAG-mini (model-free)",
+) -> str:
     """Markdown report: acceptance counts, then recall and precision at each k per system."""
     docs = bench.docs_per_source()
     n_queries = {s: sum(1 for t in bench.tests if t.source == s) for s in SOURCES}
     ok = docs == EXPECTED_DOCS and bench.chars() == EXPECTED_CHARS
     lines = [
-        "### ragkit legalbench: LegalBench-RAG-mini (model-free)",
+        title,
         "",
         f"{len(bench.tests)} queries ({', '.join(f'{s} {n_queries[s]}' for s in SOURCES)}); "
         f"{len(bench.corpus)} documents ({', '.join(f'{s} {docs[s]}' for s in SOURCES)}); "

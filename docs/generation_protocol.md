@@ -115,3 +115,62 @@ The 87 labels are agent-reviewed (README caveat); 87 questions resolve differenc
 10 points only. LLM judges are not human labels. Published sufficient-context and UAEval4RAG
 numbers come from other corpora and models and are not compared with ours
 (`docs/sota-review.md` section 7.3).
+
+## Outcome (scored run; raw output `docs/sota-runs/generation_default.txt`, `generation_hybrid_ce.txt`)
+
+Calls are cached in `data/llm_cache/generation.jsonl` (1016 calls for both runs; the cost line of
+the raw files counts that whole file); `ragkit generation` replays it offline and prints exactly
+the committed tables. Prices are assumed list prices (3 / 15 USD per M input / output, cache
+write 1.25x, cache read 0.1x), not read from the API: 9.72 USD, 1.27 M input, 0.10 M cache-write,
+8.54 M cache-read and 0.20 M output tokens. Four more pilot calls (synthetic corpus, about
+0.03 USD) are in the gitignored `.ragkit/llm_cache.jsonl`.
+
+Deviations, all outside the frozen prompts: the API rejects `temperature` for `claude-sonnet-5-5`
+(HTTP 400 in the pilot), so no temperature is sent; two `SUFF` replies of the secondary run were
+cut at 800 output tokens and failed to parse, so `_json` got a third attempt with doubled
+`max_tokens` (the first two attempts and their cache keys are unchanged).
+
+Default retriever (shipped pipeline, top 5 chunks; reader replayed from
+`data/llm_cache/reader_scores.json`, 37/42 answered and 32/45 abstained as in the README):
+
+| System | unanswerable answered (of 45) | answerable wrongly abstained (of 42) | balanced acc. [95% CI] | paired d vs reader | correct (LLM-judged, of 42) |
+|---|---|---|---|---|---|
+| `reader` | 13 | 5 | 0.796 [0.715, 0.875] | baseline | 12 |
+| `self` | 0 | 25 | 0.702 [0.631, 0.774] | -0.094 [-0.195, +0.013] | 11 |
+| `suff` | 0 | 24 | 0.714 [0.643, 0.798] | -0.082 [-0.186, +0.031] | 11 |
+| `strict` | 0 | 25 | 0.702 [0.631, 0.774] | -0.094 [-0.191, +0.011] | 11 |
+| `lenient` | 13 | 4 | 0.808 [0.726, 0.887] | +0.012 [+0.000, +0.036] | 12 |
+| `stack` (nested CV) | 6 | 6 | 0.862 [0.790, 0.931] | +0.066 [-0.025, +0.150] | 12 |
+| `fullctx` | 0 | 0 | 1.000 [1.000, 1.000] | +0.204 [+0.125, +0.285] | 41 |
+
+AUROC: `SUFF.confidence` 0.967 [0.933, 0.990], `qa_answerable` 0.858 [0.772, 0.928], `stack`
+0.955 [0.911, 0.986] (no paired AUROC test was pre-registered, so the first two are compared by
+interval only). Citation support (LLM-judged, per cited article, over all GEN answers): `yes`
+0.587; FC 0.592. Per answering system, for example `self` 0.800 and `suff` 0.762: see the raw
+file.
+
+Predictions: A1 holds. A2 does not hold (0/45 answered, but 24/42 wrongly abstained against the
+limit of 10; 6 of the 24 are retrieval misses). A3 does not hold (`self` and `suff` both answer
+0 of 45). A4 does not hold (GEN 0.587 against 0.85, FC 0.592 against 0.90; most non-`yes`
+verdicts are `partial`: answers cite two articles and each supports only part). A5 holds
+(`fullctx` 0.976 correct against 0.262 for RAG `self`, 0 unanswerable answered). A6 holds.
+
+Decision rule: `suff` minus `reader` balanced accuracy -0.082 [-0.186, +0.031], lower bound not
+above 0: **the sufficiency gate is not adopted**; no detectable effect (CI includes 0, point
+estimate a loss). `ragkit answer --llm` therefore defaults to `--gate none`; `--gate suff` and
+`--gate self` are options. The binary gates are conservative on the 500-character chunks of the
+shipped pipeline (they answer none of the unanswerable questions and refuse 24 of 42 answerable
+ones); the continuous confidence carries the signal (AUROC 0.967), and a gate fitted on it with
+the reader (`stack`) halves the reader's unanswerable-answered count to 6 at a similar
+wrongly-abstained count, but its CI also includes 0.
+
+Secondary run (`hybrid+ce` chunks, no reader): `SUFF.confidence` AUROC 0.987 [0.963, 0.999];
+`suff` answers 0/45 and wrongly abstains on 17/42 (balanced accuracy 0.798 [0.726, 0.869]);
+`self` 0/45 and 19/42; RAG answers 14/42 correct (default retriever: 11 to 12); 6 of 42 gold
+articles are still missing from the top 5.
+
+Full context (the whole 94-article corpus, about 85 k tokens, prompt-cached): 41 of 42
+answerable questions correct, 0 of 45 unanswerable answered, 0 wrong abstentions, 87 calls for
+3.29 USD. This holds for a corpus that fits in a prompt; it says nothing about corpora that do
+not. Judge: the same model family as the answerer (`CORRECT`, `CITE` run by `claude-sonnet-5-5`),
+no human check, so a shared bias cannot be excluded.

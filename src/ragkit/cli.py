@@ -927,7 +927,8 @@ def _cmd_legalbench_neural(args: argparse.Namespace) -> int:
         max_queries=args.max_queries,
     )
     print()
-    print(render_legalbench_report(bench, results))
+    title = "### ragkit legalbench: LegalBench-RAG-mini (neural: bge-small, e5-small-v2, MiniLM CE)"
+    print(render_legalbench_report(bench, results, title))
     return 0
 
 
@@ -1305,9 +1306,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_ans.add_argument(
         "--gate",
         choices=("suff", "self", "none"),
-        default="suff",
-        help="suff: abstain unless the sufficient-context check passes; self: abstain when the "
-        "answer says the context does not support it; none: always answer.",
+        default="none",
+        help="none (default: the sufficiency gate did not beat the reader gate, see README): "
+        "always answer; suff: abstain unless the sufficient-context check passes; self: abstain "
+        "when the answer says the context does not support it.",
     )
     p_ans.add_argument("--cache", default=str(DEFAULT_LLM_CACHE), help="JSONL call cache.")
 
