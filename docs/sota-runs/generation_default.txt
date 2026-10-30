@@ -65,15 +65,15 @@
 
 **Calls and cost (assumed list prices)**
 
-653 cached calls (653 live in this run); tokens: input 808,430, cache write 99,317, cache read 8,541,262, output 121,725; cost at assumed list prices (3 / 15 USD per M input / output, cache write 1.25x, read 0.1x): 7.19 USD.
+1016 cached calls (0 live in this run); tokens: input 1,273,086, cache write 99,317, cache read 8,541,262, output 197,723; cost at assumed list prices (3 / 15 USD per M input / output, cache write 1.25x, read 0.1x): 9.72 USD.
 
 | call | calls | USD |
 |---|---|---|
-| CITE | 307 | 2.48 |
-| CORRECT | 85 | 0.25 |
+| CITE | 453 | 3.70 |
+| CORRECT | 125 | 0.37 |
 | FC | 87 | 3.29 |
-| GEN | 87 | 0.60 |
-| SUFF | 87 | 0.56 |
+| GEN | 174 | 1.19 |
+| SUFF | 177 | 1.16 |
 
 **Pre-registered predictions and decision rule**
 

@@ -1,0 +1,32 @@
+
+### ragkit beir --retriever: nfcorpus (test)
+
+323 test queries, 3633 documents; mean [bootstrap 95% CI over queries]; dense encoding 58 s (cached matrices reload in seconds).
+
+| System | nDCG@10 | paired dnDCG@10 vs bm25 | Recall@100 | s (ranking, incl. CE) |
+|---|---|---|---|---|
+| bm25 | 0.320 [0.285, 0.357] | baseline | 0.246 [0.217, 0.276] | 0 |
+| dense | 0.344 [0.308, 0.380] | +0.023 [+0.004, +0.043] | 0.311 [0.282, 0.341] | 0 |
+| dense-e5 | 0.326 [0.290, 0.360] | +0.005 [-0.014, +0.022] | 0.297 [0.268, 0.327] | 0 |
+| hybrid | 0.362 [0.326, 0.398] | +0.042 [+0.029, +0.057] | 0.311 [0.282, 0.342] | 0 |
+| hybrid-convex | 0.363 [0.327, 0.399] | +0.042 [+0.028, +0.059] | 0.312 [0.283, 0.343] | 0 |
+| bm25+ce@20 | 0.349 [0.313, 0.386] | +0.029 [+0.018, +0.040] | 0.246 [0.217, 0.276] | 110 |
+| bm25+ce@50 | 0.350 [0.314, 0.386] | +0.030 [+0.018, +0.042] | 0.246 [0.217, 0.276] | 0 |
+| bm25+ce@100 | 0.352 [0.315, 0.387] | +0.031 [+0.019, +0.044] | 0.246 [0.217, 0.276] | 0 |
+| hybrid+ce@20 | 0.362 [0.326, 0.398] | +0.042 [+0.028, +0.055] | 0.311 [0.282, 0.342] | 88 |
+| hybrid+ce@50 | 0.357 [0.321, 0.392] | +0.037 [+0.023, +0.051] | 0.311 [0.282, 0.342] | 0 |
+| hybrid+ce@100 | 0.353 [0.317, 0.388] | +0.032 [+0.018, +0.046] | 0.311 [0.282, 0.342] | 0 |
+
+`hybrid-convex` alpha = 0.4 (weight of BM25), chosen on nfcorpus dev dev nDCG@10 0.342 (grid 0.0: 0.328, 0.1: 0.332, 0.2: 0.338, 0.3: 0.341, 0.4: 0.342, 0.5: 0.341, 0.6: 0.334, 0.7: 0.329, 0.8: 0.323, 0.9: 0.312, 1.0: 0.284).
+
+Published, same dataset, split and metrics (nDCG@10 / Recall@100):
+
+| System | nDCG@10 | Recall@100 |
+|---|---|---|
+| Pyserini BM25 flat | 0.322 | 0.246 |
+| bge-small-en-v1.5 (MTEB) | 0.3426 | 0.3116 |
+| e5-small-v2 (MTEB) | 0.3245 | 0.2980 |
+| BM25+CE (BEIR paper; rerank of BM25 top 100, nDCG@10 only) | 0.350 | = BM25 |
+| BGE-base-en-v1.5 (Pyserini) | 0.373 | 0.337 |
+
+Reproduction check: our bge-small `dense` nDCG@10 0.3438 vs MTEB 0.3426, gap +0.0012, within the pre-registered 0.015 tolerance.

@@ -166,14 +166,17 @@ class LLMAnswerer:
         max_tokens: int,
         required: Sequence[str],
     ) -> dict[str, Any]:
-        """One call; a reply that is not the expected JSON is retried once with a reminder.
+        """One call; a reply that is not the expected JSON is retried with a reminder.
 
-        The retry doubles ``max_tokens`` (a reply cut off at the limit is the usual cause), so
-        first-attempt requests, and their cache keys, are unchanged.
+        Attempt 2 repeats the request with a JSON reminder; attempt 3 also doubles ``max_tokens``
+        (a reply cut off at the limit is the usual cause). Earlier attempts keep their requests,
+        and so their cache keys, when a later one is added.
         """
+        reminder = "\n\nReply with only the JSON object, nothing else."
         attempts = (
             (user, max_tokens),
-            (user + "\n\nReply with only the JSON object.", 2 * max_tokens),
+            (user + reminder, max_tokens),
+            (user + reminder, 2 * max_tokens),
         )
         for attempt, limit in attempts:
             reply = self.client.complete(kind, system, attempt, limit)
@@ -183,7 +186,7 @@ class LLMAnswerer:
                 continue
             if all(key in parsed for key in required):
                 return parsed
-        raise ValueError(f"{kind}: no valid JSON reply after one retry")
+        raise ValueError(f"{kind}: no valid JSON reply after {len(attempts)} attempts")
 
     @staticmethod
     def _gen(parsed: dict[str, Any]) -> GenAnswer:

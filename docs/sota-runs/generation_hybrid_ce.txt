@@ -7,7 +7,7 @@
 
 | Score | AUROC [95% CI] |
 |---|---|
-| `suff_confidence` | 0.987 [0.963, 0.999] |
+| `suff_confidence` | 0.986 [0.962, 0.999] |
 | `self` (binary flag) | 0.774 |
 | `suff` (binary flag) | 0.798 |
 | `fullctx` (binary flag) | 1.000 |
@@ -54,7 +54,7 @@
 
 **Calls and cost (assumed list prices)**
 
-1015 cached calls (269 live in this run); tokens: input 1,271,994, cache write 99,317, cache read 8,541,262, output 196,893; cost at assumed list prices (3 / 15 USD per M input / output, cache write 1.25x, read 0.1x): 9.70 USD.
+1016 cached calls (0 live in this run); tokens: input 1,273,086, cache write 99,317, cache read 8,541,262, output 197,723; cost at assumed list prices (3 / 15 USD per M input / output, cache write 1.25x, read 0.1x): 9.72 USD.
 
 | call | calls | USD |
 |---|---|---|
@@ -62,11 +62,11 @@
 | CORRECT | 125 | 0.37 |
 | FC | 87 | 3.29 |
 | GEN | 174 | 1.19 |
-| SUFF | 176 | 1.15 |
+| SUFF | 177 | 1.16 |
 
 **Pre-registered predictions and decision rule**
 
-- A1 `SUFF.confidence` AUROC 0.987 above the reader and at least 0.90: holds
+- A1 `SUFF.confidence` AUROC 0.986 above the reader and at least 0.90: holds
 - A2 `suff` answers 0/45 unanswerable (<= 6) and wrongly abstains on 17/42 answerable (<= 10): does not hold
 - A3 `self` answers 0 unanswerable vs `suff` 0 (self more): does not hold
 - A4 citation `yes` rate GEN 0.608 (>= 0.85), FC 0.592 (>= 0.90): does not hold
