@@ -1,0 +1,103 @@
+### ragkit legalsize test: size-matched chunk control (test)
+
+620 queries (privacy_qa 155, contractnli 155, maud 155, cuad 155); 72 documents pooled; full query, no routing; ALL = equal-weight mean of the four source means; values in %. k is a number of chunks; the nominal character budget is k x size. Differences are 95% paired percentile-bootstrap intervals (2000 resamples, seed 0, queries resampled within each source, one resample shared by all quantities).
+
+| cell | chunks | shorter than size |
+|---|---|---|
+| bm25-naive250 | 34,766 | 72 |
+| dense-e5-naive250 | 34,766 | 72 |
+| bm25-naive500 | 17,403 | 72 |
+| dense-e5-naive500 | 17,403 | 72 |
+| bm25-naive1000 | 8,723 | 72 |
+| dense-e5-naive1000 | 8,723 | 72 |
+
+#### bm25: equal k (rows: chunk size; Recall@k ALL with 95% CI, then Precision@k)
+
+| size | R@1 | R@2 | R@4 | R@8 | R@16 | R@32 | R@64 |
+|---|---|---|---|---|---|---|---|
+| 250 | 1.69 [1.0, 2.5] | 2.31 [1.4, 3.3] | 4.38 [3.2, 5.6] | 6.41 [5.1, 7.8] | 9.67 [8.1, 11.4] | 13.79 [12.0, 15.6] | 20.53 [18.4, 22.6] |
+| 500 | 2.19 [1.4, 3.1] | 4.59 [3.4, 5.8] | 7.81 [6.2, 9.5] | 12.95 [11.0, 14.9] | 19.09 [16.7, 21.4] | 25.88 [23.3, 28.5] | 34.78 [32.0, 37.6] |
+| 1000 | 5.54 [4.0, 7.2] | 8.44 [6.8, 10.3] | 15.88 [13.4, 18.4] | 23.88 [21.1, 26.6] | 31.01 [27.9, 33.8] | 41.75 [38.7, 44.6] | 49.95 [47.0, 52.7] |
+
+| size | P@1 | P@2 | P@4 | P@8 | P@16 | P@32 | P@64 |
+|---|---|---|---|---|---|---|---|
+| 250 | 2.97 | 2.02 | 2.02 | 1.63 | 1.28 | 0.99 | 0.78 |
+| 500 | 2.05 | 2.20 | 2.02 | 1.84 | 1.44 | 1.05 | 0.71 |
+| 1000 | 2.65 | 2.37 | 2.25 | 1.86 | 1.33 | 0.93 | 0.58 |
+
+#### bm25: equal character budget (cell = Recall ALL at k = B / size, (k) shown)
+
+| size | B = 1000 | B = 2000 | B = 4000 | B = 8000 | B = 16000 |
+|---|---|---|---|---|---|
+| 250 | 4.38 (4) | 6.41 (8) | 9.67 (16) | 13.79 (32) | 20.53 (64) |
+| 500 | 4.59 (2) | 7.81 (4) | 12.95 (8) | 19.09 (16) | 25.88 (32) |
+| 1000 | 5.54 (1) | 8.44 (2) | 15.88 (4) | 23.88 (8) | 31.01 (16) |
+
+| size | P at B = 1000 | P at B = 2000 | P at B = 4000 | P at B = 8000 | P at B = 16000 |
+|---|---|---|---|---|---|
+| 250 | 2.02 | 1.63 | 1.28 | 0.99 | 0.78 |
+| 500 | 2.20 | 2.02 | 1.84 | 1.44 | 1.05 |
+| 1000 | 2.65 | 2.37 | 2.25 | 1.86 | 1.33 |
+
+Per-source Recall at B = 4000 (bm25): 250: privacy_qa 7.84, contractnli 21.40, maud 0.23, cuad 9.21; 500: privacy_qa 11.34, contractnli 26.83, maud 1.11, cuad 12.53; 1000: privacy_qa 15.67, contractnli 32.16, maud 0.41, cuad 15.29.
+
+#### dense-e5: equal k (rows: chunk size; Recall@k ALL with 95% CI, then Precision@k)
+
+| size | R@1 | R@2 | R@4 | R@8 | R@16 | R@32 | R@64 |
+|---|---|---|---|---|---|---|---|
+| 250 | 3.97 [2.9, 5.2] | 5.29 [4.1, 6.6] | 7.55 [6.1, 9.0] | 10.73 [9.0, 12.4] | 15.30 [13.4, 17.3] | 20.47 [18.2, 22.6] | 27.36 [24.8, 29.7] |
+| 500 | 5.77 [4.4, 7.2] | 8.44 [6.7, 10.1] | 14.06 [11.8, 16.2] | 20.09 [17.5, 22.6] | 27.46 [24.7, 30.1] | 35.68 [32.6, 38.5] | 47.02 [44.1, 49.8] |
+| 1000 | 8.27 [6.5, 10.1] | 13.62 [11.4, 15.9] | 22.98 [20.2, 25.9] | 34.36 [31.2, 37.5] | 44.21 [40.9, 47.4] | 54.09 [50.9, 57.1] | 64.11 [61.1, 67.0] |
+
+| size | P@1 | P@2 | P@4 | P@8 | P@16 | P@32 | P@64 |
+|---|---|---|---|---|---|---|---|
+| 250 | 7.44 | 5.37 | 3.94 | 3.01 | 2.32 | 1.72 | 1.21 |
+| 500 | 6.45 | 5.29 | 4.50 | 3.33 | 2.38 | 1.64 | 1.09 |
+| 1000 | 5.39 | 4.34 | 3.81 | 2.99 | 2.04 | 1.37 | 0.80 |
+
+#### dense-e5: equal character budget (cell = Recall ALL at k = B / size, (k) shown)
+
+| size | B = 1000 | B = 2000 | B = 4000 | B = 8000 | B = 16000 |
+|---|---|---|---|---|---|
+| 250 | 7.55 (4) | 10.73 (8) | 15.30 (16) | 20.47 (32) | 27.36 (64) |
+| 500 | 8.44 (2) | 14.06 (4) | 20.09 (8) | 27.46 (16) | 35.68 (32) |
+| 1000 | 8.27 (1) | 13.62 (2) | 22.98 (4) | 34.36 (8) | 44.21 (16) |
+
+| size | P at B = 1000 | P at B = 2000 | P at B = 4000 | P at B = 8000 | P at B = 16000 |
+|---|---|---|---|---|---|
+| 250 | 3.94 | 3.01 | 2.32 | 1.72 | 1.21 |
+| 500 | 5.29 | 4.50 | 3.33 | 2.38 | 1.64 |
+| 1000 | 5.39 | 4.34 | 3.81 | 2.99 | 2.04 |
+
+Per-source Recall at B = 4000 (dense-e5): 250: privacy_qa 21.36, contractnli 21.95, maud 1.59, cuad 16.28; 500: privacy_qa 30.97, contractnli 24.68, maud 3.21, cuad 21.51; 1000: privacy_qa 35.90, contractnli 28.22, maud 3.72, cuad 24.07.
+
+#### Size contrasts (points of Recall ALL): D_8 = equal k = 8; D_B = equal budget B; S = 1 - D_B / D_8, the share of the equal-k difference that disappears at equal budget
+
+| retriever | large vs small | B | D_8 [CI] | D_B [CI] | S [CI] | rule |
+|---|---|---|---|---|---|---|
+| bm25 | 1000 vs 500 | 4000 | +10.93 [+8.76, +13.22] | +2.93 [+0.99, +4.95] | 0.73 [0.58, 0.90] | size effect at equal budget: larger chunks help beyond their budget (+2.93 [+0.99, +4.95]) |
+| bm25 | 500 vs 250 | 4000 | +6.54 [+5.04, +8.08] | +3.28 [+1.61, +5.10] | 0.50 [0.34, 0.71] | size effect at equal budget: larger chunks help beyond their budget (+3.28 [+1.61, +5.10]) |
+| bm25 | 1000 vs 250 | 8000 | +17.47 [+15.07, +19.93] | +10.09 [+7.64, +12.57] | 0.42 [0.34, 0.52] | size effect at equal budget: larger chunks help beyond their budget (+10.09 [+7.64, +12.57]) |
+| dense-e5 | 1000 vs 500 | 4000 | +14.26 [+11.69, +16.87] | +2.88 [+0.43, +5.51] | 0.80 [0.65, 0.96] | size effect at equal budget: larger chunks help beyond their budget (+2.88 [+0.43, +5.51]) |
+| dense-e5 | 500 vs 250 | 4000 | +9.37 [+7.56, +11.37] | +4.80 [+3.02, +6.70] | 0.49 [0.38, 0.62] | size effect at equal budget: larger chunks help beyond their budget (+4.80 [+3.02, +6.70]) |
+| dense-e5 | 1000 vs 250 | 8000 | +23.63 [+20.75, +26.54] | +13.89 [+11.08, +16.86] | 0.41 [0.35, 0.49] | size effect at equal budget: larger chunks help beyond their budget (+13.89 [+11.08, +16.86]) |
+
+#### Larger minus smaller size at every equal budget (points of Recall ALL, [CI])
+
+| retriever | large vs small | B = 1000 | B = 2000 | B = 4000 | B = 8000 | B = 16000 |
+|---|---|---|---|---|---|---|
+| bm25 | 1000 vs 500 | +0.95 [-0.37, +2.27] | +0.63 [-1.04, +2.42] | +2.93 [+0.99, +4.95] | +4.79 [+2.56, +7.01] | +5.13 [+2.78, +7.48] |
+| bm25 | 500 vs 250 | +0.21 [-0.86, +1.24] | +1.40 [+0.21, +2.68] | +3.28 [+1.61, +5.10] | +5.30 [+3.32, +7.25] | +5.35 [+3.12, +7.45] |
+| bm25 | 1000 vs 250 | +1.16 [-0.26, +2.66] | +2.03 [+0.30, +3.75] | +6.21 [+4.10, +8.56] | +10.09 [+7.64, +12.57] | +10.48 [+7.81, +13.13] |
+| dense-e5 | 1000 vs 500 | -0.17 [-2.17, +1.84] | -0.45 [-2.56, +1.80] | +2.88 [+0.43, +5.51] | +6.89 [+4.32, +9.66] | +8.53 [+5.87, +11.49] |
+| dense-e5 | 500 vs 250 | +0.89 [-0.72, +2.47] | +3.33 [+1.62, +5.13] | +4.80 [+3.02, +6.70] | +7.00 [+4.95, +9.09] | +8.32 [+5.99, +10.47] |
+| dense-e5 | 1000 vs 250 | +0.72 [-1.31, +2.73] | +2.89 [+0.55, +5.29] | +7.68 [+4.93, +10.41] | +13.89 [+11.08, +16.86] | +16.85 [+13.97, +19.99] |
+
+**Pre-registered verdict** (`bm25`, naive1000 vs naive500, B = 4000, test): D_8 = +10.93 [+8.76, +13.22], D_B = +2.93 [+0.99, +4.95] -> **size effect at equal budget: larger chunks help beyond their budget (+2.93 [+0.99, +4.95])**.
+
+**Harness check, post-hoc, all 776 queries (includes dev): Recall@8 ALL, %**
+
+| cell | recomputed | committed row | gap | status |
+|---|---|---|---|---|
+| bm25-naive500 | 13.37 | 13.37 | -0.00 | reproduced |
+| dense-e5-naive500 | 19.69 | 19.69 | +0.00 | reproduced |
