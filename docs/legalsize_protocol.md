@@ -78,9 +78,12 @@ cells and for `D_8` and `D_B`), four source means averaged with equal weight (as
 > CI (above 0: larger chunks help beyond their budget; below 0: smaller chunks win per retrieved
 > character). If the CI of `D_8` includes 0 there is no equal-k gain to explain, and that is
 > reported. The rule is applied to the primary cell only. The same rule is applied, and reported
-> separately, to the other cells (`dense-e5` for 1000 vs 500; 500 vs 250 and 1000 vs 250 for both
-> retrievers, each at the budget of the larger size's k = 8: 4000 for 500 vs 250, 8000 for 1000 vs
-> 250), and none of these changes the verdict above.
+> separately, to the other cells (`dense-e5` for 1000 vs 500, at B = 4000 like the primary; 500 vs
+> 250 at B = 4000 and 1000 vs 250 at B = 8000, for both retrievers), and none of these changes the
+> verdict above. (Wording fixed before any code or number existed: the first draft said "the
+> larger size's k = 8" for these budgets, which holds for 500 vs 250 and 1000 vs 250 but not for
+> the primary 1000 vs 500; the budgets written here are the ones used. In every contrast `D_8` is
+> the equal-k difference at k = 8.)
 
 Share of an equal-k difference explained by size alone (descriptive, reported for every contrast
 above): `S = 1 - D_B / D_8`, with a paired bootstrap CI (same resamples); `S` is undefined (and
