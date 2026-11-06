@@ -144,3 +144,64 @@ number stays 48.18.
 - A split by query leaves dev and test with the same 72 documents.
 - Routing depends on the prefix naming the document: that is a property of this benchmark's
   templates, not of legal retrieval in general.
+
+## Outcome (scored once, no deviation from the protocol above)
+
+Commits: protocol `d38195d`, code and tests `c8a6b56`, dev tuning `b98fdb7`, test scoring
+`d04f8ab`. Commands (offline, no key, no download; the e5 document matrices came from
+`data/raw/emb/`, only queries were embedded):
+
+```
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 uv run --offline ragkit legalsplit tune  --out docs/sota-runs/legalsplit_tune.txt
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 uv run --offline ragkit legalsplit score --out docs/sota-runs/legalsplit_score.txt
+```
+
+Raw output: `docs/sota-runs/legalsplit_tune.txt`, `docs/sota-runs/legalsplit_tuning.json`,
+`docs/sota-runs/legalsplit_score.txt`. All four full-query baselines on the 776 queries reproduce
+the committed rows (gap 0.00 in every cell).
+
+**Dev choices** (156 dev queries): profile `name+open2000` (document top-1 on dev: `name` 56.4 %,
+`name+open500` 90.4 %, `name+open2000` 94.2 %, `open2000` 89.1 %); for both retrievers `n = 1` and
+the question-only in-document query (dev Recall@8 ALL, mean of the chunkers: `bm25` 45.65 against
+27.58 with the full query at `n = 1` and 37.32 / 21.52 at `n = 2`; `dense-e5` 51.33 against 34.45,
+42.09 and 31.45).
+
+**Test, Recall@8 ALL in % (620 queries), paired difference to the same-cell baseline, 95 % CI:**
+
+| cell | baseline | A: question only | A minus baseline | B: routed, `n = 1` | B minus baseline |
+|---|---|---|---|---|---|
+| `bm25-naive500` (primary) | 12.95 | 6.92 | -6.03 [-8.11, -3.90] | 47.24 | +34.29 [+31.10, +37.48] |
+| `dense-e5-recursive500` (primary) | 20.70 | 12.65 | -8.06 [-10.94, -5.00] | 54.39 | +33.68 [+30.17, +37.24] |
+| `bm25-recursive500` | 11.08 | 7.18 | -3.90 [-5.97, -1.75] | 47.10 | +36.02 [+32.59, +39.32] |
+| `dense-e5-naive500` | 20.09 | 10.30 | -9.80 [-12.65, -6.79] | 52.96 | +32.86 [+29.50, +36.37] |
+
+**Verdict under the pre-registered rule.** Arm A: *worse* in every cell (upper CI bounds below 0),
+so it is not an improvement and the hypothesis that removing the prefix helps is rejected on this
+benchmark. Arm B: *improvement* in both primary cells and in the other two (lower bounds above
++29). Routing finds the gold document at top-1 for 95.6 % of the test queries (privacy_qa 94.2,
+contractnli 88.4, maud 100.0, cuad 100.0), with no fallback. B stays lowest on MAUD (21 to 30 %
+Recall@8) against 60 to 71 % on CUAD and 66 to 67 % on ContractNLI.
+
+**Predictions.** P1 (A improves BM25) is false: A lowers Recall@8 in all four cells, BM25 included.
+P2 holds for privacy_qa, contractnli and maud, but not for CUAD: the dev-chosen profile with the
+opening text routes CUAD perfectly (the run-together upper-case file names alone were not enough:
+`name` has 56.4 % top-1 on dev). P3 holds (B beats A and the baselines, MAUD stays the lowest).
+
+**Reading** (what the numbers support, and what they do not):
+- The wrong-document error is large: once the right document is known (B), Recall@8 rises by 33 to
+  36 points in every cell.
+- Dropping the prefix does not remove that error. In B, on dev, the question-only query beats the
+  full query by 17 to 18 points inside a single document, so the prefix words hurt the choice of
+  chunk; in A, over all documents, the same removal costs 4 to 10 points on test. [INFERENCE, not
+  tested here] The prefix is the only place that names the document, and the party names and
+  contract type recur in the contract text, so without it nothing steers the search towards the
+  right contract.
+- B is a different task from the published one (the system is told which document to search, by
+  the query itself). Its numbers are listed apart from the published rows and not compared with
+  them; the best comparable published number stays 48.18.
+- Anything beyond the above (why MAUD stays low, whether an oracle router would add more than the
+  4.4 % of routing misses) was not run.
+
+The post-hoc 776-query table in `legalsplit_score.txt` includes the 156 dev queries; it is only a
+line-up with the full-sample rows (A 7.02, 10.35, 7.25, 12.46 and B 46.98, 52.34, 46.74, 54.06 in
+the order `bm25-naive500`, `dense-e5-naive500`, `bm25-recursive500`, `dense-e5-recursive500`).

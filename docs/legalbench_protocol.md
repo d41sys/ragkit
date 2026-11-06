@@ -82,3 +82,9 @@ rows, labelled as such.
 - Expectation, stated as such and not as a result: BM25 is competitive with the paper's dense
   baseline on CUAD / PrivacyQA / ContractNLI, where queries share legal wording with the
   snippets, and loses on MAUD, where the paper's own numbers are near zero.
+
+## Follow-up study
+
+The effect of the "Consider ..." prefix (question-only queries, and routing to a document by the
+prefix) is a separate, later pre-registered study: `docs/legalsplit_protocol.md`. It does not change
+any system, number or rule in this file.

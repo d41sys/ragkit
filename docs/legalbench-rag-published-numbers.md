@@ -256,6 +256,21 @@ Verdict key: **COMPARABLE** = same mini sample, same char-overlap metric, same k
 - MLEB (`https://arxiv.org/pdf/2510.19365`, 2025-10-22) only cites LegalBench-RAG as prior work; it does not report LegalBench-RAG scores.
 - `emergentmind.com/topics/legalbench-rag*` pages are secondary summaries, not opened in full, not used for numbers.
 
+### C.10 ragkit's own prefix-free and document-routed rows (2026-11-06; not published numbers)
+
+`docs/legalsplit_protocol.md`, raw output `docs/sota-runs/legalsplit_score.txt`; test split of 620 of the 776 mini queries, Recall@8 ALL in %.
+
+| ragkit system (test split) | same-system full-query baseline | arm |
+|---|---|---|
+| `bm25-lucene` + `naive500`, question only after the first `;` | 12.95 | 6.92 |
+| `dense-e5` + `recursive500`, question only | 20.70 | 12.65 |
+| `bm25-lucene` + `naive500`, routed to one document by the query prefix, question only | 12.95 | 47.24 |
+| `dense-e5` + `recursive500`, routed to one document by the query prefix, question only | 20.70 | 54.39 |
+
+- **Question-only rows: NOT head-to-head.** Same sample, metric and k, but the query text differs from the official run (it removes the document-naming prefix). They are also lower than the full-query baselines, so there is no reason to quote them against a published row.
+- **Document-routed rows: NOT comparable, oracle-like.** The system picks the document from the file name and opening text matched to the query's own prefix (95.6 % top-1 on test) and searches only inside it, as PAKTON's Appendix F.2 does with a known source document (C.3). They use document metadata that the published rows (paper Tables 4, 5, 7, StrucChunk) do not use. Do not put them next to the 48.18 row; they belong with the oracle-document rows of C.3 and C.1.
+- The full-query rows stay the only ragkit rows in the head-to-head.
+
 ---
 
 ## D. Published BM25 numbers

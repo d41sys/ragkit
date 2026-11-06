@@ -326,3 +326,16 @@ Context: with the neural retriever (`hybrid+ce@100`), 6 of the 42 answerable ori
 ### 8e. Phase N-1: budget packing of parent articles
 
 Pre-registered (`13aa661`), retrieval only. The k = 3 article context left most of the 12 000-token budget unused. Budget packing (distinct parent articles in rank order until the budget is full, overflow policy `stop`, candidates from the top 10 chunks; policy and depth chosen on fresh 29 + synthetic 40) was scored once on the 130 pooled held-out questions: gold article in context 80 to 96 of 130 (default; +0.123 [+0.062, +0.185] vs k = 3) and 94 to 111 (`hybrid+ce`; +0.131 [+0.077, +0.192]), with mean context 3 526 to 8 502 and 3 229 to 6 876 estimated tokens and no context over budget. The pre-registered rule (CI lower bound above 0 on both retrievers) passes, so `ragkit answer` packs by default (`--no-pack` for k = 3). Answer quality was not re-measured. See `docs/packing_protocol.md`.
+
+### 8f. LegalBench-RAG-mini: does the "Consider ..." prefix pull in wrong documents?
+
+Pre-registered (`d38195d`), offline, retrieval only, `docs/legalsplit_protocol.md`. Every mini query is `Consider <document description>; <question>` (776 of 776, one `;` each). Dev/test split by query (156 dev, 620 test, seed 20261106); settings chosen on dev; test scored once. Same chunkers, same BM25 / `dense-e5` engines and cached document matrices as the baseline rows (the four full-query baselines reproduce the committed numbers on all 776 queries).
+
+Recall@8 ALL (%), test split, paired difference to the same-cell full-query baseline with 95% CI:
+
+| cell | baseline | A: question only | B: routed to the top-1 document |
+|---|---|---|---|
+| `bm25-lucene` `naive500` | 12.95 | 6.92 (-6.03 [-8.11, -3.90]) | 47.24 (+34.29 [+31.10, +37.48]) |
+| `dense-e5` `recursive500` | 20.70 | 12.65 (-8.06 [-10.94, -5.00]) | 54.39 (+33.68 [+30.17, +37.24]) |
+
+Rule (lower CI bound above 0 in both primary cells): A is worse in all four cells, so it is not adopted; B is an improvement in all four. B routes each query to a document by matching the prefix against file name plus the first 2000 characters (95.6 % top-1 on test) and then searches that document only. **It uses document metadata and is not comparable to the published rows**; the best comparable published number stays 48.18 (StrucChunk + Hybrid, unreviewed preprint). Neither arm changes the head-to-head table above or any default. Reading: knowing the document adds 33 to 36 points of Recall@8 in every cell, so choosing the wrong document is a large part of the error on this benchmark; removing the prefix does not fix it. [INFERENCE] The prefix is the only place that names the document, so without it nothing steers the search towards the right contract; inside a single document the question-only query was 17 to 18 points better than the full query on dev.
