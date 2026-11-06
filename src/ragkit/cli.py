@@ -1062,6 +1062,83 @@ def cmd_retrieval_miss(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_packing(args: argparse.Namespace) -> int:
+    """Budget packing vs k = 3 and k = 5, retrieval only (docs/packing_protocol.md)."""
+    from ragkit.packbench import (
+        RETRIEVERS,
+        DevCell,
+        HeldOutSet,
+        render_heldout,
+        render_tuning,
+        retrieve_pools,
+        run_heldout,
+        tune,
+        tuning_json,
+    )
+    from ragkit.retrievalmiss import dump_json
+
+    def load(path: Path) -> list[Question]:
+        return questions_from_records(_read_jsonl(path))
+
+    def pools_for(
+        retriever: str, documents: list[tuple[str, str]], questions: list[Question]
+    ) -> dict[int, list[list[Passage]]]:
+        pipeline = _make_pipeline(retriever, 0.0)
+        pipeline.index_documents(documents)
+
+        def retrieve(query: str, top_k: int) -> list[Passage]:
+            return [Passage(c.doc_id, c.text) for c in pipeline.retrieve(query, top_k=top_k)]
+
+        return retrieve_pools(retrieve, questions)
+
+    def emit(text: str) -> None:
+        print()
+        print(text)
+        if args.out:
+            out = Path(args.out)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(text + "\n", encoding="utf-8")
+
+    eu_docs = _load_documents(EU_CORPUS_DIR)
+    tuning_path = Path(args.tuning_json)
+    if args.action == "tune":
+        syn_docs = _load_documents(DEFAULT_CORPUS_DIR)
+        dev = [
+            ("fresh 29", dict(eu_docs), eu_docs, load(EU_FRESH_QA_PATH)),
+            ("synthetic 40", dict(syn_docs), syn_docs, load(DEFAULT_QA_PATH)),
+        ]
+        cells = [
+            DevCell(r, name, pools_for(r, docs, qs), qs, articles)
+            for r in RETRIEVERS
+            for name, articles, docs, qs in dev
+        ]
+        grids = tune(cells)
+        sizes = {name: len(qs) for name, _, _, qs in dev}
+        dump_json(tuning_path, tuning_json(grids, sizes))
+        emit(render_tuning(grids, sizes))
+        return 0
+
+    if not tuning_path.is_file():
+        print(
+            f"Error: tuning JSON not found at {tuning_path}.\nRun `ragkit packing tune` first.",
+            file=sys.stderr,
+        )
+        return 2
+    chosen = json.loads(tuning_path.read_text(encoding="utf-8"))["chosen"]
+    held = {
+        "original 42": load(EU_QA_PATH),
+        "hard 39": load(EU_HARD_QA_PATH),
+        "keyword-free 49": load(EU_NOKW_QA_PATH),
+    }
+    sets = {
+        r: [HeldOutSet(name, pools_for(r, eu_docs, qs), qs) for name, qs in held.items()]
+        for r in RETRIEVERS
+    }
+    run = run_heldout(sets, dict(eu_docs), str(chosen["overflow"]), int(chosen["depth"]))
+    emit(render_heldout(run))
+    return 0
+
+
 def cmd_beir(args: argparse.Namespace) -> int:
     """Retrievers on a BEIR test set (docs/beir_protocol.md); nDCG@10 and Recall@100."""
     if args.retriever != "bm25":
@@ -1538,6 +1615,20 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_rm.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
     p_rm.add_argument("--out", default=None, help="Write the report to this file as well.")
 
+    # Budget packing of parent articles (protocol: docs/packing_protocol.md)
+    p_pack = subparsers.add_parser(
+        "packing",
+        help="Gold-in-context recall and context tokens of k = 3, k = 5 and budget packing "
+        "(retrieval only, no LLM call; needs `[st]` and the cached models).",
+    )
+    p_pack.add_argument("action", choices=("tune", "score"), help="tune on dev; score held-out.")
+    p_pack.add_argument(
+        "--tuning-json",
+        default="docs/sota-runs/packing_tuning.json",
+        help="Dev-chosen packing setting (written by tune, read by score).",
+    )
+    p_pack.add_argument("--out", default=None, help="Write the report to this file as well.")
+
     # LLM answer command
     p_ans = subparsers.add_parser(
         "answer",
@@ -1664,6 +1755,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_generation(parsed))
     elif parsed.subcommand == "retrieval-miss":
         sys.exit(cmd_retrieval_miss(parsed))
+    elif parsed.subcommand == "packing":
+        sys.exit(cmd_packing(parsed))
 
 
 if __name__ == "__main__":
