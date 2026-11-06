@@ -1,0 +1,21 @@
+### ragkit legalsplit tune: dev queries only
+
+Dev split: seed 20261106, 20% per source: 156 queries (privacy_qa 39, contractnli 39, maud 39, cuad 39). No test query is scored here.
+
+**Document routing on dev** (gold document at top-1 / top-2; mean of the four sources)
+
+| profile | top-1 | top-2 |
+|---|---|---|
+| name | 56.4 | 66.7 |
+| name+open500 | 90.4 | 91.0 |
+| name+open2000 (chosen) | 94.2 | 94.2 |
+| open2000 | 89.1 | 89.1 |
+
+**Arm B on dev: Recall@8 ALL (%), mean of the two chunkers**
+
+| retriever | n=1, full | n=1, question | n=2, full | n=2, question |
+|---|---|---|---|---|
+| bm25 | 27.58 | 45.65* | 21.52 | 37.32 |
+| dense-e5 | 34.45 | 51.33* | 31.45 | 42.09 |
+
+`*` = chosen (best dev Recall@8; ties: n = 1, then question).
