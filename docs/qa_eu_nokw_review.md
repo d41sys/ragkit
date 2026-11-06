@@ -11,7 +11,7 @@ cross-act clusters as the hard set (the act or article decides the answer) but a
 words. Use: `docs/ctxprefix_nokw_protocol.md`. It is a stress set, not a sample of natural
 questions.
 
-Provenance: every item has `"status": "draft-agent"`. An AI agent wrote the 54 candidates after
+Provenance (as drafted; see "Owner-delegated review" below for the current status): every item had `"status": "draft-agent"`. An AI agent wrote the 54 candidates after
 reading the cited articles; an independent Sonnet pass (`claude-sonnet-5-5`) checked them against
 the whole corpus. **No human reviewed any item**; drafter and reviewer share a model family. No
 retriever was run on any candidate (the rule's TF-IDF check reads the gold article and the question
@@ -79,3 +79,27 @@ table is an assumption, not read from the API.
   may be failing the question, not the corpus.
 - Selection: 54 -> 49 by the stated rule; 5 items were reworded or re-labelled after review.
 - The overlap rule measures the gold article only; shared words with siblings are not constrained.
+
+## Owner-delegated review (2026-11-06)
+
+The owner reviewed Q01 and Q03 himself (both `ok`; `status: reviewed-owner`) and then delegated the
+other 47 to an AI agent (`status: reviewed-agent-delegated`). The agent read the cited paragraph, the
+full gold article and every decoy article, with a fixed rubric (answerable from the text, answer fully
+supported, no decoy answers equally) and without seeing any retrieval result. The agent is from the
+same model family as the drafter and the Sonnet reviewer, so this is **not a human review** and does
+not remove the shared-family caveat above.
+
+Outcome: 47 `ok`, 2 `fix`, 0 `drop`.
+
+- Q29: the answer's second clause said "when a Member State misses the linear trajectory"; Article
+  15(5) of Regulation 2019/943 says "a transmission system operator has not complied". The answer now
+  follows the text and adds that the Commission also consults stakeholders there.
+- Q46: "What must a proposal include" could also be answered from Regulation 2019/943 Article 6(14),
+  which lists what a derogation proposal shall include. The question now asks what must *accompany*
+  the exemption proposal, the wording of Regulation 2017/2195 Article 16(6). Some overlap with
+  Article 6(14) remains.
+
+Q46 passes the overlap rule after the change (overlap 1). The pre-registered rule of the review sheet
+re-runs `ctxprefix --nokw` only when 5 or more items are fixed or dropped; with 2, the scored run in
+`docs/ctxprefix_nokw_protocol.md` was not re-run and was measured on the earlier wording of Q46.
+Per-item verdicts: `learn/review/eu-nokw-verdicts.csv` in the umbrella repository.
