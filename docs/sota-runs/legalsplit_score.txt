@@ -1,0 +1,73 @@
+### ragkit legalsplit score: test queries (query-prefix removal and document routing)
+
+Test split: 620 queries (privacy_qa 155, contractnli 155, maud 155, cuad 155); dev-chosen settings: profile `name+open2000`, bm25: n = 1, in-document query = question, dense-e5: n = 1, in-document query = question. Values in %. Delta = arm minus the same-cell baseline on Recall@8 ALL, 95% paired bootstrap CI (2000 resamples, seed 0, queries resampled within each source).
+
+#### bm25-naive500, test
+
+| arm | R@1 | R@2 | R@4 | R@8 | R@16 | R@32 | R@64 | P@8 | delta R@8 [CI] | rule |
+|---|---|---|---|---|---|---|---|---|---|---|
+| baseline (full query, all documents) | 2.19 [1.4, 3.1] | 4.59 [3.4, 5.8] | 7.81 [6.2, 9.5] | 12.95 [11.0, 14.9] | 19.09 [16.7, 21.4] | 25.88 [23.3, 28.5] | 34.78 [32.0, 37.6] | 1.84 | baseline |  |
+| A: question only, all documents | 1.37 [0.7, 2.2] | 2.24 [1.4, 3.2] | 3.72 [2.6, 5.0] | 6.92 [5.4, 8.7] | 10.87 [8.9, 13.0] | 17.48 [15.2, 20.0] | 24.27 [21.7, 26.9] | 1.03 | -6.03 [-8.11, -3.90] | worse |
+| B: routed to top-n documents (uses document metadata, not comparable to published rows) | 17.26 [14.9, 19.5] | 24.34 [21.7, 26.9] | 35.63 [32.5, 38.6] | 47.24 [44.0, 50.2] | 59.26 [56.2, 62.1] | 69.47 [66.5, 72.2] | 75.47 [72.5, 78.2] | 7.13 | +34.29 [+31.10, +37.48] | improvement |
+
+Recall@8 per source: baseline: privacy_qa 11.34, contractnli 26.83, maud 1.11, cuad 12.53; A: privacy_qa 8.26, contractnli 12.93, maud 1.38, cuad 5.12; B: privacy_qa 40.39, contractnli 67.14, maud 21.33, cuad 60.09.
+
+B fallbacks (no routed document): 0; queries with < 64 hits: baseline 0, A 0, B 478.
+
+#### dense-e5-naive500, test
+
+| arm | R@1 | R@2 | R@4 | R@8 | R@16 | R@32 | R@64 | P@8 | delta R@8 [CI] | rule |
+|---|---|---|---|---|---|---|---|---|---|---|
+| baseline (full query, all documents) | 5.77 [4.4, 7.2] | 8.44 [6.7, 10.1] | 14.06 [11.8, 16.2] | 20.09 [17.5, 22.6] | 27.46 [24.7, 30.1] | 35.68 [32.6, 38.5] | 47.02 [44.1, 49.8] | 3.33 | baseline |  |
+| A: question only, all documents | 1.78 [1.1, 2.6] | 3.17 [2.2, 4.2] | 5.99 [4.7, 7.4] | 10.30 [8.5, 12.2] | 16.12 [13.8, 18.4] | 22.90 [20.2, 25.6] | 32.55 [29.7, 35.4] | 1.82 | -9.80 [-12.65, -6.79] | worse |
+| B: routed to top-n documents (uses document metadata, not comparable to published rows) | 18.85 [16.5, 21.2] | 28.62 [25.8, 31.3] | 39.58 [36.4, 42.6] | 52.96 [50.0, 55.9] | 65.92 [63.2, 68.7] | 76.19 [73.7, 78.7] | 83.91 [81.8, 86.0] | 8.08 | +32.86 [+29.50, +36.37] | improvement |
+
+Recall@8 per source: baseline: privacy_qa 30.97, contractnli 24.68, maud 3.21, cuad 21.51; A: privacy_qa 19.98, contractnli 8.94, maud 5.70, cuad 6.56; B: privacy_qa 54.10, contractnli 66.31, maud 25.74, cuad 65.68.
+
+B fallbacks (no routed document): 0; queries with < 64 hits: baseline 0, A 0, B 368.
+
+#### bm25-recursive500, test
+
+| arm | R@1 | R@2 | R@4 | R@8 | R@16 | R@32 | R@64 | P@8 | delta R@8 [CI] | rule |
+|---|---|---|---|---|---|---|---|---|---|---|
+| baseline (full query, all documents) | 1.73 [0.9, 2.7] | 3.52 [2.3, 4.8] | 7.11 [5.5, 8.9] | 11.08 [9.1, 13.1] | 16.64 [14.3, 19.0] | 24.36 [21.8, 27.0] | 31.40 [28.5, 34.3] | 1.71 | baseline |  |
+| A: question only, all documents | 1.38 [0.6, 2.3] | 2.58 [1.5, 3.8] | 4.18 [2.8, 5.7] | 7.18 [5.5, 9.0] | 11.81 [9.7, 14.0] | 16.28 [13.9, 18.8] | 23.49 [20.8, 26.3] | 1.14 | -3.90 [-5.97, -1.75] | worse |
+| B: routed to top-n documents (uses document metadata, not comparable to published rows) | 19.10 [16.7, 21.7] | 27.43 [24.6, 30.2] | 36.53 [33.3, 39.5] | 47.10 [43.9, 50.1] | 59.17 [55.9, 62.1] | 68.52 [65.4, 71.3] | 74.93 [72.0, 77.5] | 8.25 | +36.02 [+32.59, +39.32] | improvement |
+
+Recall@8 per source: baseline: privacy_qa 8.57, contractnli 24.85, maud 0.82, cuad 10.08; A: privacy_qa 9.90, contractnli 13.02, maud 1.72, cuad 4.07; B: privacy_qa 36.00, contractnli 66.67, maud 22.03, cuad 63.69.
+
+B fallbacks (no routed document): 0; queries with < 64 hits: baseline 0, A 0, B 462.
+
+#### dense-e5-recursive500, test
+
+| arm | R@1 | R@2 | R@4 | R@8 | R@16 | R@32 | R@64 | P@8 | delta R@8 [CI] | rule |
+|---|---|---|---|---|---|---|---|---|---|---|
+| baseline (full query, all documents) | 4.83 [3.5, 6.2] | 8.64 [6.8, 10.5] | 13.58 [11.3, 15.9] | 20.70 [18.0, 23.4] | 28.57 [25.6, 31.5] | 37.08 [33.9, 40.1] | 46.58 [43.4, 49.6] | 3.72 | baseline |  |
+| A: question only, all documents | 2.72 [1.8, 3.8] | 4.67 [3.4, 6.1] | 7.75 [6.1, 9.4] | 12.65 [10.5, 14.7] | 18.59 [16.1, 21.1] | 27.74 [24.7, 30.6] | 35.56 [32.4, 38.6] | 2.52 | -8.06 [-10.94, -5.00] | worse |
+| B: routed to top-n documents (uses document metadata, not comparable to published rows) | 22.43 [19.8, 25.1] | 31.71 [28.6, 34.7] | 41.48 [38.1, 44.6] | 54.39 [51.2, 57.2] | 65.89 [63.0, 68.6] | 75.83 [73.3, 78.2] | 82.72 [80.4, 84.8] | 9.57 | +33.68 [+30.17, +37.24] | improvement |
+
+Recall@8 per source: baseline: privacy_qa 27.06, contractnli 27.29, maud 5.63, cuad 22.83; A: privacy_qa 19.85, contractnli 10.07, maud 7.82, cuad 12.84; B: privacy_qa 49.09, contractnli 67.00, maud 30.23, cuad 71.22.
+
+B fallbacks (no routed document): 0; queries with < 64 hits: baseline 0, A 0, B 271.
+
+**Pre-registered verdicts** (primary cells: bm25-naive500, dense-e5-recursive500)
+
+| arm | bm25-naive500 | dense-e5-naive500 | bm25-recursive500 | dense-e5-recursive500 | overall |
+|---|---|---|---|---|---|
+| A | worse (primary) | worse | worse | worse (primary) | worse in bm25-naive500, dense-e5-recursive500; otherwise no detectable effect |
+| B | improvement (primary) | improvement | improvement | improvement (primary) | improvement overall (both primary cells) |
+
+**Document routing on test** (profile `name+open2000`; gold document at top-1 / top-2, %)
+
+| privacy_qa | contractnli | maud | cuad | ALL |
+|---|---|---|---|---|
+| 94.2 / 94.2 | 88.4 / 88.4 | 100.0 / 100.0 | 100.0 / 100.0 | 95.6 / 95.6 |
+
+**Post-hoc, all 776 queries (includes the 156 dev queries; only to line the rows up with the published full-sample numbers). Recall@8 ALL, %**
+
+| cell | baseline | committed row | A | B |
+|---|---|---|---|---|
+| bm25-naive500 | 13.37 [11.5, 15.3] | 13.37, gap -0.00, reproduced | 7.02 [5.6, 8.5] | 46.98 [44.3, 49.5] |
+| dense-e5-naive500 | 19.69 [17.5, 22.0] | 19.69, gap +0.00, reproduced | 10.35 [8.8, 12.0] | 52.34 [49.6, 55.0] |
+| bm25-recursive500 | 11.84 [10.0, 13.8] | 11.84, gap -0.00, reproduced | 7.25 [5.8, 8.8] | 46.74 [44.0, 49.4] |
+| dense-e5-recursive500 | 20.40 [18.2, 22.8] | 20.40, gap -0.00, reproduced | 12.46 [10.6, 14.5] | 54.06 [51.3, 56.7] |
