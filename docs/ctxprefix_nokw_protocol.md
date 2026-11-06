@@ -147,3 +147,12 @@ default changed and the EU headline numbers were not re-run.
 Predictions: 1 missed (Recall@5 0.347, just under the predicted 0.35 to 0.75); 2 held (wrong-act 29
 of 49); 3 held (BM25 dMRR inside -0.03 to +0.06, CI lower bound not above 0); 4 held; 5 held (Recall@5
 moved by 0.02 for both).
+
+# Post-review note (2026-11-06, after the scored run)
+
+The `draft-agent` statement above was true when this protocol and its one scored run were written.
+Afterwards the owner reviewed Q01 and Q03 and delegated the other 47 questions to an AI agent of the
+same model family (`docs/qa_eu_nokw_review.md`, "Owner-delegated review"). Two items changed: the Q29
+gold answer (no effect on retrieval) and the Q46 query wording (still passes the overlap rule, at 1).
+The recorded outcome above was measured on the earlier Q46 wording and was not re-run; any re-run on
+the edited set would be post-hoc.
