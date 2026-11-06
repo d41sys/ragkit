@@ -89,7 +89,15 @@ from ragkit.lexical_explain import render_explanation
 from ragkit.llm import MODEL, CachedMessages
 from ragkit.modelsignals import DEFAULT_CACHE, MODEL_SIGNALS, ModelScorers, load_model_scorers
 from ragkit.nokw import load_index, render_rule_status
-from ragkit.parent import ARTICLE_BUDGET_TOKENS, ARTICLE_K, parent_articles
+from ragkit.parent import (
+    ARTICLE_BUDGET_TOKENS,
+    ARTICLE_K,
+    OVERFLOW_POLICIES,
+    PACK_CHUNKS,
+    PACK_OVERFLOW,
+    pack_articles,
+    parent_articles,
+)
 from ragkit.pipeline import ABSTAIN_TEXT, DEFAULT_MIN_SUPPORT, RAGPipeline, query_support
 from ragkit.rerank import LexicalReranker
 from ragkit.rewrite import HyDERewriter, TemplateLLM
@@ -1244,11 +1252,14 @@ def cmd_answer(args: argparse.Namespace) -> int:
     documents = _load_documents(ds.corpus_dir)
     pipeline.index_documents(documents)
     passages = [Passage(c.doc_id, c.text) for c in pipeline.retrieve(args.query, args.top_k)]
-    context = (
-        parent_articles(passages, dict(documents), k=args.articles, budget_tokens=args.budget)
-        if args.context == "article"
-        else passages
-    )
+    articles = dict(documents)
+    if args.context != "article":
+        context = passages
+    elif args.pack:
+        pool = [Passage(c.doc_id, c.text) for c in pipeline.retrieve(args.query, args.pack_chunks)]
+        context = pack_articles(pool, articles, budget_tokens=args.budget, overflow=args.overflow)
+    else:
+        context = parent_articles(passages, articles, k=args.articles, budget_tokens=args.budget)
     answerer = LLMAnswerer(_llm_client(args.llm, args.cache))
     print(f"Question: {args.query}\n")
     # The sufficiency check keeps seeing the retrieved chunks, as in the K-R2 experiment.
@@ -1638,6 +1649,28 @@ def main(argv: Sequence[str] | None = None) -> None:
     _add_dataset_args(p_ans, questions=False)
     p_ans.add_argument("--top-k", type=int, default=5, help="Number of retrieved chunks.")
     _add_context_args(p_ans, "article")  # adopted by the Phase L decision rule
+    p_ans.add_argument(
+        "--pack",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="--context article: budget packing (adopted by docs/packing_protocol.md, retrieval "
+        "side only): add distinct parent articles in rank order until --budget is full, from "
+        "the top --pack-chunks chunks; --no-pack takes the first --articles articles of the "
+        "top --top-k chunks.",
+    )
+    p_ans.add_argument(
+        "--pack-chunks",
+        type=int,
+        default=PACK_CHUNKS,
+        help=f"--pack: chunks whose articles are candidates (dev-chosen: {PACK_CHUNKS}).",
+    )
+    p_ans.add_argument(
+        "--overflow",
+        choices=OVERFLOW_POLICIES,
+        default=PACK_OVERFLOW,
+        help="--pack: the article that does not fit in the budget: stop = drop it and all later "
+        f"ones, skip = drop only it (dev-chosen: {PACK_OVERFLOW}).",
+    )
     p_ans.add_argument(
         "--retriever",
         choices=("default", "dense", "hybrid", "hybrid+ce"),

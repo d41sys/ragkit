@@ -51,7 +51,13 @@ from ragkit.modelsignals import (
     ScoreCache,
     _key,
 )
-from ragkit.parent import CHARS_PER_TOKEN, estimate_tokens, parent_articles
+from ragkit.parent import (
+    CHARS_PER_TOKEN,
+    PACK_CHUNKS,
+    estimate_tokens,
+    pack_articles,
+    parent_articles,
+)
 from ragkit.pipeline import RAGPipeline
 
 USAGE = {"input_tokens": 1000, "output_tokens": 100}
@@ -504,20 +510,43 @@ def test_reader_scores_need_only_the_reader_and_a_subset_builds_from_a_real_scor
     assert reader_scores(offline, items, passages).tolist() == [4.0, 3.0]
 
 
-def test_answer_cli_article_context_sends_whole_articles(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _answer_from_cache(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    flags: list[str],
+    pool: int,
+    pack: bool,
+) -> int:
+    """Seed the cache with one context, run ``ragkit answer``; a different context would miss."""
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     from ragkit.cli import DEFAULT_CORPUS_DIR
 
     query = "What is imbalance settlement?"
     documents = _load_documents(DEFAULT_CORPUS_DIR)
-    chunks = retrieve_passages(RAGPipeline(), documents, [Item(query, True)], top_k=5)[0]
-    context = parent_articles(chunks, dict(documents))
-    assert 1 <= len(context) <= 3 and len({p.article_id for p in context}) == len(context)
+    chunks = retrieve_passages(RAGPipeline(), documents, [Item(query, True)], top_k=pool)[0]
+    context = (
+        pack_articles(chunks, dict(documents)) if pack else parent_articles(chunks, dict(documents))
+    )
+    assert len({p.article_id for p in context}) == len(context) >= 1
     cache = tmp_path / "llm.jsonl"
     LLMAnswerer(CachedMessages(cache, api_key="k", transport=FakeApi())).generate(query, context)
     with pytest.raises(SystemExit) as exc:
-        main(["answer", query, "--cache", str(cache)])  # article is the default
-    assert exc.value.code == 0  # replayed from the cache: the request used the article context
+        main(["answer", query, "--cache", str(cache), *flags])
+    assert exc.value.code == 0  # replayed from the cache: the request used this exact context
     assert "Answer:" in capsys.readouterr().out
+    return len(context)
+
+
+def test_answer_cli_default_packs_articles_from_the_top_pack_chunks(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    n = _answer_from_cache(tmp_path, capsys, monkeypatch, [], pool=PACK_CHUNKS, pack=True)
+    assert n > 3  # the synthetic corpus has short documents: packing goes past k = 3
+
+
+def test_answer_cli_no_pack_keeps_the_three_article_context(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    n = _answer_from_cache(tmp_path, capsys, monkeypatch, ["--no-pack"], pool=5, pack=False)
+    assert 1 <= n <= 3

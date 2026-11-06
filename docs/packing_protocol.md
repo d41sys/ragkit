@@ -125,3 +125,53 @@ listed above is labelled post-hoc.
 
 Answer quality, citation behaviour, cost per question, other budgets, other corpora, any retriever
 besides the two above, the correctness of the agent-reviewed labels.
+
+## Outcome (scored once; raw output `docs/sota-runs/packing_heldout.txt`, dev grid `packing_tuning.txt` / `packing_tuning.json`)
+
+Commands (offline, no API key, no download):
+`HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 uv run --offline ragkit packing tune --out docs/sota-runs/packing_tuning.txt`
+then `... ragkit packing score --out docs/sota-runs/packing_heldout.txt`. The tuning JSON was committed
+(`b4a9f9f`) before the held-out run.
+
+**Dev choice.** The dev sets are at the ceiling (dev recall 0.966 to 1.000 in every cell), so the
+choice came from the tie-breaks: overflow `stop` (`skip` never raised dev recall and added tokens
+only at depth 20, 10 824 against 10 595 on default/fresh) and pool depth 10 (depth 5 had a lower
+recall cell, 0.975 on default/synthetic; depth 20 tied at 0.9914 with about twice the tokens).
+Frozen: `PACK_OVERFLOW = "stop"`, `PACK_CHUNKS = 10`, budget 12 000.
+
+**Held-out, pooled 130 questions** (gold article in context, mean / median / max estimated
+context tokens; 95 % percentile bootstrap, 2000 resamples, seed 0):
+
+| retriever | arm | gold in context | recall [95 % CI] | mean / median / max tokens | mean articles |
+|---|---|---|---|---|---|
+| default | k3 | 80/130 | 0.615 [0.531, 0.700] | 3526 / 3380 / 6816 | 2.93 |
+| default | k5 | 86/130 | 0.662 [0.584, 0.738] | 4854 / 4756 / 9580 | 3.97 |
+| default | pack | 96/130 | 0.738 [0.662, 0.815] | 8502 / 8738 / 11909 | 7.15 |
+| hybrid+ce | k3 | 94/130 | 0.723 [0.646, 0.800] | 3229 / 3033 / 7324 | 2.78 |
+| hybrid+ce | k5 | 99/130 | 0.762 [0.685, 0.831] | 4082 / 3814 / 9204 | 3.58 |
+| hybrid+ce | pack | 111/130 | 0.854 [0.792, 0.915] | 6876 / 6886 / 11712 | 6.11 |
+
+Paired recall difference (gained / lost / tied questions):
+
+| retriever | k5 - k3 | pack - k3 (gating) | pack - k5 (secondary) |
+|---|---|---|---|
+| default | +0.046 [+0.015, +0.085] (6 / 0 / 124) | **+0.123 [+0.062, +0.185]** (17 / 1 / 112) | +0.077 [+0.023, +0.131] (12 / 2 / 116) |
+| hybrid+ce | +0.038 [+0.008, +0.069] (5 / 0 / 125) | **+0.131 [+0.077, +0.192]** (17 / 0 / 113) | +0.092 [+0.046, +0.146] (12 / 0 / 118) |
+
+No context exceeded its budget (0 of 130 in every arm and retriever).
+
+**Rule: PASSES.** `pack - k3` CI lower bound is +0.062 (default) and +0.077 (`hybrid+ce`), both
+above 0, and nothing is over budget. Per the rule, `ragkit answer` uses budget packing by default
+(`--pack`, `--pack-chunks 10`, `--overflow stop`; `--no-pack` restores the k = 3 context).
+
+**What this does not show.** Answer quality was **not re-measured** (that needs the API). Packing
+costs context: mean tokens are 2.4 times (default) and 2.1 times (`hybrid+ce`) those of `k3`, and
+more distractors per prompt; the k = 5 analysis found the citation `yes` rate did not rise with
+more articles. The gain is retrieval-side gold coverage only. The keyword-free set carries most of
+the gain on `default` (14 to 22 of 49) and a large part on `hybrid+ce` (25 to 34 of 49), the hard
+set least (35 to 35 and 35 to 37).
+
+Predictions: P1 held (both lower bounds above 0). P2 only partly: packing is 2.1 to 2.4 times `k3`
+(1.8 times `k5` on default, 1.7 on `hybrid+ce`), not "several times". P3 held in the direction
+stated (`pack - k5` is positive for both retrievers at depth 10; no small-`D` run was made, so
+the "differ little at small D" half is untested).

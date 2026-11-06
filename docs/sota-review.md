@@ -322,3 +322,7 @@ Context: with the neural retriever (`hybrid+ce@100`), 6 of the 42 answerable ori
 - **Joint stack (S)**: tuning selected baseline B0.
 
 **Verdict**: none adopted; default retrieval remains chunk-level `hybrid+ce@100`.
+
+### 8e. Phase N-1: budget packing of parent articles
+
+Pre-registered (`13aa661`), retrieval only. The k = 3 article context left most of the 12 000-token budget unused. Budget packing (distinct parent articles in rank order until the budget is full, overflow policy `stop`, candidates from the top 10 chunks; policy and depth chosen on fresh 29 + synthetic 40) was scored once on the 130 pooled held-out questions: gold article in context 80 to 96 of 130 (default; +0.123 [+0.062, +0.185] vs k = 3) and 94 to 111 (`hybrid+ce`; +0.131 [+0.077, +0.192]), with mean context 3 526 to 8 502 and 3 229 to 6 876 estimated tokens and no context over budget. The pre-registered rule (CI lower bound above 0 on both retrievers) passes, so `ragkit answer` packs by default (`--no-pack` for k = 3). Answer quality was not re-measured. See `docs/packing_protocol.md`.

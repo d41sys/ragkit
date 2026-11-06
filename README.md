@@ -48,9 +48,10 @@ uv run ragkit legalbench                                          # LegalBench-R
 uv run ragkit ask "What is imbalance settlement?" --retriever hybrid+ce   # opt-in neural retrieval (needs `uv sync --extra st`); also `dense`, `hybrid`
 uv run ragkit beir --dataset scifact --retriever hybrid+ce        # neural rows: dense, e5, RRF hybrid, dev-chosen convex hybrid, BM25/hybrid + cross-encoder at 20/50/100 (`legalbench` takes the same flag)
 uv run ragkit neural --retriever hybrid+ce                         # the same systems on the EU sets (original 42 as dev; fresh, hard, keyword-free and pooled as test)
-ANTHROPIC_API_KEY=... uv run ragkit answer "What is imbalance settlement?" --llm claude-sonnet-5-5 --gate suff   # cited LLM answer from the whole top-3 parent articles; --gate none|self|suff; --context chunk for the 500-char chunks
+ANTHROPIC_API_KEY=... uv run ragkit answer "What is imbalance settlement?" --llm claude-sonnet-5-5 --gate suff   # cited LLM answer from parent articles packed into the 12k-token budget (`--no-pack` for the first 3); --gate none|self|suff; --context chunk for the 500-char chunks
 uv run ragkit generation                                           # replays data/llm_cache/ offline: LLM answers, sufficient-context gates, full-context baseline on the 42 + 45 EU questions
 uv run ragkit generation --context article                         # Phase L replay: answers from the whole parent articles (add --retriever hybrid+ce, needs `[st]`)
+uv run ragkit packing score                                        # Phase N-1, retrieval only: gold-in-context recall and tokens of k = 3, k = 5 and budget packing on the 130 held-out questions (`packing tune` for the dev grid; needs `[st]`)
 uv run ragkit generation --context article --articles 5 --budget 20000 --since-records 1432   # post-hoc k = 5 replay (add --retriever hybrid+ce; --coverage-only prints retrieval-only gold coverage)
 ```
 
@@ -1056,6 +1057,23 @@ Six of the 42 answerable EU questions have no gold article in the top-5 chunks o
 Tuning selected B0 for F2 (depth 100), F3 (RRF) and S (joint stack). Sensitivity rows: depth 50 dMRR -0.002 [-0.022, +0.012], depth 200 dMRR -0.005 [-0.009, -0.001], hybrid RRF without CE dMRR -0.049 [-0.097, -0.002]. Without the original 42 (88 questions), F1 dMRR is -0.059 [-0.127, +0.007] and wrong-act 33 vs 25.
 
 **Verdict**: none adopted per the decision rule (F1: MRR CI lower bound <= 0 and wrong-act rose; F4: CI spans 0). Default retrieval remains chunk-level `hybrid+ce@100`.
+
+### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
+
+`ragkit answer` passed the first 3 distinct parent articles of the top-5 chunks under a 12 000-token budget the contexts never filled (mean 3 229 to 3 526 estimated tokens on the 130 pooled held-out questions). Budget packing adds distinct articles in rank order until the budget is full, never exceeds it, and drops the first article that does not fit and all later ones (`stop`; `skip` is the alternative). Pre-registered (`13aa661`), retrieval only: **no generation, no API call, answer quality not re-measured**. Overflow policy and pool depth were chosen on the dev sets (fresh 29 + synthetic 40, at the ceiling, so by tie-break: `stop`, 10 chunks) before one held-out run (`ragkit packing score`).
+
+Gold article in the context, pooled held-out 130 questions (paired bootstrap, 2000 resamples):
+
+| | default retriever | `hybrid+ce` |
+|---|---|---|
+| k = 3 (shipped until now) | 80/130, 3 526 mean / 3 380 median tokens | 94/130, 3 229 / 3 033 |
+| k = 5 (20 000-token budget) | 86/130, 4 854 / 4 756 | 99/130, 4 082 / 3 814 |
+| budget packing (12 000, 10 chunks, `stop`) | 96/130, 8 502 / 8 738 | 111/130, 6 876 / 6 886 |
+| paired d, k = 5 - k = 3 | +0.046 [+0.015, +0.085] | +0.038 [+0.008, +0.069] |
+| paired d, packing - k = 3 (rule) | +0.123 [+0.062, +0.185] (17 / 1) | +0.131 [+0.077, +0.192] (17 / 0) |
+| paired d, packing - k = 5 (secondary) | +0.077 [+0.023, +0.131] | +0.092 [+0.046, +0.146] |
+
+**Decision rule** (default only if the CI lower bound of packing - k = 3 is above 0 on both retrievers): passes (+0.062 and +0.077), no context over budget, so `ragkit answer` now packs by default (`--no-pack` restores `--articles 3`). This is a statement about retrieval-side gold coverage. Context grows 2.1 to 2.4 times in tokens; whether answers improve, and at what cost, needs an API run that was not made. Raw output: `docs/sota-runs/packing_heldout.txt`.
 
 ### Verdict after Phase K
 
