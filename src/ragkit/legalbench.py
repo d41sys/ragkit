@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import shutil
 import tempfile
 import time
@@ -160,16 +161,20 @@ def char_recall(retrieved: Sequence[Span], truth: Sequence[Span]) -> float:
 # ---------------------------------------------------------------------------------------------
 
 
+_NAIVE = re.compile(r"naive([1-9][0-9]*)")
+
+
 def chunk_corpus(corpus: dict[str, str], chunker: str) -> list[Chunk]:
-    """Chunk every file with ``naive500`` or ``recursive500`` (see the protocol)."""
+    """Chunk every file with ``naive<size>`` (no overlap) or ``recursive500`` (see the protocol)."""
+    naive = _NAIVE.fullmatch(chunker)
+    if naive is None and chunker != "recursive500":
+        raise ValueError(f"unknown chunker {chunker!r}")
     chunks: list[Chunk] = []
     for path, text in corpus.items():
-        if chunker == "naive500":
-            chunks.extend(fixed(text, path, size=500, overlap=0))
-        elif chunker == "recursive500":
-            chunks.extend(recursive(text, path, chunk_size=500, overlap=0))
+        if naive is not None:
+            chunks.extend(fixed(text, path, size=int(naive.group(1)), overlap=0))
         else:
-            raise ValueError(f"unknown chunker {chunker!r}")
+            chunks.extend(recursive(text, path, chunk_size=500, overlap=0))
     return chunks
 
 

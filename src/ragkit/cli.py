@@ -1111,6 +1111,37 @@ def cmd_legalsplit(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_legalsize(args: argparse.Namespace) -> int:
+    """LegalBench-RAG-mini size-matched chunk control (docs/legalsize_protocol.md)."""
+    from ragkit.legalsize import build_cells, render_report, run_cells
+    from ragkit.legalsplit import dev_test_split
+
+    bench = load_mini(Path(args.data_zip), download=False)
+    dev, test = dev_test_split(bench.tests)
+    cells = build_cells(bench, Path(args.cache_dir), args.device)
+    indices = dev if args.action == "dev" else test
+    results = run_cells(cells, bench.tests, indices)
+    everyone = list(range(len(bench.tests)))
+    full = run_cells({k: c for k, c in cells.items() if k[1] == 500}, bench.tests, everyone)
+    split = "dev pilot" if args.action == "dev" else "test"
+    text = render_report(
+        f"### ragkit legalsize {args.action}: size-matched chunk control ({split})",
+        bench,
+        cells,
+        results,
+        indices,
+        full,
+        verdict=args.action == "test",
+    )
+    print()
+    print(text)
+    if args.out:
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text + "\n", encoding="utf-8")
+    return 0
+
+
 def cmd_packing(args: argparse.Namespace) -> int:
     """Budget packing vs k = 3 and k = 5, retrieval only (docs/packing_protocol.md)."""
     from ragkit.packbench import (
@@ -1684,6 +1715,18 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_ls.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
     p_ls.add_argument("--out", default=None, help="Write the report to this file as well.")
 
+    # LegalBench-RAG-mini size-matched chunk control (docs/legalsize_protocol.md)
+    p_lz = subparsers.add_parser(
+        "legalsize",
+        help="LegalBench-RAG-mini: naive250/500/1000 chunks at equal k and at equal character "
+        "budget, BM25 and e5-small-v2 (needs `[st]` and the cached e5 model).",
+    )
+    p_lz.add_argument("action", choices=("dev", "test"), help="pilot on dev; score test once.")
+    p_lz.add_argument("--data-zip", default=str(DEFAULT_LEGALBENCH_ZIP))
+    p_lz.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
+    p_lz.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
+    p_lz.add_argument("--out", default=None, help="Write the report to this file as well.")
+
     # Budget packing of parent articles (protocol: docs/packing_protocol.md)
     p_pack = subparsers.add_parser(
         "packing",
@@ -1850,6 +1893,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_packing(parsed))
     elif parsed.subcommand == "legalsplit":
         sys.exit(cmd_legalsplit(parsed))
+    elif parsed.subcommand == "legalsize":
+        sys.exit(cmd_legalsize(parsed))
 
 
 if __name__ == "__main__":
