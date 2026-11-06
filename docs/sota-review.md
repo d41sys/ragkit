@@ -339,3 +339,14 @@ Recall@8 ALL (%), test split, paired difference to the same-cell full-query base
 | `dense-e5` `recursive500` | 20.70 | 12.65 (-8.06 [-10.94, -5.00]) | 54.39 (+33.68 [+30.17, +37.24]) |
 
 Rule (lower CI bound above 0 in both primary cells): A is worse in all four cells, so it is not adopted; B is an improvement in all four. B routes each query to a document by matching the prefix against file name plus the first 2000 characters (95.6 % top-1 on test) and then searches that document only. **It uses document metadata and is not comparable to the published rows**; the best comparable published number stays 48.18 (StrucChunk + Hybrid, unreviewed preprint). Neither arm changes the head-to-head table above or any default. Reading: knowing the document adds 33 to 36 points of Recall@8 in every cell, so choosing the wrong document is a large part of the error on this benchmark; removing the prefix does not fix it. [INFERENCE] The prefix is the only place that names the document, so without it nothing steers the search towards the right contract; inside a single document the question-only query was 17 to 18 points better than the full query on dev.
+
+### 8g. LegalBench-RAG-mini: how much of a recall gap is chunk size?
+
+Pre-registered (`23f2040`), offline, retrieval only, `docs/legalsize_protocol.md`. The metric counts k in chunks and sums overlapped gold characters without merging, so Recall@k at equal k rises with chunk size. Control: `naive250`, `naive500`, `naive1000` (no overlap), BM25 (Lucene-matched) and `e5-small-v2`, 620 test queries, equal k against equal character budget (`k = B / size`).
+
+| retriever | R@8 at size 250 / 500 / 1000 (equal k) | R at B = 4000 characters (k = 16 / 8 / 4) |
+|---|---|---|
+| `bm25` | 6.41 / 12.95 / 23.88 | 9.67 / 12.95 / 15.88 |
+| `dense-e5` | 10.73 / 20.09 / 34.36 | 15.30 / 20.09 / 22.98 |
+
+1000 vs 500: equal-k +10.93 [+8.76, +13.22] (BM25) and +14.26 [+11.69, +16.87] (`dense-e5`); equal-budget +2.93 [+0.99, +4.95] and +2.88 [+0.43, +5.51]; share of the equal-k gain that disappears at equal budget 0.73 [0.58, 0.90] and 0.80 [0.65, 0.96]. Rule: the equal-budget BM25 CI is above 0, so "chunk-size gains are mostly a budget effect" is not the outcome; the residual size effect is reported with its CI. Reading: about three quarters of a doubling of chunk size is extra characters retrieved, a quarter is not; this is a yardstick for how far a cross-chunker Recall@k comparison (ours vs StrucChunk's 48.18, whose chunk size is unclear) can be inflated by size, not an adjustment of any published row. The 48.18 stays the best comparable published number, with that caveat. Raw output: `docs/sota-runs/legalsize_dev.txt`, `legalsize_test.txt`.

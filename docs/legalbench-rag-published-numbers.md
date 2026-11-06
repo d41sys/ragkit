@@ -10,6 +10,7 @@ Short version:
 3. The paper has **no BM25 row**. The only BM25-only numbers on mini that I found are in an unreviewed 2026-10-19 arXiv draft (StrucChunk, §D).
 4. The paper's own tables contain internal inconsistencies (§B.3). Do not treat its "ALL" row of Table 4 as a macro-mean.
 5. **Reference ceiling (2026-10-30 audit).** The paper's own dense baseline (Table 4, text-embedding-3-large, R@8 ALL 34.51 printed, 31.86 recomputed) and RCTS (26.30) are not a ceiling. The best published number on the same mini protocol is **StrucChunk + Hybrid (BGE-M3), R@8 ALL 48.18** (arXiv 2610.26313v1, 2026-10-19, §D; single unreviewed preprint, chunker description internally inconsistent). **PAKTON R@8 56.66 (EMNLP 2025 main 403, Table 2) is oracle-document retrieval** (the source document is known and search is in-document, Appendix F.2): not comparable, not a ceiling.
+6. **Chunk size is a confound for every Recall@k comparison on this metric (2026-11-06, §A.5).** k counts chunks and the numerator sums overlapped gold characters without merging, so Recall@8 rises with chunk size (and overlap). In ragkit's own control, doubling the chunk size from 500 to 1000 characters adds 11 to 14 points of R@8, and about three quarters of that disappears at equal character budget. A published row with larger, overlapping or unstated chunk size is not a like-for-like gap to ours.
 
 ---
 
@@ -123,6 +124,23 @@ From `retrieval_strategies.py`, `baseline.py`, and the paper Section 4.2:
 - **RCTS:** LangChain `RecursiveCharacterTextSplitter(separators=["\n\n", "\n", "!", "?", ".", ":", ";", ",", " ", ""], chunk_size=500, chunk_overlap=0, length_function=len, is_separator_regex=False, strip_whitespace=False)`. The code asserts `"".join(splits) == content`, so spans are contiguous and non-overlapping.
 - Query = the full query string (including the "Consider <document description>; ..." prefix; descriptions are GPT-4o-mini generated per the paper). The benchmark **does leak the document title into the query**; GitHub issue #3 (2026-02-21, open) notes a fuzzy file-name match on entities finds the right file "almost every time" for MAUD.
 
+### A.5 Chunk size and the character budget (ragkit's own control, 2026-11-06; not a published number)
+
+Because k is a number of chunks (§A.1) and the numerator sums the overlapped gold characters of every retrieved chunk without merging or de-duplicating, **Recall@k at equal k grows with chunk size** (and with overlap, where the same characters count more than once). Any comparison between a 500-character row and a row with larger, structure-aware or overlapping chunks (StrucChunk, SAC, RCTS vs Naive) mixes retrieval quality with the characters retrieved per hit.
+
+Ragkit measured that on its own retrievers (`docs/legalsize_protocol.md`, pre-registered `23f2040`; raw output `docs/sota-runs/legalsize_test.txt`): `naive250`, `naive500`, `naive1000` chunks, BM25 (Lucene-matched) and `e5-small-v2`, 620 test queries of the 776 mini queries (the legalsplit split), Recall ALL in %, paired 95% bootstrap CIs.
+
+| retriever | R@8, size 250 / 500 / 1000 (equal k) | R at B = 4000 characters, size 250 / 500 / 1000 (k = 16 / 8 / 4) |
+|---|---|---|
+| `bm25` | 6.41 / 12.95 / 23.88 | 9.67 / 12.95 / 15.88 |
+| `dense-e5` | 10.73 / 20.09 / 34.36 | 15.30 / 20.09 / 22.98 |
+
+- 1000 vs 500, equal k = 8: +10.93 [+8.76, +13.22] (BM25), +14.26 [+11.69, +16.87] (`dense-e5`). At equal budget (B = 4000): +2.93 [+0.99, +4.95] and +2.88 [+0.43, +5.51]. Share of the equal-k gain that disappears at equal budget: 0.73 [0.58, 0.90] (BM25), 0.80 [0.65, 0.96] (`dense-e5`).
+- 500 vs 250 (B = 4000) and 1000 vs 250 (B = 8000): shares 0.50 and 0.42 (BM25), 0.49 and 0.41 (`dense-e5`); the equal-budget differences are above 0 in all four.
+- Pre-registered rule: the "mostly a budget effect" sentence applies only if the CI of the equal-budget BM25 1000-vs-500 difference includes 0; it does not (it is above 0), so the size effect beyond the budget is reported with its CI. The residual shows up from B = 4000 up; at B = 1000 and 2000 the 1000-vs-500 difference includes 0 in both retrievers.
+- The control uses non-overlapping chunks, so it measures the budget effect, not the double counting of overlapping chunkers; that part follows from the metric definition in §A.1 (and `tests/test_ragkit_legalbench.py`).
+- **How to read a comparison with a published row:** quote the chunk size and overlap of both sides; treat a gap at equal k between different chunkers as an upper bound on the retrieval-quality gap, not as that gap. The control is a yardstick for the size sensitivity of this metric (about 11 to 14 points of R@8 for 500 to 1000 characters), not an adjustment: it does not convert any published row.
+
 ---
 
 ## B. Published tables from the original paper
@@ -211,6 +229,7 @@ Verdict key: **COMPARABLE** = same mini sample, same char-overlap metric, same k
 - Claims: Char-Recall@8 ALL 48.18% vs 23.59% best baseline (Recursive+Dense BGE-M3) "surpassing the published state of the art by +83%". The +83% compares against RCTS 26.30 and skips the Naive 34.51 row in Table 11 (against 34.51 the gain is ≈ +40%, my arithmetic). One sentence misreads R@32 as R@64 ("Recall@64 dropped from 61.06% to 47.54%"). Draft hygiene flags: an "X/100" placeholder and a "[?]" citation.
 - Baseline chunking is described inconsistently: §4.1 says "500-char fixed-size chunks with no overlap"; §4.5 and Table 6 say RecursiveCharacterTextSplitter at 512 tokens with 15% overlap. "~17K chunks" over the 8.68M-char mini corpus implies ≈ 511 chars per chunk `[INFERENCE]`. Overlapping chunks are double counted by the official metric.
 - **Verdict: PARTLY, unverified; best published comparable number as of 2026-10-30 (R@8 ALL 48.18, StrucChunk + Hybrid with BGE-M3).** It states LBR-mini (776 queries, 72 documents, 0.25 weights, char-level P/R, k 1..64, seed 42), so it is the closest independent mini run, but chunker, corpus parsing and sampling are not independently confirmed. Single unreviewed preprint.
+- **Chunk-size caveat (2026-11-06, §A.5).** The StrucChunk Hybrid row is a Recall@8 at equal k from a structure-aware chunker whose chunk size this sheet does not record (its baseline description is inconsistent, above). Ragkit's own size-matched control shows that Recall@8 on this metric rises by 11 to 14 points when only the chunk size is doubled from 500 to 1000 characters, about three quarters of it a character-budget effect. The 48.18 versus our 13 to 20 is therefore not a like-for-like retrieval-quality gap: it cannot be converted into a size-matched gap from the data here; part of it may be the characters retrieved per hit.
 
 ### C.3 PAKTON (multi-agent legal system)
 - EMNLP 2025 main, paper 403: `https://aclanthology.org/anthology-files/anthology-files/pdf/emnlp/2025.emnlp-main.403.pdf` (read; Table 2 and Appendix F; date: EMNLP 2025, exact date not visible in the text I read).

@@ -126,3 +126,53 @@ size sensitivity as the yardstick, and keep the existing headline rows and the d
 - Equal budget in nominal characters; a retriever that returns shorter lists (BM25 returns only
   positive-score chunks) is counted as it is.
 - Split by query: dev and test share documents.
+
+## Outcome (scored once, no deviation from the protocol above)
+
+Commits: protocol `23f2040`, budget-wording fix `7f03267` (both before any code), code and tests
+`e55dde2`, dev pilot `ef0e30d`, test scoring `e4aa64b`. Commands (offline, no key, no download; the two
+new e5 document matrices, `naive250` and `naive1000`, were embedded once and cached in
+`data/raw/emb/`, then the queries):
+
+```
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 uv run --offline --extra st ragkit legalsize dev  --out docs/sota-runs/legalsize_dev.txt
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 uv run --offline --extra st ragkit legalsize test --out docs/sota-runs/legalsize_test.txt
+```
+
+The harness reproduces the committed `naive500` rows on all 776 queries (13.37 and 19.69, gap 0.00).
+Test split (620 queries), Recall ALL in %:
+
+| retriever | size | R@8 (equal k) | R at B = 4000 |
+|---|---|---|---|
+| `bm25` | 250 / 500 / 1000 | 6.41 / 12.95 / 23.88 | 9.67 / 12.95 / 15.88 |
+| `dense-e5` | 250 / 500 / 1000 | 10.73 / 20.09 / 34.36 | 15.30 / 20.09 / 22.98 |
+
+| retriever | large vs small | B | D_8 [CI] | D_B [CI] | S [CI] |
+|---|---|---|---|---|---|
+| `bm25` (primary) | 1000 vs 500 | 4000 | +10.93 [+8.76, +13.22] | +2.93 [+0.99, +4.95] | 0.73 [0.58, 0.90] |
+| `bm25` | 500 vs 250 | 4000 | +6.54 [+5.04, +8.08] | +3.28 [+1.61, +5.10] | 0.50 [0.34, 0.71] |
+| `bm25` | 1000 vs 250 | 8000 | +17.47 [+15.07, +19.93] | +10.09 [+7.64, +12.57] | 0.42 [0.34, 0.52] |
+| `dense-e5` | 1000 vs 500 | 4000 | +14.26 [+11.69, +16.87] | +2.88 [+0.43, +5.51] | 0.80 [0.65, 0.96] |
+| `dense-e5` | 500 vs 250 | 4000 | +9.37 [+7.56, +11.37] | +4.80 [+3.02, +6.70] | 0.49 [0.38, 0.62] |
+| `dense-e5` | 1000 vs 250 | 8000 | +23.63 [+20.75, +26.54] | +13.89 [+11.08, +16.86] | 0.41 [0.35, 0.49] |
+
+**Rule.** `D_8` for `bm25` 1000 vs 500 is above 0 ([+8.76, +13.22]), so there is an equal-k gain to
+explain; the CI of `D_B` is [+0.99, +4.95], which excludes 0, so the sentence "chunk-size gains on
+this metric are mostly a budget effect" is **not** the pre-registered outcome. The size effect at
+equal budget is reported instead: **+2.93 points [+0.99, +4.95]** (larger chunks help beyond their
+budget), and the same rule gives the same reading for `dense-e5` (+2.88 [+0.43, +5.51]) and for the
+other four contrasts (all `D_B` CIs above 0). Quantitatively, the share of the equal-k 1000-vs-500
+gap that disappears at equal budget is 0.73 [0.58, 0.90] (BM25) and 0.80 [0.65, 0.96] (`dense-e5`):
+most of it is the character budget, but not all, and the rule's threshold is a CI that includes 0.
+For 1000 vs 500 the equal-budget difference includes 0 at B = 1000 and B = 2000 (both
+retrievers) and is above 0 from B = 4000 up (`docs/sota-runs/legalsize_test.txt`).
+
+**Predictions.** P1 held. P2 held for the shrinkage but not for "CI includes 0". P3 did not hold
+(`S` for `dense-e5` 0.80 vs 0.73 for BM25 on 1000 vs 500, 0.49 vs 0.50 on 500 vs 250; the
+intervals overlap). Precision@8 does not show a size gain (BM25 1.63, 1.84, 1.86; `dense-e5` 3.01,
+3.33, 2.99, for 250, 500, 1000).
+
+**Consequence.** The README, `docs/legalbench-rag-published-numbers.md` (A.5, C.2) and
+`docs/sota-review.md` carry the caveat next to every comparison with published rows. No published
+row is converted, and the headline full-query rows, the 48.18 comparison and the default of
+`ragkit legalbench` are unchanged.

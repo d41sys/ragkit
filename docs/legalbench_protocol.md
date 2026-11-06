@@ -88,3 +88,7 @@ rows, labelled as such.
 The effect of the "Consider ..." prefix (question-only queries, and routing to a document by the
 prefix) is a separate, later pre-registered study: `docs/legalsplit_protocol.md`. It does not change
 any system, number or rule in this file.
+
+The chunk-size confound of the metric (k counts chunks, so Recall@k grows with chunk size) is
+measured in `docs/legalsize_protocol.md`; it is the caveat for every comparison of these rows with
+published rows of another chunker or chunk size. It changes nothing in this file.
