@@ -1,0 +1,14 @@
+### ragkit packing tune: dev grid (overflow policy x pool depth)
+
+Dev questions: fresh 29 29, synthetic 40 40. Objective = mean of the recall cells; ties go to fewer tokens, `stop`, smaller depth.
+
+| overflow | depth | objective | mean tokens | default/fresh 29 | default/synthetic 40 | hybrid+ce/fresh 29 | hybrid+ce/synthetic 40 |
+|---|---|---|---|---|---|---|---|
+| stop | 5 | 0.9851 | 2341 | 0.966 (3105 tok) | 0.975 (2011 tok) | 1.000 (2677 tok) | 1.000 (1569 tok) |
+| stop | 10 | 0.9914 | 4659 | 0.966 (6515 tok) | 1.000 (4390 tok) | 1.000 (4513 tok) | 1.000 (3218 tok) |
+| stop | 20 | 0.9914 | 8329 | 0.966 (10595 tok) | 1.000 (8194 tok) | 1.000 (8323 tok) | 1.000 (6205 tok) |
+| skip | 5 | 0.9851 | 2341 | 0.966 (3105 tok) | 0.975 (2011 tok) | 1.000 (2677 tok) | 1.000 (1569 tok) |
+| skip | 10 | 0.9914 | 4659 | 0.966 (6515 tok) | 1.000 (4390 tok) | 1.000 (4513 tok) | 1.000 (3218 tok) |
+| skip | 20 | 0.9914 | 8389 | 0.966 (10824 tok) | 1.000 (8194 tok) | 1.000 (8334 tok) | 1.000 (6205 tok) |
+
+Chosen on dev: overflow `stop`, pool depth 10.
