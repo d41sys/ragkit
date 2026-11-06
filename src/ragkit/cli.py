@@ -1070,6 +1070,47 @@ def cmd_retrieval_miss(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_legalsplit(args: argparse.Namespace) -> int:
+    """LegalBench-RAG-mini query split and document routing (docs/legalsplit_protocol.md)."""
+    from ragkit.legalsplit import (
+        build_cells,
+        chosen_from_json,
+        dev_test_split,
+        render_score,
+        render_tuning,
+        score,
+        tune,
+    )
+    from ragkit.retrievalmiss import dump_json
+
+    bench = load_mini(Path(args.data_zip), download=False)
+    dev, test = dev_test_split(bench.tests)
+    cells = build_cells(bench, Path(args.cache_dir), args.device)
+    tuning_path = Path(args.tuning_json)
+    if args.action == "tune":
+        tuning = tune(bench, cells, dev)
+        dump_json(tuning_path, tuning.to_json())
+        text = render_tuning(tuning, bench, dev)
+    else:
+        if not tuning_path.is_file():
+            print(
+                f"Error: tuning JSON not found at {tuning_path}.\n"
+                "Run `ragkit legalsplit tune` first.",
+                file=sys.stderr,
+            )
+            return 2
+        profile, settings = chosen_from_json(json.loads(tuning_path.read_text(encoding="utf-8")))
+        scores, router = score(bench, cells, profile, settings, test)
+        text = render_score(bench, scores, router, profile, settings, test)
+    print()
+    print(text)
+    if args.out:
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text + "\n", encoding="utf-8")
+    return 0
+
+
 def cmd_packing(args: argparse.Namespace) -> int:
     """Budget packing vs k = 3 and k = 5, retrieval only (docs/packing_protocol.md)."""
     from ragkit.packbench import (
@@ -1626,6 +1667,23 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_rm.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
     p_rm.add_argument("--out", default=None, help="Write the report to this file as well.")
 
+    # LegalBench-RAG-mini query-prefix removal and document routing (docs/legalsplit_protocol.md)
+    p_ls = subparsers.add_parser(
+        "legalsplit",
+        help="LegalBench-RAG-mini: question-only queries (A) and document routing (B), "
+        "retrieval only (needs `[st]` and the cached e5 model and document matrices).",
+    )
+    p_ls.add_argument("action", choices=("tune", "score"), help="tune on dev; score test.")
+    p_ls.add_argument("--data-zip", default=str(DEFAULT_LEGALBENCH_ZIP))
+    p_ls.add_argument(
+        "--tuning-json",
+        default="docs/sota-runs/legalsplit_tuning.json",
+        help="Dev-chosen settings (written by tune, read by score).",
+    )
+    p_ls.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
+    p_ls.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
+    p_ls.add_argument("--out", default=None, help="Write the report to this file as well.")
+
     # Budget packing of parent articles (protocol: docs/packing_protocol.md)
     p_pack = subparsers.add_parser(
         "packing",
@@ -1790,6 +1848,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_retrieval_miss(parsed))
     elif parsed.subcommand == "packing":
         sys.exit(cmd_packing(parsed))
+    elif parsed.subcommand == "legalsplit":
+        sys.exit(cmd_legalsplit(parsed))
 
 
 if __name__ == "__main__":

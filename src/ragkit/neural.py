@@ -155,21 +155,24 @@ def e5_small(device: str | None = None) -> SentenceEmbedder:
     )
 
 
+def corpus_cache_path(embedder: SentenceEmbedder, texts: Sequence[str], cache_dir: Path) -> Path:
+    """Cache file of the document matrix of ``texts`` (model and text digest in the name)."""
+    digest = hashlib.sha1(usedforsecurity=False)
+    for text in texts:
+        digest.update(text.encode("utf-8"))
+        digest.update(b"\x00")
+    tag = embedder.model_id.replace("/", "_").replace("@", "-")
+    return cache_dir / f"{tag}-{len(texts)}-{digest.hexdigest()[:16]}.npy"
+
+
 def embed_corpus(
     embedder: SentenceEmbedder, texts: Sequence[str], cache_dir: Path | None
 ) -> np.ndarray:
     """Document matrix of ``texts``; cached under ``cache_dir`` by model and text digest."""
-    path: Path | None = None
-    if cache_dir is not None:
-        digest = hashlib.sha1(usedforsecurity=False)
-        for text in texts:
-            digest.update(text.encode("utf-8"))
-            digest.update(b"\x00")
-        tag = embedder.model_id.replace("/", "_").replace("@", "-")
-        path = cache_dir / f"{tag}-{len(texts)}-{digest.hexdigest()[:16]}.npy"
-        if path.is_file():
-            cached: np.ndarray = np.load(path)
-            return cached
+    path = corpus_cache_path(embedder, texts, cache_dir) if cache_dir is not None else None
+    if path is not None and path.is_file():
+        cached: np.ndarray = np.load(path)
+        return cached
     matrix = embedder.embed(texts)
     if path is not None:
         path.parent.mkdir(parents=True, exist_ok=True)
