@@ -1,0 +1,55 @@
+### ragkit packing score: gold article in context, held-out (retrieval only, no LLM call)
+
+Pooled held-out questions: 130. Packing setting chosen on dev: overflow `stop`, pool depth 10 chunks, budget 12000 estimated tokens. Tokens are `estimate_tokens` (chars / 4) of the context.
+
+**default**
+
+| arm | gold in context | recall [95 % CI] | mean tokens | median | max | over budget | mean articles | median articles |
+|---|---|---|---|---|---|---|---|---|
+| k3 | 80/130 | 0.615 [0.531, 0.700] | 3526 | 3380 | 6816 | 0 | 2.93 | 3 |
+| k5 | 86/130 | 0.662 [0.584, 0.738] | 4854 | 4756 | 9580 | 0 | 3.97 | 4 |
+| pack | 96/130 | 0.738 [0.662, 0.815] | 8502 | 8738 | 11909 | 0 | 7.15 | 7 |
+
+| paired recall difference (pooled) | d [95 % CI] | gained / lost / tied |
+|---|---|---|
+| k5 - k3 | +0.046 [+0.015, +0.085] | 6 / 0 / 124 |
+| pack - k3 | +0.123 [+0.062, +0.185] | 17 / 1 / 112 |
+| pack - k5 (secondary) | +0.077 [+0.023, +0.131] | 12 / 2 / 116 |
+
+Per set (descriptive): gold in context, k3 / k5 / pack.
+
+| set | questions | k3 | k5 | pack |
+|---|---|---|---|---|
+| original 42 | 42 | 33 | 36 | 39 |
+| hard 39 | 39 | 33 | 35 | 35 |
+| keyword-free 49 | 49 | 14 | 15 | 22 |
+
+**hybrid+ce**
+
+| arm | gold in context | recall [95 % CI] | mean tokens | median | max | over budget | mean articles | median articles |
+|---|---|---|---|---|---|---|---|---|
+| k3 | 94/130 | 0.723 [0.646, 0.800] | 3229 | 3033 | 7324 | 0 | 2.78 | 3 |
+| k5 | 99/130 | 0.762 [0.685, 0.831] | 4082 | 3814 | 9204 | 0 | 3.58 | 4 |
+| pack | 111/130 | 0.854 [0.792, 0.915] | 6876 | 6886 | 11712 | 0 | 6.11 | 6 |
+
+| paired recall difference (pooled) | d [95 % CI] | gained / lost / tied |
+|---|---|---|
+| k5 - k3 | +0.038 [+0.008, +0.069] | 5 / 0 / 125 |
+| pack - k3 | +0.131 [+0.077, +0.192] | 17 / 0 / 113 |
+| pack - k5 (secondary) | +0.092 [+0.046, +0.146] | 12 / 0 / 118 |
+
+Per set (descriptive): gold in context, k3 / k5 / pack.
+
+| set | questions | k3 | k5 | pack |
+|---|---|---|---|---|
+| original 42 | 42 | 34 | 36 | 40 |
+| hard 39 | 39 | 35 | 35 | 37 |
+| keyword-free 49 | 49 | 25 | 28 | 34 |
+
+**Decision rule** (`docs/packing_protocol.md`): packing becomes the `ragkit answer` default only if the paired CI lower bound of `pack - k3` is above 0 on BOTH retrievers and no context exceeds its budget.
+
+- default: lower bound +0.062, above 0.
+- hybrid+ce: lower bound +0.077, above 0.
+- contexts over budget: 0.
+
+Result: rule PASSES, packing becomes the default. Answer quality was not re-measured (needs the API).
