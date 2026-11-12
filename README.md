@@ -1,5 +1,7 @@
 # ragkit
 
+[![CI](https://github.com/d41sys/ragkit/actions/workflows/ci.yml/badge.svg)](https://github.com/d41sys/ragkit/actions/workflows/ci.yml)
+
 Retrieval-augmented generation built from first principles and benchmarked on two corpora: a self-written, near-saturated energy-flexibility corpus (25 docs, 40 labelled questions), and a harder real-text corpus of 94 EU electricity-regulation articles on grid congestion and balancing (42 agent-drafted, second-pass agent-reviewed questions with no human review, see [EU corpus](#real-corpus-eu-electricity-regulation-congestion-and-balancing)).
 
 ## Problem
@@ -75,6 +77,11 @@ flowchart LR
 ```
 
 ## Quickstart
+Releases: pushing a tag `vX.Y.Z` that matches `pyproject.toml` runs CI, builds the wheel and sdist, and attaches them to a [GitHub release](https://github.com/d41sys/ragkit/releases) (`.github/workflows/release.yml`). The wheel bundles both corpora and the question sets. To use a release as a dependency:
+```bash
+uv add "ragkit @ https://github.com/d41sys/ragkit/releases/download/v0.1.0/ragkit-0.1.0-py3-none-any.whl"
+```
+From a clone:
 ```bash
 uv sync
 uv run ragkit index src/ragkit/data/corpus     # writes .ragkit/index.json
