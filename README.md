@@ -6,20 +6,73 @@ Retrieval-augmented generation built from first principles and benchmarked on tw
 Which retrieval stack actually finds the right document? ragkit implements every stage with no retrieval libraries (BM25, hashing embeddings, fusion, reranking, rewriting, metrics) so each stage can be measured in isolation, offline and deterministically.
 
 ## Architecture
+
+### Request flow
 ```mermaid
-flowchart LR
-  D[Markdown corpus] --> C[chunking: fixed / recursive / sentence / semantic]
-  C --> B[BM25 Okapi k1=1.5 b=0.75]
-  C --> E[HashingEmbedder char 3-5 grams + TF-IDF + L2] --> V[numpy cosine index]
-  Q[query] --> R[rewrite: HyDE / multi-query / decomposition]
-  R --> B & V
-  B & V --> F[fusion: RRF k=60 / weighted min-max a=0.5]
-  F --> K[LexicalReranker: coverage + min-span + BM25]
-  K --> S{support ≥ 0.5?}
-  S -->|yes| G[extractive generator with chunk_id citations]
-  S -->|no| A[abstain]
+flowchart TD
+  D["Markdown corpus (EU: 94 EUR-Lex articles, built by fetch-eu)"] --> C["chunking: recursive, 500 chars, 50 overlap"]
+  Q[question] --> RET
+  C --> RET
+  subgraph RET["retrieval, chosen by --retriever"]
+    direction LR
+    subgraph OFF["default: offline, numpy only"]
+      B1[BM25] --> F1["RRF k=60"]
+      H["HashingEmbedder (char 3-5 grams)"] --> F1
+      F1 --> LR["LexicalReranker"]
+    end
+    subgraph NEU["dense / hybrid / hybrid+ce: needs the st extra"]
+      B2[BM25] --> F2["RRF k=60, top 100"]
+      E["bge-small-en-v1.5"] --> F2
+      F2 --> CE["MiniLM cross-encoder rerank"]
+    end
+  end
+  RET --> ASK["ragkit ask: query support >= 0.5? extractive answer with chunk_id citations, else abstain"]
+  RET --> PACK["ragkit answer: whole parent articles, top 10 chunks packed into 12k tokens (--no-pack: 3 articles)"]
+  PACK --> GATE{"gate: none (default) / suff / self"}
+  GATE --> LLM["Claude through CachedMessages (JSONL call cache)"]
+  LLM --> OUT["answer with article citations, or abstain"]
+```
+
+### Code layout
+Each layer imports only layers below it (exceptions: [#9](https://github.com/d41sys/ragkit/issues/9)).
+```mermaid
+flowchart TB
+  CLI["cli.py: 17 subcommands"] --> HAR
+  CLI --> MOD
+  CLI --> CORE
+  subgraph HAR["experiment harnesses: one per pre-registered study, protocol in docs/*_protocol.md"]
+    H1["abstention, lexical, lexical_explain, ctxprefix, nokw, hardset_review"]
+    H2["neuralbench, retrievalmiss, genbench, articlebench, packbench"]
+    H3["beir, legalbench, legalsplit, legalsize"]
+  end
+  subgraph MOD["model-backed: st extra or Anthropic API"]
+    M1["neural: pinned bge / e5 + RRF + cross-encoder engine"]
+    M2["modelsignals: cross-encoder and SQuAD2 abstention signals"]
+    M3["parent: chunk to article packing"]
+    M4["generation: prompts and LLM judges; llm: cached Messages client"]
+  end
+  subgraph CORE["core library: numpy only, offline, deterministic"]
+    C1["chunking, bm25, bm25f, embed, dense, hybrid, rerank, pipeline"]
+    C2["eval: metrics, bootstrap and Wilson intervals; analysis: Lucene analyzer clone"]
+    C3["expand, rewrite"]
+  end
+  HAR --> MOD --> CORE
+  EUR["eurlex.py (fetch-eu)"] --> DATA[("data/: corpora, question sets, LLM call cache")]
 ```
 Optional extras: `[st]` swaps in `all-MiniLM-L6-v2` embeddings and the `ms-marco-MiniLM-L-6-v2` cross-encoder, enables the model-based abstention signals (`ce_top`, `qa_answerable`: `ms-marco-MiniLM-L-6-v2` and `deepset/roberta-base-squad2`), and provides the neural retrievers of `--retriever dense|hybrid|hybrid+ce` (`BAAI/bge-small-en-v1.5`, `intfloat/e5-small-v2`, `cross-encoder/ms-marco-MiniLM-L-6-v2`; no model library is imported unless one of those flags is used); `[llm]` adds `AnthropicLLM` (needs `ANTHROPIC_API_KEY`) for rewriting. `ragkit answer` and `ragkit generation` call the Anthropic Messages API with the standard library only (no SDK); every call is cached in `data/llm_cache/`, so replays need no key and no network.
+
+### Planned: ezcross-ems integration
+ragkit is to become a retrieval tool of the ezcross-ems agent. ragkit only retrieves; the agent's own model writes the answer, so sign-in and logging come from ezcross-ems. Work items: [#1–#9](https://github.com/d41sys/ragkit/issues) (P0: #1–#5).
+```mermaid
+flowchart LR
+  U[user] -->|JWT sign-in| A["ezc-server agent session"]
+  A -->|tool call| T["EzcTool search_eu_law (read-only)"]
+  T --> API["FastAPI endpoint, get_current_user"]
+  API --> S["ragkit.search(): articles, ids, EUR-Lex URLs (#1)"]
+  S --> A
+  A -->|answer with citations| U
+  A --> LOG[("agent_session_entries: every tool call and result")]
+```
 
 ## Quickstart
 ```bash
