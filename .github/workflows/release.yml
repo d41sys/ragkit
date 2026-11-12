@@ -15,8 +15,8 @@ jobs:
     needs: ci
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
       # A tag that does not match the package version would publish a mislabelled wheel.
       - run: test "$GITHUB_REF_NAME" = "v$(uv version --short)"
       - run: uv build
