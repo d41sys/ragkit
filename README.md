@@ -18,7 +18,7 @@ flowchart TD
     subgraph OFF["default: offline, numpy only"]
       B1[BM25] --> F1["RRF k=60"]
       H["HashingEmbedder (char 3-5 grams)"] --> F1
-      F1 --> LR["LexicalReranker"]
+      F1 --> LXR["LexicalReranker"]
     end
     subgraph NEU["dense / hybrid / hybrid+ce: needs the st extra"]
       B2[BM25] --> F2["RRF k=60, top 100"]
