@@ -280,8 +280,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
     if args.index:
         pipeline.index_chunks(_load_index(Path(args.index)))
     else:
-        corpus_dir = Path(args.corpus_dir) if args.corpus_dir else DEFAULT_CORPUS_DIR
-        pipeline.index_documents(_load_documents(corpus_dir))
+        pipeline.index_documents(_load_documents(_resolve_dataset(args).corpus_dir))
 
     answer = pipeline.answer(args.query, top_k=args.top_k)
     print(f"Question: {args.query}\n")

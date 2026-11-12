@@ -34,6 +34,13 @@ def test_index_then_ask_from_persisted_index(
     assert "[hp#" in out
 
 
+def test_ask_uses_the_corpus_preset(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as ex:
+        main(["ask", "What is the minimum cross-zonal capacity for trade?", "--corpus", "eu"])
+    assert ex.value.code == 0
+    assert "Citations: reg_" in capsys.readouterr().out
+
+
 def test_dataset_flags_select_bundled_preset_and_explicit_overrides(tmp_path: Path) -> None:
     from ragkit.cli import (
         DEFAULT_CORPUS_DIR,
