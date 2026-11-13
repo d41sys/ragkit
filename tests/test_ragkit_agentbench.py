@@ -117,6 +117,9 @@ def _scored(setup: str, correct: list[float], refused: list[float], failed: int 
         context_tokens=nan,
         latency_s=nan,
         tool_called=nan,
+        searches=nan,
+        max_prompt=nan,
+        runaways=nan,
         verdicts=[],
     )
 

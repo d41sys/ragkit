@@ -350,6 +350,9 @@ class Scored:
     context_tokens: np.ndarray  # prompt tokens of the last model call (all questions)
     latency_s: np.ndarray
     tool_called: np.ndarray  # 1 iff the agent called search_eu_law at least once (A to C)
+    searches: np.ndarray  # search_eu_law calls in the run
+    max_prompt: np.ndarray  # largest prompt (tokens) of any model call of the run
+    runaways: np.ndarray  # 1 iff a model call used the whole 8192-token limit
     verdicts: list[dict[str, Any]]
 
 
@@ -446,6 +449,16 @@ def score_setup(
                 for q in questions
             ]
         ),
+        searches=np.array(
+            [len(by_id[q["id"]]["tool_calls"]) if q["id"] in by_id else nan for q in questions],
+            dtype=float,
+        ),
+        max_prompt=np.array(
+            [max((c["prompt_tokens"] for c in k), default=nan) for k in calls], dtype=float
+        ),
+        runaways=np.array(
+            [float(any(c["completion_tokens"] >= D_MAX_TOKENS for c in k)) for k in calls]
+        ),
         verdicts=verdicts,
     )
 
@@ -534,6 +547,26 @@ def render(results: Mapping[str, Scored]) -> str:
             m, lo, hi, n = paired(getattr(results[s], attr), getattr(results["A"], attr))
             cells.append(f"{m:+.{digits}f} [{lo:+.{digits}f}, {hi:+.{digits}f}] (n={n})")
         out.append(f"| {label} | " + " | ".join(cells) + " |")
+    out += [
+        "",
+        "Agent loop by question kind (mean / max per question; runaway = a call hit 8192 tokens):",
+        "",
+    ]
+    out.append("| setup | kind | searches | max prompt tokens | runaways | n |")
+    out.append("|---|---|---|---|---|---|")
+    for s in names:
+        r = results[s]
+        for kind, prefix in (("answerable", "a"), ("unanswerable", "u")):
+            keep = np.array([v["id"].startswith(prefix) for v in r.verdicts]) & ~np.isnan(
+                r.searches
+            )
+            if keep.any():
+                out.append(
+                    f"| {s} | {kind} "
+                    f"| {r.searches[keep].mean():.2f} / {r.searches[keep].max():.0f} "
+                    f"| {r.max_prompt[keep].mean():.0f} / {r.max_prompt[keep].max():.0f} "
+                    f"| {int(r.runaways[keep].sum())} | {int(keep.sum())} |"
+                )
     _, rule = decide(results)
     return "\n".join(out + ["", "Decision rule:", ""] + [f"- {line}" for line in rule])
 
@@ -561,6 +594,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     r.add_argument("--setups", default=",".join(SETUPS))
     r.add_argument("--out", default=None)
+    r.add_argument("--verdicts-out", default=None, help="write every per-question verdict as JSON")
     r.add_argument("--workers", type=int, default=2)
     args = p.parse_args(argv)
 
@@ -603,6 +637,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(text)
         if args.out:
             Path(args.out).write_text(text + "\n", encoding="utf-8")
+        if args.verdicts_out:
+            dump = {s: r.verdicts for s, r in results.items()}
+            Path(args.verdicts_out).write_text(json.dumps(dump, indent=1) + "\n", encoding="utf-8")
     return 0
 
 
