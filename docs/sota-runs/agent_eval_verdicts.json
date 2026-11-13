@@ -1,0 +1,1571 @@
+{
+ "A": [
+  {
+   "id": "a01",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art16",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a02",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art13",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art16",
+     "verdict": "invalid"
+    }
+   ]
+  },
+  {
+   "id": "a03",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art10",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a04",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art41",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a05",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art55",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a06",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art35",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a07",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art15",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a08",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art23",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a09",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art11",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a10",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art42",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a11",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_1485_art146",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a12",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art20",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a13",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art24",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a14",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art73",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a15",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art16",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a16",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art14",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a17",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art13",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art16",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a18",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art19",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a19",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "dir_2019_944_art17",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a20",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art35",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a21",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "dir_2019_944_art32",
+     "verdict": "yes"
+    },
+    {
+     "id": "dir_2019_944_art40",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a22",
+   "failed": false,
+   "refused": false,
+   "correct": "partial",
+   "cites": [
+    {
+     "id": "reg_2019_943_art6",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a23",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art25",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2017_2195_art2",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a24",
+   "failed": false,
+   "refused": false,
+   "correct": "partial",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art14",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2015_1222_art70",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a25",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art38",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2017_2195_art41",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2017_2195_art42",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art17",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a26",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art54",
+     "verdict": "partial"
+    },
+    {
+     "id": "reg_2017_2195_art55",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a27",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art16",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a28",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": []
+  },
+  {
+   "id": "a29",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art18",
+     "verdict": "yes"
+    },
+    {
+     "id": "dir_2019_944_art15",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a30",
+   "failed": false,
+   "refused": false,
+   "correct": "no",
+   "cites": [
+    {
+     "id": "reg_2019_943_art16",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art13",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art14",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a31",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_1485_art21",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2017_1485_art23",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a32",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art19",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a33",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2016_1719_art25",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a34",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art72",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a35",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art14",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art15",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a36",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": []
+  },
+  {
+   "id": "a37",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art13",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2017_2195_art30",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a38",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art38",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2017_2195_art41",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a39",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art15",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2015_1222_art74",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2015_1222_art35",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a40",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art35",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a41",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "dir_2019_944_art17",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art5",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a42",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_1485_art157",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a43",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art2",
+     "verdict": "no"
+    },
+    {
+     "id": "reg_2019_943_art3",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "u01",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u02",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u03",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u04",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u05",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u06",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u07",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u08",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u09",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u10",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u11",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u12",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u13",
+   "failed": true
+  },
+  {
+   "id": "u14",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u15",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u16",
+   "failed": true
+  },
+  {
+   "id": "u17",
+   "failed": true
+  },
+  {
+   "id": "u18",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u19",
+   "failed": true
+  },
+  {
+   "id": "u20",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u21",
+   "failed": true
+  },
+  {
+   "id": "u22",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u23",
+   "failed": true
+  },
+  {
+   "id": "u24",
+   "failed": true
+  },
+  {
+   "id": "u25",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u26",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u27",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u28",
+   "failed": true
+  },
+  {
+   "id": "u29",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u30",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u31",
+   "failed": true
+  },
+  {
+   "id": "u32",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u33",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u34",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u35",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u36",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u37",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u38",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u39",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u40",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u41",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u42",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u43",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u44",
+   "failed": false,
+   "refused": false
+  }
+ ],
+ "B": [
+  {
+   "id": "a01",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art16",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a02",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art13",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a03",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art10",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a04",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art41",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a05",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art55",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a06",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art35",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a07",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art15",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a08",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art23",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a09",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art11",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a10",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art42",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a11",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_1485_art146",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a12",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art20",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a13",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art24",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a14",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art73",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a15",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art16",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a16",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art14",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a17",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art12",
+     "verdict": "partial"
+    },
+    {
+     "id": "reg_2019_943_art16",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a18",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art19",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a19",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "dir_2019_944_art17",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a20",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art35",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a21",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "dir_2019_944_art32",
+     "verdict": "yes"
+    },
+    {
+     "id": "dir_2019_944_art40",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art18",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a22",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art6",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a23",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art2",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2017_2195_art25",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a24",
+   "failed": false,
+   "refused": false,
+   "correct": "partial",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art14",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2015_1222_art70",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a25",
+   "failed": false,
+   "refused": false,
+   "correct": "no",
+   "cites": [
+    {
+     "id": "reg_2019_943_art17",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2015_1222_art29",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art34",
+     "verdict": "partial"
+    }
+   ]
+  },
+  {
+   "id": "a26",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art55",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a27",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art16",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a28",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art14",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art15",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a29",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art18",
+     "verdict": "yes"
+    },
+    {
+     "id": "dir_2019_944_art15",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a30",
+   "failed": false,
+   "refused": false,
+   "correct": "no",
+   "cites": [
+    {
+     "id": "reg_2019_943_art16",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a31",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_1485_art21",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a32",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art19",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a33",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2016_1719_art25",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a34",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art72",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a35",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": []
+  },
+  {
+   "id": "a36",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art16",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art6",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a37",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art13",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2017_2195_art30",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a38",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_2195_art39",
+     "verdict": "partial"
+    },
+    {
+     "id": "reg_2017_2195_art41",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a39",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2019_943_art15",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2015_1222_art74",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a40",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2015_1222_art35",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a41",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "dir_2019_944_art17",
+     "verdict": "yes"
+    },
+    {
+     "id": "reg_2019_943_art5",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a42",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": [
+    {
+     "id": "reg_2017_1485_art157",
+     "verdict": "yes"
+    }
+   ]
+  },
+  {
+   "id": "a43",
+   "failed": false,
+   "refused": false,
+   "correct": "yes",
+   "cites": []
+  },
+  {
+   "id": "u01",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u02",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u03",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u04",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u05",
+   "failed": true
+  },
+  {
+   "id": "u06",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u07",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u08",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u09",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u10",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u11",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u12",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u13",
+   "failed": true
+  },
+  {
+   "id": "u14",
+   "failed": true
+  },
+  {
+   "id": "u15",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u16",
+   "failed": true
+  },
+  {
+   "id": "u17",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u18",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u19",
+   "failed": true
+  },
+  {
+   "id": "u20",
+   "failed": true
+  },
+  {
+   "id": "u21",
+   "failed": true
+  },
+  {
+   "id": "u22",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u23",
+   "failed": true
+  },
+  {
+   "id": "u24",
+   "failed": true
+  },
+  {
+   "id": "u25",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u26",
+   "failed": true
+  },
+  {
+   "id": "u27",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u28",
+   "failed": true
+  },
+  {
+   "id": "u29",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u30",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u31",
+   "failed": true
+  },
+  {
+   "id": "u32",
+   "failed": true
+  },
+  {
+   "id": "u33",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u34",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u35",
+   "failed": true
+  },
+  {
+   "id": "u36",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u37",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u38",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u39",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u40",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u41",
+   "failed": false,
+   "refused": false
+  },
+  {
+   "id": "u42",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u43",
+   "failed": false,
+   "refused": true
+  },
+  {
+   "id": "u44",
+   "failed": false,
+   "refused": false
+  }
+ ]
+}

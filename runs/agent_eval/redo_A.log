@@ -1,0 +1,9 @@
+u13 1265s tools=4 completed
+u16 1224s tools=3 completed
+u17 1800s tools=8 truncation guard: prompt + completion (65600) fill num_ctx 65536
+u19 1800s tools=5 model request failed (aborted): Request was aborted
+u21 1800s tools=9 model request failed (aborted): Request was aborted
+u23 1797s tools=5 completed
+u24 1711s tools=3 completed
+u28 1800s tools=5 model request failed (aborted): Request was aborted
+u31 1147s tools=2 completed

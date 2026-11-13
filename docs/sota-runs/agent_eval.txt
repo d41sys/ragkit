@@ -1,0 +1,38 @@
+| metric (mean [95 % CI]) | A | B |
+|---|---|---|
+| correct (answerable) | 0.930 [0.860, 1.000] | 0.930 [0.860, 1.000] |
+| partial (answerable) | 0.047 [0.000, 0.116] | 0.023 [0.000, 0.070] |
+| wrongly refused (answerable) | 0.000 [0.000, 0.000] | 0.000 [0.000, 0.000] |
+| refused (unanswerable) | 0.523 [0.364, 0.659] | 0.455 [0.318, 0.591] |
+| cited articles judged `yes` (answerable, answered) | 0.919 [0.837, 0.977] | 0.922 [0.849, 0.981] |
+| articles cited per answer | 1.42 [1.21, 1.65] | 1.28 [1.09, 1.47] |
+| answers without citation | 0.047 [0.000, 0.116] | 0.047 [0.000, 0.116] |
+| agent called the tool (all) | 0.885 [0.816, 0.943] | 0.885 [0.816, 0.943] |
+| prompt tokens of the last call (all) | 13939 [11521, 16704] | 9597 [8102, 11232] |
+| latency, s per question (all) | 400 [301, 515] | 444 [337, 562] |
+| failed runs | 9 | 14 |
+
+Paired differences against A (X - A; paired bootstrap over questions):
+
+| metric | B - A |
+|---|---|
+| correct (answerable) | +0.000 [-0.070, +0.070] (n=43) |
+| partial (answerable) | -0.023 [-0.070, +0.000] (n=43) |
+| wrongly refused (answerable) | +0.000 [+0.000, +0.000] (n=43) |
+| refused (unanswerable) | -0.068 [-0.205, +0.068] (n=44) |
+| cited articles judged `yes` (answerable, answered) | +0.004 [-0.089, +0.105] (n=43) |
+
+Agent loop by question kind (mean / max per question; runaway = a call hit 8192 tokens):
+
+| setup | kind | searches | max prompt tokens | runaways | n |
+|---|---|---|---|---|---|
+| A | answerable | 1.07 / 2 | 9872 / 22069 | 0 | 43 |
+| A | unanswerable | 2.75 / 9 | 22400 / 64896 | 5 | 44 |
+| B | answerable | 1.28 / 4 | 7618 / 24979 | 0 | 43 |
+| B | unanswerable | 3.32 / 10 | 13945 / 41072 | 10 | 44 |
+
+Decision rule:
+
+- B: R1 correct diff +0.000 [-0.070, +0.070] lower bound > 0: False; R2 refusal on unanswerable 0.455 vs 0.523 (margin 0.10): True; R3 failed runs 14 <= 3: False
+- A has 9 failed runs (> 3): the baseline is not valid
+- default: A

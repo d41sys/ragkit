@@ -301,3 +301,45 @@ candidate B against A; C is not a candidate and D is not reported. The questions
 to answer (does the article order matter, does the full corpus in the prompt beat retrieval) stay
 open in issue #7. Everything else is unchanged: no turn or token cap, same prompts, judge, metrics
 and statistics. The `render` tables list only the setups that were run.
+
+## Results (2026-11-13, A and B; raw: `docs/sota-runs/agent_eval.txt`, verdicts `agent_eval_verdicts.json`)
+
+Judge `gemma3:27b`, 43 answerable and 44 unanswerable questions, transcripts in
+`runs/agent_eval/{A,B}.jsonl` (last row of an id wins), judge cache
+`data/llm_cache/agent_eval_judge.jsonl`.
+
+| metric (mean [95 % CI]) | A (packing) | B (3 best articles) | B - A (paired) |
+|---|---|---|---|
+| correct (answerable) | 0.930 [0.860, 1.000] | 0.930 [0.860, 1.000] | +0.000 [-0.070, +0.070] |
+| partial (answerable) | 0.047 [0.000, 0.116] | 0.023 [0.000, 0.070] | -0.023 [-0.070, +0.000] |
+| wrongly refused (answerable) | 0.000 | 0.000 | +0.000 |
+| refused (unanswerable) | 0.523 [0.364, 0.659] | 0.455 [0.318, 0.591] | -0.068 [-0.205, +0.068] |
+| cited articles judged `yes` | 0.919 [0.837, 0.977] | 0.922 [0.849, 0.981] | +0.004 [-0.089, +0.105] |
+| prompt tokens of the last call | 13 939 | 9 597 | |
+| latency, s per question | 400 | 444 | |
+| failed runs | 9 | 14 | |
+
+**Decision (rule as written):** B fails R1 (correct difference CI includes 0) and R3 (14 failed
+runs > 3); R2 passes. A has 9 failed runs (> 3), so the study is **invalid for the default
+decision** and A stays the default by the rule's fallback. Nothing in ragkit or the endpoint
+changes.
+
+**Failed runs are all unanswerable questions.** A: `u13 u16 u17 u19 u21 u23 u24 u28 u31`; B: `u05
+u13 u14 u16 u19 u20 u21 u23 u24 u26 u28 u31 u32 u35`. Causes: the 1800 s per-question timeout
+(A 3, B 4) and one context overflow (A `u17`, prompt plus completion 65 600 > 65 536) after
+repeated searches, and an empty final answer after a thinking run hit the 8192-token limit (A 5,
+B 10). Each failure counts as not refused, so the refusal rows are lower bounds: of the runs that
+finished, A refused 23 of 35 and B 20 of 30. Ids `u17 u19 u21` (A) and `u05 u13 u14` (B) were run
+three times: once in the main pass, once by the redo of rows stored with the old error wording or
+the 900 s timeout (amendments 1, 2 and 5), and once by the final redo pass; all still failed.
+
+**Predictions:** P1 fails (the tool was called on 0.885 of the 87 questions in A and in B, below
+0.95); P2 holds (B - A on `correct` includes 0); P5 holds (refusal 0.52 and 0.45, at most
+0.60). P3 and P4 were not tested (C and D not run, now issue #11).
+
+**Read as:** on answerable questions the agent with `qwen3.6:27b` is right 93 % of the time with
+either context, and about 92 % of the articles it cites support the answer. The weak spot is
+unanswerable questions: the model searches again and again (A: 2.75 searches on average, up to 9)
+instead of saying the corpus does not cover the question, and about half the time it answers
+anyway. The judge is one local model, not human labels; the sample resolves only effects of about
+15 percentage points.

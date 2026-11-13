@@ -64,7 +64,7 @@ flowchart TB
 Optional extras: `[st]` swaps in `all-MiniLM-L6-v2` embeddings and the `ms-marco-MiniLM-L-6-v2` cross-encoder, enables the model-based abstention signals (`ce_top`, `qa_answerable`: `ms-marco-MiniLM-L-6-v2` and `deepset/roberta-base-squad2`), and provides the neural retrievers of `--retriever dense|hybrid|hybrid+ce` (`BAAI/bge-small-en-v1.5`, `intfloat/e5-small-v2`, `cross-encoder/ms-marco-MiniLM-L-6-v2`; no model library is imported unless one of those flags is used); `[llm]` adds `AnthropicLLM` (needs `ANTHROPIC_API_KEY`) for rewriting. `ragkit answer` and `ragkit generation` call the Anthropic Messages API with the standard library only (no SDK); every call is cached in `data/llm_cache/`, so replays need no key and no network.
 
 ### ezcross-ems integration
-ragkit is the retrieval tool of the ezcross-ems agent: the backend calls `ragkit.search()` (see [Library use](#library-use)) behind a JWT-protected endpoint, and the agent tool `search_eu_law` wraps that endpoint. ragkit only retrieves; the agent's own model writes the answer, so sign-in and logging come from ezcross-ems. Not yet measured: answer quality through the agent ([#7](https://github.com/d41sys/ragkit/issues/7)).
+ragkit is the retrieval tool of the ezcross-ems agent: the backend calls `ragkit.search()` (see [Library use](#library-use)) behind a JWT-protected endpoint, and the agent tool `search_eu_law` wraps that endpoint. ragkit only retrieves; the agent's own model writes the answer, so sign-in and logging come from ezcross-ems. Answer quality through the agent with the local `qwen3.6:27b`: 0.93 correct on answerable questions, about half of the unanswerable ones refused (see "Answers through the ezcross-ems agent" below, [#7](https://github.com/d41sys/ragkit/issues/7)).
 ```mermaid
 flowchart LR
   U[user] -->|JWT sign-in| A["ezc-server agent session"]
@@ -1205,6 +1205,19 @@ Gold article in the context, pooled held-out 130 questions (paired bootstrap, 20
 | paired d, packing - k = 5 (secondary) | +0.077 [+0.023, +0.131] | +0.092 [+0.046, +0.146] |
 
 **Decision rule** (default only if the CI lower bound of packing - k = 3 is above 0 on both retrievers): passes (+0.062 and +0.077), no context over budget, so `ragkit answer` now packs by default (`--no-pack` restores `--articles 3`). This is a statement about retrieval-side gold coverage. Context grows 2.1 to 2.4 times in tokens; whether answers improve, and at what cost, needs an API run that was not made. Raw output: `docs/sota-runs/packing_heldout.txt`.
+
+### Answers through the ezcross-ems agent, issue #7 ([`docs/agent_eval_protocol.md`](docs/agent_eval_protocol.md))
+
+The real `ezc-cli` agent session (shipped system prompt and tools, `search_eu_law` against a stand-in of the backend endpoint) answered the 43 answerable and 44 unanswerable consolidated EU questions with local models only: agent `qwen3.6:27b` (thinking on, 64 k context), judge `gemma3:27b`. Pre-registered (`3ffa8af`), amendments dated before any judge call. Setups C (reversed order) and D (full corpus in the prompt) were not run because of GPU time on a shared server ([#11](https://github.com/d41sys/ragkit/issues/11)).
+
+| | A: `search()` defaults (packing) | B: 3 best articles | B - A (paired) |
+|---|---|---|---|
+| correct (answerable) | 0.930 [0.860, 1.000] | 0.930 [0.860, 1.000] | +0.000 [-0.070, +0.070] |
+| refused (unanswerable) | 0.523 [0.364, 0.659] | 0.455 [0.318, 0.591] | -0.068 [-0.205, +0.068] |
+| cited articles judged `yes` | 0.919 | 0.922 | +0.004 [-0.089, +0.105] |
+| failed runs (all unanswerable) | 9 | 14 | |
+
+**Decision rule:** B is not better (R1 fails) and has too many failed runs (R3); A also has more than 3 failed runs, so the study is invalid for the default decision and A stays the default; nothing changes. Failed runs are 1800 s timeouts, one 64 k context overflow, and empty answers after an 8192-token thinking run, all on unanswerable questions where the model searches up to 10 times instead of declining. Not comparable with the Sonnet-judged numbers above. Raw output: `docs/sota-runs/agent_eval.txt`.
 
 ### LegalBench-RAG-mini: does the query prefix pull in the wrong documents? ([`docs/legalsplit_protocol.md`](docs/legalsplit_protocol.md))
 
