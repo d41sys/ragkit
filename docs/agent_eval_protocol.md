@@ -283,3 +283,16 @@ touches a prompt, a metric, the decision rule or a model.
 4. **Context fit.** The largest prompt of A so far is 54 041 tokens (`u17`, a multi-search loop),
    inside the 64 k variant; the guard checks every call, so a larger one would be recorded as an
    error rather than scored.
+
+### Amendment 2026-11-13 (later): C and D are not run; the decision is A against B
+
+Written before any judge call, by user decision. Setups C (reversed order) and D (full context) are
+**not run**. Reason, measured: on the shared Ollama server (4 GPUs at 96 to 100 % utilisation with
+other users' jobs) an unanswerable question takes 5 to 30 minutes per stream, because the agent
+loops (5 to 8 `search_eu_law` calls, prompts up to 54 k tokens, some 8192-token thinking runs);
+the first two setups needed about 6 h of wall time for 87 questions each and about 20 h more would
+be needed for C and D. The decision rule is therefore applied to **A and B only**: R1 to R3 for
+candidate B against A; C is not a candidate and D is not reported. The questions C and D were meant
+to answer (does the article order matter, does the full corpus in the prompt beat retrieval) stay
+open in issue #7. Everything else is unchanged: no turn or token cap, same prompts, judge, metrics
+and statistics. The `render` tables list only the setups that were run.
