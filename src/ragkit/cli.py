@@ -55,7 +55,7 @@ from ragkit.ctxprefix import render_set as render_ctxprefix_set
 from ragkit.ctxprefix import without_act_named
 from ragkit.dense import DenseIndex
 from ragkit.embed import HashingEmbedder
-from ragkit.eurlex import EU_ACTS, build_corpus, strip_metadata_comment
+from ragkit.eurlex import EU_ACTS, build_corpus
 from ragkit.eval import (
     answer_f1,
     bootstrap_ci,
@@ -77,7 +77,7 @@ from ragkit.genbench import (
     run_generation,
     subset_score_cache,
 )
-from ragkit.generation import LLMAnswerer, Passage
+from ragkit.generation import LLMAnswerer
 from ragkit.hybrid import HybridRetriever
 from ragkit.legalbench import DEFAULT_LEGALBENCH_ZIP, load_mini, render_legalbench_report
 from ragkit.legalbench import SYSTEMS as LEGAL_SYSTEMS
@@ -95,23 +95,28 @@ from ragkit.parent import (
     OVERFLOW_POLICIES,
     PACK_CHUNKS,
     PACK_OVERFLOW,
-    pack_articles,
+    Passage,
     parent_articles,
 )
 from ragkit.pipeline import ABSTAIN_TEXT, DEFAULT_MIN_SUPPORT, RAGPipeline, query_support
 from ragkit.rerank import LexicalReranker
 from ragkit.rewrite import HyDERewriter, TemplateLLM
+from ragkit.search import build_index, retrieve_chunks, search
+from ragkit.search import load_documents as _load_documents
 
 DEFAULT_DATA_DIR = Path(__file__).parent / "data"
 DEFAULT_CORPUS_DIR = DEFAULT_DATA_DIR / "corpus"
 DEFAULT_QA_PATH = DEFAULT_DATA_DIR / "qa.jsonl"
 DEFAULT_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable.jsonl"
 EU_CORPUS_DIR = DEFAULT_DATA_DIR / "corpus_eu"
+EU_CONSOLIDATED_CORPUS_DIR = DEFAULT_DATA_DIR / "corpus_eu_consolidated"
 EU_QA_PATH = DEFAULT_DATA_DIR / "qa_eu.jsonl"
+EU_CONSOLIDATED_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_consolidated.jsonl"
 EU_FRESH_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_fresh.jsonl"
 EU_HARD_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_hard.jsonl"
 EU_NOKW_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_nokw.jsonl"
 EU_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable_eu.jsonl"
+EU_CONSOLIDATED_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable_eu_consolidated.jsonl"
 COHORTS = ("all", "original-12", "expanded")
 
 
@@ -127,6 +132,9 @@ class Dataset:
 BUNDLED_DATASETS = {
     "synthetic": Dataset(DEFAULT_CORPUS_DIR, DEFAULT_QA_PATH, DEFAULT_UNANSWERABLE_PATH),
     "eu": Dataset(EU_CORPUS_DIR, EU_QA_PATH, EU_UNANSWERABLE_PATH),
+    "eu-consolidated": Dataset(
+        EU_CONSOLIDATED_CORPUS_DIR, EU_CONSOLIDATED_QA_PATH, EU_CONSOLIDATED_UNANSWERABLE_PATH
+    ),
 }
 
 
@@ -136,7 +144,8 @@ def _add_dataset_args(parser: argparse.ArgumentParser, *, questions: bool = True
         "--corpus",
         choices=sorted(BUNDLED_DATASETS),
         default="synthetic",
-        help="Bundled dataset: synthetic energy-flexibility docs, or eu (EUR-Lex articles).",
+        help="Bundled dataset: synthetic energy-flexibility docs, eu (original EUR-Lex articles) "
+        "or eu-consolidated (latest consolidated versions).",
     )
     parser.add_argument("--corpus-dir", default=None, help="Override the corpus directory.")
     if questions:
@@ -168,20 +177,6 @@ def _ci(values: Sequence[float]) -> str:
     """``mean [lo, hi]`` with a 95% percentile-bootstrap interval over questions."""
     mean, lo, hi = bootstrap_ci(values)
     return f"{mean:.3f} [{lo:.3f}, {hi:.3f}]"
-
-
-def _load_documents(corpus_dir: Path) -> list[tuple[str, str]]:
-    """Load all markdown and text documents from a directory."""
-    if not corpus_dir.is_dir():
-        raise FileNotFoundError(f"Corpus directory not found: {corpus_dir}")
-
-    docs: list[tuple[str, str]] = []
-    for file_path in sorted(corpus_dir.glob("*")):
-        if file_path.suffix.lower() in {".md", ".txt"}:
-            doc_id = file_path.stem
-            text = strip_metadata_comment(file_path.read_text(encoding="utf-8"))
-            docs.append((doc_id, text))
-    return docs
 
 
 def _chunk_corpus(
@@ -1319,17 +1314,21 @@ def _reader_cache_path(args: argparse.Namespace) -> Path | None:
 def cmd_answer(args: argparse.Namespace) -> int:
     """Retrieve, optionally gate on sufficient context, then answer with article citations."""
     ds = _resolve_dataset(args)
-    pipeline = _make_pipeline(args.retriever, 0.0)
-    documents = _load_documents(ds.corpus_dir)
-    pipeline.index_documents(documents)
-    passages = [Passage(c.doc_id, c.text) for c in pipeline.retrieve(args.query, args.top_k)]
-    articles = dict(documents)
+    where = {"corpus_dir": ds.corpus_dir, "retriever": args.retriever}
+    passages = retrieve_chunks(args.query, args.top_k, **where)
     if args.context != "article":
         context = passages
     elif args.pack:
-        pool = [Passage(c.doc_id, c.text) for c in pipeline.retrieve(args.query, args.pack_chunks)]
-        context = pack_articles(pool, articles, budget_tokens=args.budget, overflow=args.overflow)
+        found = search(
+            args.query,
+            budget_tokens=args.budget,
+            pack_chunks=args.pack_chunks,
+            overflow=args.overflow,
+            **where,
+        )
+        context = [Passage(a.id, a.text) for a in found.articles]
     else:
+        articles = dict(_load_documents(ds.corpus_dir))
         context = parent_articles(passages, articles, k=args.articles, budget_tokens=args.budget)
     answerer = LLMAnswerer(_llm_client(args.llm, args.cache))
     print(f"Question: {args.query}\n")
@@ -1349,6 +1348,13 @@ def cmd_answer(args: argparse.Namespace) -> int:
     if answer.citations:
         print(f"Citations: {', '.join(answer.citations)}")
     print(f"Model says the context supports the answer: {answer.supports}")
+    return 0
+
+
+def cmd_build_index(args: argparse.Namespace) -> int:
+    """Write the document matrix that ``ragkit.search()`` loads at startup."""
+    path = build_index(args.corpus_dir, args.out)
+    print(f"Wrote {path}")
     return 0
 
 
@@ -1477,13 +1483,15 @@ def cmd_generation(args: argparse.Namespace) -> int:
 
 def cmd_fetch_eu(args: argparse.Namespace) -> int:
     """Download the EU legal acts and rebuild the article-level corpus (needs network)."""
+    out = args.out or str(EU_CONSOLIDATED_CORPUS_DIR if args.consolidated else EU_CORPUS_DIR)
     doc_ids = build_corpus(
         EU_ACTS,
-        Path(args.out),
+        Path(out),
         cache_dir=Path(args.cache),
         retrieved_on=args.retrieved_on,
+        consolidated=args.consolidated,
     )
-    print(f"Wrote {len(doc_ids)} article documents to {args.out}")
+    print(f"Wrote {len(doc_ids)} article documents to {out}")
     return 0
 
 
@@ -1848,7 +1856,16 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_fetch = subparsers.add_parser(
         "fetch-eu", help="Download EUR-Lex acts and rebuild the article-level EU corpus."
     )
-    p_fetch.add_argument("--out", default=str(EU_CORPUS_DIR), help="Output corpus directory.")
+    p_fetch.add_argument(
+        "--out",
+        default=None,
+        help="Output corpus directory (default: corpus_eu, or corpus_eu_consolidated).",
+    )
+    p_fetch.add_argument(
+        "--consolidated",
+        action="store_true",
+        help="Fetch the latest consolidated version of each act instead of the original text.",
+    )
     p_fetch.add_argument(
         "--cache", default="data/raw/eurlex", help="Gitignored cache for the downloaded XHTML."
     )
@@ -1856,6 +1873,18 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--retrieved-on",
         default=date.today().isoformat(),
         help="Retrieval date recorded in SOURCES.json (default: today).",
+    )
+
+    # Prebuilt index for ragkit.search()
+    p_index = subparsers.add_parser(
+        "build-index",
+        help="Embed the corpus and write the matrix ragkit.search() loads at startup (needs [st]).",
+    )
+    p_index.add_argument(
+        "--corpus-dir", default=None, help="Corpus directory (default: the serving corpus)."
+    )
+    p_index.add_argument(
+        "--out", default=None, help="Index directory (default: src/ragkit/data/index)."
     )
 
     parsed = parser.parse_args(argv)
@@ -1880,6 +1909,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_ablation(parsed))
     elif parsed.subcommand == "fetch-eu":
         sys.exit(cmd_fetch_eu(parsed))
+    elif parsed.subcommand == "build-index":
+        sys.exit(cmd_build_index(parsed))
     elif parsed.subcommand == "neural":
         sys.exit(cmd_neural(parsed))
     elif parsed.subcommand == "answer":

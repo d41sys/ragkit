@@ -12,14 +12,17 @@ from __future__ import annotations
 import hashlib
 import json
 import threading
+import time
+import urllib.error
+import urllib.request
 from collections import defaultdict
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ragkit.hardset_review import post_message
-
+API_URL = "https://api.anthropic.com/v1/messages"
+API_VERSION = "2023-06-01"
 MODEL = "claude-sonnet-5-5"
 MAX_CALLS = 1832  # cached records: K-R2 and Phase L (1432) plus at most 400 for the k = 5 analysis
 MAX_COST_USD = 18.10  # cumulative at the assumed prices: 14.25 after Phase L plus 3.85 (cap 4)
@@ -31,6 +34,30 @@ CACHE_READ_FACTOR = 0.1
 _LONG_BLOCK = 2000  # system blocks longer than this are stored as hash + length
 
 Transport = Callable[[dict[str, Any], str], dict[str, Any]]
+
+
+def post_message(payload: dict[str, Any], api_key: str, retries: int = 3) -> dict[str, Any]:
+    """POST one Messages API request with ``urllib`` and return the decoded response body."""
+    body = json.dumps(payload).encode("utf-8")
+    headers = {
+        "content-type": "application/json",
+        "x-api-key": api_key,
+        "anthropic-version": API_VERSION,
+    }
+    for attempt in range(retries + 1):
+        request = urllib.request.Request(API_URL, data=body, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=300) as response:
+                decoded = json.loads(response.read().decode("utf-8"))
+            if not isinstance(decoded, dict):
+                raise ValueError("unexpected response body")
+            return decoded
+        except urllib.error.HTTPError as err:
+            if err.code in (429, 500, 502, 503, 529) and attempt < retries:
+                time.sleep(5 * (attempt + 1))
+                continue
+            raise RuntimeError(f"API error {err.code}: {err.read().decode('utf-8')[:300]}") from err
+    raise RuntimeError("unreachable")
 
 
 class CacheMiss(RuntimeError):

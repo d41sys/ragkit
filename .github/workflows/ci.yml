@@ -9,8 +9,12 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.12", "3.13"]
     env:
       UV_TORCH_BACKEND: cpu
+      UV_PYTHON: ${{ matrix.python }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.3

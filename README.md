@@ -36,10 +36,10 @@ flowchart TD
 ```
 
 ### Code layout
-Each layer imports only layers below it (exceptions: [#9](https://github.com/d41sys/ragkit/issues/9)).
+Each layer imports only layers below it. `import ragkit` and `ragkit.search` load no LLM module (a test checks it).
 ```mermaid
 flowchart TB
-  CLI["cli.py: 17 subcommands"] --> HAR
+  CLI["cli.py: 18 subcommands"] --> HAR
   CLI --> MOD
   CLI --> CORE
   subgraph HAR["experiment harnesses: one per pre-registered study, protocol in docs/*_protocol.md"]
@@ -50,7 +50,7 @@ flowchart TB
   subgraph MOD["model-backed: st extra or Anthropic API"]
     M1["neural: pinned bge / e5 + RRF + cross-encoder engine"]
     M2["modelsignals: cross-encoder and SQuAD2 abstention signals"]
-    M3["parent: chunk to article packing"]
+    M3["parent: chunk to article packing; search: library search(), prebuilt index, BM25 fallback"]
     M4["generation: prompts and LLM judges; llm: cached Messages client"]
   end
   subgraph CORE["core library: numpy only, offline, deterministic"]
@@ -63,8 +63,8 @@ flowchart TB
 ```
 Optional extras: `[st]` swaps in `all-MiniLM-L6-v2` embeddings and the `ms-marco-MiniLM-L-6-v2` cross-encoder, enables the model-based abstention signals (`ce_top`, `qa_answerable`: `ms-marco-MiniLM-L-6-v2` and `deepset/roberta-base-squad2`), and provides the neural retrievers of `--retriever dense|hybrid|hybrid+ce` (`BAAI/bge-small-en-v1.5`, `intfloat/e5-small-v2`, `cross-encoder/ms-marco-MiniLM-L-6-v2`; no model library is imported unless one of those flags is used); `[llm]` adds `AnthropicLLM` (needs `ANTHROPIC_API_KEY`) for rewriting. `ragkit answer` and `ragkit generation` call the Anthropic Messages API with the standard library only (no SDK); every call is cached in `data/llm_cache/`, so replays need no key and no network.
 
-### Planned: ezcross-ems integration
-ragkit is to become a retrieval tool of the ezcross-ems agent. ragkit only retrieves; the agent's own model writes the answer, so sign-in and logging come from ezcross-ems. Work items: [#1–#9](https://github.com/d41sys/ragkit/issues) (P0: #1–#5).
+### ezcross-ems integration
+ragkit is the retrieval tool of the ezcross-ems agent: the backend calls `ragkit.search()` (see [Library use](#library-use)) behind a JWT-protected endpoint, and the agent tool `search_eu_law` wraps that endpoint. ragkit only retrieves; the agent's own model writes the answer, so sign-in and logging come from ezcross-ems. Not yet measured: answer quality through the agent ([#7](https://github.com/d41sys/ragkit/issues/7)).
 ```mermaid
 flowchart LR
   U[user] -->|JWT sign-in| A["ezc-server agent session"]
@@ -77,9 +77,9 @@ flowchart LR
 ```
 
 ## Quickstart
-Releases: pushing a tag `vX.Y.Z` that matches `pyproject.toml` runs CI, builds the wheel and sdist, and attaches them to a [GitHub release](https://github.com/d41sys/ragkit/releases) (`.github/workflows/release.yml`). The wheel bundles both corpora and the question sets. To use a release as a dependency:
+Releases: pushing a tag `vX.Y.Z` that matches `pyproject.toml` runs CI on Python 3.12 and 3.13, builds the wheel and sdist, and attaches them to a [GitHub release](https://github.com/d41sys/ragkit/releases) (`.github/workflows/release.yml`). The wheel bundles the corpora, the question sets and the prebuilt index. To use a release as a dependency:
 ```bash
-uv add "ragkit @ https://github.com/d41sys/ragkit/releases/download/v0.1.0/ragkit-0.1.0-py3-none-any.whl"
+uv add "ragkit[st] @ https://github.com/d41sys/ragkit/releases/download/v0.2.0/ragkit-0.2.0-py3-none-any.whl"
 ```
 From a clone:
 ```bash
@@ -116,6 +116,65 @@ uv run ragkit generation --context article                         # Phase L rep
 uv run ragkit packing score                                        # Phase N-1, retrieval only: gold-in-context recall and tokens of k = 3, k = 5 and budget packing on the 130 held-out questions (`packing tune` for the dev grid; needs `[st]`)
 uv run ragkit generation --context article --articles 5 --budget 20000 --since-records 1432   # post-hoc k = 5 replay (add --retriever hybrid+ce; --coverage-only prints retrieval-only gold coverage)
 ```
+
+## Library use
+`ragkit.search()` is the retrieval tool of the ezcross-ems integration: a question in, whole articles with what a citation needs out. ragkit only retrieves; the caller's model writes the answer. `ragkit answer` builds its context with the same function.
+```python
+import ragkit
+
+result = ragkit.search(
+    "What must a TSO do about congestion between bidding zones?",
+    corpus_dir=None,  # default: the consolidated (in-force) EU corpus, src/ragkit/data/corpus_eu_consolidated
+    retriever="hybrid+ce",  # "default" | "bm25" | "dense" | "hybrid" | "hybrid+ce"
+    budget_tokens=12_000,  # articles are packed whole, in rank order, until this is full
+    pack_chunks=10,  # chunks whose parent articles are candidates
+    answerable=False,  # True: also return the reader score and its threshold
+)
+result.retriever  # the retriever that actually ran ("bm25" after a fallback)
+result.estimated_tokens  # parent.estimate_tokens of all article texts
+for a in result.articles:  # Article(id, act, celex, article, heading, text, rank, url, version)
+    print(a.rank, a.act, "Article", a.article, a.url, a.version)
+json.dumps(result.to_dict())
+```
+`ragkit.search` is the function; import names from the module with `from ragkit.search import ...`.
+
+- **Input checks.** An empty or whitespace query, a query over 2000 characters, an unknown retriever and a non-positive `pack_chunks` or `budget_tokens` raise `ValueError`.
+- **Citation fields** come from `SOURCES.json` of the corpus directory (`acts[]`, matched to the document id by `short`): `act` is the act title, `url` the EUR-Lex URL, `version` is "consolidated version of <consolidated_date>" when the act has one and "original Official Journal text (retrieved <retrieved_on>)" otherwise. A corpus without `SOURCES.json` gets `None` for `celex`, `url` and `version`.
+- **Serving.** The pipeline of each `(corpus_dir, retriever)` is built once and reused; one lock per pipeline serialises calls, so threads are safe (8 threads return what a sequential run returns: `tests/test_ragkit_search.py`). The query-vector and cross-encoder caches, which the experiments rely on, are off on this path: `ce_cache` and `DenseSide.queries` stay empty however many distinct questions arrive.
+- **Memory, measured.** 10 000 distinct queries through `search()` with `hybrid+ce` (random 6 to 12 word windows of corpus sentences, so distinct strings, not human questions; 1 292 s): `ce_cache` and `DenseSide.queries` held 0 entries at all 20 samples, and the process RSS (macOS `ps`) went 271 MB at 500 queries to 98 MB at 10 000 with no upward trend (macOS compresses idle pages, so the drop after the first 1 500 is not a leak fix; Linux not measured). Python heap (`tracemalloc`) grew 1.1 to 1.6 MB over 1 000 queries; a separate run of 30 000 distinct BM25 queries shows why: 1.04 MB at 1 000, 1.42 MB at 30 000, the lazily cached posting arrays of the BM25 index, bounded by the vocabulary (2 261 of 2 644 terms at the end).
+- **Retriever.** `hybrid+ce` is the default because it is the measured best (`docs/packing_protocol.md`). If `sentence-transformers` is missing or the models cannot be loaded, `search()` logs a warning and falls back to plain BM25; `result.retriever` is then `"bm25"`. The first call runs a warm-up query that loads every model, so a load failure is caught there and the choice is made once per process.
+- **Gold article in the packed context** on the 130 held-out EU questions, through `search()`: `hybrid+ce` **111/130** (mean 6 879 estimated tokens, max 11 712), `default` 97/130, `bm25` 96/130 (command: `search()` over `qa_eu.jsonl`, `qa_eu_hard.jsonl`, `qa_eu_nokw.jsonl`). `ragkit packing score` prints the same 111/130 and 97/130 on the unchanged code of the commit before this change; `docs/packing_protocol.md` still says 96/130 and 6 876 tokens for `default` and `hybrid+ce` (111/130 matches).
+
+### Prebuilt index and offline start
+```bash
+uv run --extra st ragkit build-index       # writes src/ragkit/data/index/<model>-<chunks>-<digest>.npy (1.5 MB)
+```
+The file holds the `bge-small-en-v1.5` document matrix of the 982 chunks of the serving corpus (`corpus_eu_consolidated`) and ships in the wheel. Its name carries a digest of every chunk text, so `search()` loads it only for exactly this corpus and chunking and embeds in memory otherwise (it never writes to the package directory). Chunks are not stored: re-chunking takes milliseconds and the digest covers them. After changing the corpus, run `build-index` again. The models load from the local Hugging Face cache with downloads off:
+```bash
+export HF_HUB_OFFLINE=1          # no hub requests; the pinned revisions must be in the cache
+export TRANSFORMERS_OFFLINE=1    # same for transformers (the reader of `answerable=True`)
+export HF_HOME=/path/to/hf       # optional: where the cache lives (or HF_HUB_CACHE)
+```
+Fill the cache once with network on (`huggingface_hub.snapshot_download(model, revision=sha)` for each model): `BAAI/bge-small-en-v1.5@5c38ec7`, `cross-encoder/ms-marco-MiniLM-L-6-v2@233902d`, and `deepset/roberta-base-squad2@adc3b06` for `answerable=True` (revisions pinned in `neural.py` and `modelsignals.py`).
+
+Cold start, process start to first result (measured on the original-text corpus, 934 chunks; Apple M-series laptop, models in the local cache, `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1` and a dead `HTTPS_PROXY` so any network call would fail; 3 runs each, `import ragkit` 0.1 s):
+
+| | first `search()` | wall clock of the process |
+|---|---|---|
+| prebuilt index | 3.7, 4.3, 5.4 s | 4.7, 5.0, 6.1 s |
+| no index (embeds 934 chunks) | 5.2, 5.2, 5.3 s | 5.8, 5.9, 5.9 s |
+
+Later queries take 0.12 to 0.16 s each. Most of the start is model loading (the index saves the embedding pass, about 1 s here); a CPU-only server will be slower: not measured.
+
+### Refusing: `answerable=True`
+`answerable_score` is the `qa_answerable` reader signal (SQuAD2 reader, best non-null span score minus null score, maximum over the top 5 chunks; `modelsignals.py`) and `answerable_threshold` the value above which to answer. A score below the threshold means: refuse. The thresholds are in `ANSWERABLE_THRESHOLDS` (`search.py`) for `default` and `hybrid+ce` only; other retrievers return the score and `None`. Each is what `abstention.best_threshold` picks on all 87 EU questions (42 answerable, 45 unanswerable), which is also the median of the five fold thresholds of the 5-fold stratified CV (seed 0) behind the published `reader` rows (`docs/generation_protocol.md` lines 56, 299, 458; README "Model-based signals").
+
+| Retriever | published `reader` row (5-fold CV, held-out) | reproduced from `search(answerable=True)` | one shipped threshold on all 87 (in-sample) |
+|---|---|---|---|
+| default | 13/45 unanswerable answered, 5/42 answerable refused | 13/45, 5/42 | -3.4057: 12/45, 5/42 |
+| hybrid+ce | 12/45, 12/42 | 12/45, 12/42 | -0.7443: 9/45, 7/42 |
+
+The published counts are the pooled held-out decisions of five different fold thresholds (default: -3.506, -3.4057 three times, -3.4046), so no single threshold is that experiment; the shipped one answers one unanswerable question fewer than the CV (12 vs 13; fold 0 used the lower -3.506). For `hybrid+ce` the five fold thresholds range from +0.39 to -2.78, so its threshold is unstable and the table's in-sample row is optimistic. `answerable=True` needs `[st]` and the reader model, and runs the reader on 5 chunks per question (not timed). The `hybrid+ce` + `stack` row (balanced accuracy 0.930) is **not** exposed: it was found post hoc (`docs/generation_protocol.md`, "the three post-hoc tables ... `hybrid+ce` `stack` row were not pre-registered") and needs an LLM sufficiency call besides.
 
 ## Results
 `ragkit eval --strategies all` (recursive chunks of 500 chars, 50 overlap, offline defaults; mean [bootstrap 95% CI over the 40 questions, 2000 resamples]):
@@ -195,7 +254,9 @@ The synthetic set cannot separate retrievers, so ragkit also bundles a corpus of
 | Commission Regulation (EU) 2017/1485, system operation guideline (32017R1485) | 14 of 192 |
 | Commission Regulation (EU) 2016/1719, forward capacity allocation (32016R1719) | 4 of 64 |
 
-Articles were picked by hand for relevance to congestion and balancing, plus neighbours that share vocabulary (definitions, capacity mechanisms, cost recovery, the three near-identical European balancing-platform articles 19/20/21 of 2017/2195) so the corpus has real hard negatives. These are the original Official Journal texts, not consolidated versions; later amendments (for example Regulation (EU) 2024/1747) are not reflected.
+Articles were picked by hand for relevance to congestion and balancing, plus neighbours that share vocabulary (definitions, capacity mechanisms, cost recovery, the three near-identical European balancing-platform articles 19/20/21 of 2017/2195) so the corpus has real hard negatives. These are the original Official Journal texts, not consolidated versions; later amendments (for example Regulation (EU) 2024/1747) are not reflected. **Every EU number in this README uses this original text** (`--corpus eu`).
+
+**Amendments.** EUR-Lex lists five amending acts for these six acts; 12 of the 94 articles differ in the latest consolidated versions. `src/ragkit/data/corpus_eu_consolidated/` holds those versions (`--corpus eu-consolidated`, with re-reviewed labels) and `SOURCES.json` lists each act's amendment history, consolidated version and date. The changed articles, the question review and the scores on both corpora are in [`docs/corpus-amendments.md`](docs/corpus-amendments.md).
 
 **Licence basis.** The EUR-Lex legal notice (<https://eur-lex.europa.eu/content/legal-notice/legal-notice.html>, read 2026-10-16) says: "The Commission's document reuse policy is based on Decision 2011/833/EU. Unless otherwise specified, you can re-use the legal documents published in EUR-Lex for commercial or non-commercial purposes." Decision 2011/833/EU (<https://eur-lex.europa.eu/eli/dec/2011/833/oj/eng>) allows reuse for commercial and non-commercial purposes and states, in Art. 6(2), that conditions may include acknowledging the source and not distorting the original meaning. Both are honoured: every file starts with a source comment, the articles are split but not reworded, and the changes made are listed in `src/ragkit/data/corpus_eu/SOURCES.json` (URL, CELEX id, retrieval date, SHA-256 of each download). This is my reading of the notice, not legal advice; two of the six acts (2019/943, 2019/944) are Parliament and Council acts rather than Commission documents, and I relied on the notice's wording for "legal documents published in EUR-Lex". No Dutch national sources are included.
 
@@ -203,6 +264,7 @@ Articles were picked by hand for relevance to congestion and balancing, plus nei
 
 ```bash
 uv run ragkit fetch-eu --retrieved-on 2026-10-16     # rewrites src/ragkit/data/corpus_eu/
+uv run ragkit fetch-eu --consolidated --retrieved-on 2026-11-13   # latest consolidated versions -> src/ragkit/data/corpus_eu_consolidated/
 ```
 
 Regenerating from the cached download reproduced the committed Markdown files byte for byte (checked with `diff -r`). A fresh download could differ if the Publications Office republishes the XHTML; compare the SHA-256 in `SOURCES.json`.
@@ -997,6 +1059,8 @@ What this says about ragkit: the value of the project is the measurement discipl
 
 ### Neural retrieval: dense, hybrid, cross-encoder ([`docs/neural_protocol.md`](docs/neural_protocol.md))
 
+*EU numbers in this section are on the original Official Journal text, see [`docs/corpus-amendments.md`](docs/corpus-amendments.md).*
+
 Question: how much of the gap above does a small public encoder close? Protocol, predictions and decision rule were committed before any scored run (commit `736517d`). Models, all ungated and MIT-licensed, pinned by revision: `BAAI/bge-small-en-v1.5` (`5c38ec7c`, with its query instruction), `intfloat/e5-small-v2` (`ffb93f3b`), cross-encoder `cross-encoder/ms-marco-MiniLM-L-6-v2` (`233902d2`) reranking the top 20, 50 or 100; Apple MPS; raw output in `docs/sota-runs/neural_*.txt`. TREC-COVID and Quora were not run (corpus size).
 
 **Reproduction check passed**: our bge-small `dense` nDCG@10 is within 0.003 of the MTEB value on all four BEIR sets (SciFact 0.7127 vs 0.7127, NFCorpus 0.3438 vs 0.3426, FiQA 0.4035 vs 0.4034, ArguAna 0.6061 vs 0.6035).
@@ -1046,6 +1110,8 @@ EU sets (chunks 500/50, top-10 chunks deduplicated to articles; the original 42 
 Decision rule (paired MRR CI lower bound above 0 and wrong-act count not above `bm25`'s): `hybrid`, `hybrid-convex` and every cross-encoder variant are recommended for EU-style text; `dense` and `dense-e5` are not (CI includes 0). The keyword-free set stays hard: even the best system retrieves the gold article in the top 5 for about 61% of questions. The numpy-only default is unchanged; the neural retrievers are opt-in.
 
 ### LLM answers and sufficient-context abstention ([`docs/generation_protocol.md`](docs/generation_protocol.md))
+
+*EU numbers in this section are on the original Official Journal text, see [`docs/corpus-amendments.md`](docs/corpus-amendments.md).*
 
 Question: does a Sonnet-class sufficient-context check beat the SQuAD2-reader gate, and how does an LLM read the whole corpus? `claude-sonnet-5-5`; 42 answerable and 45 unanswerable EU questions (the labels are agent-reviewed, see Caveats); protocol, predictions and decision rule committed before the scored run. 1016 cached calls (one cache file, `data/llm_cache/generation.jsonl`), 1.27 M input, 0.10 M cache-write, 8.54 M cache-read and 0.20 M output tokens, **about 9.7 USD at assumed list prices** (3 / 15 USD per M input / output, cache write 1.25x, read 0.1x; not read from the API). The API rejected `temperature` for this model, so none is sent. Correctness and citation support are judged by the same model family (no human check).
 

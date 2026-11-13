@@ -14,12 +14,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from ragkit.eval import bootstrap_ci, paired_bootstrap_ci
-from ragkit.generation import Passage
 from ragkit.lexical import Question
 from ragkit.parent import (
     ARTICLE_BUDGET_TOKENS,
     ARTICLE_K,
     OVERFLOW_POLICIES,
+    Passage,
     estimate_tokens,
     parent_articles,
 )

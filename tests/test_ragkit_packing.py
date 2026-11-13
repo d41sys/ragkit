@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from ragkit.generation import Passage
 from ragkit.lexical import Question
 from ragkit.packbench import (
     DevCell,
@@ -19,7 +18,13 @@ from ragkit.packbench import (
     tune,
     tuning_json,
 )
-from ragkit.parent import CHARS_PER_TOKEN, estimate_tokens, pack_articles, parent_articles
+from ragkit.parent import (
+    CHARS_PER_TOKEN,
+    Passage,
+    estimate_tokens,
+    pack_articles,
+    parent_articles,
+)
 
 # token costs: a1 100, a2 200, a3 1000, a4 10, a5 150
 ARTICLES = {

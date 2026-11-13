@@ -28,7 +28,6 @@ from ragkit.eval import paired_bootstrap_ci, wilson_interval
 from ragkit.generation import (
     GenAnswer,
     LLMAnswerer,
-    Passage,
     Sufficiency,
     Verdict,
     corpus_block,
@@ -44,6 +43,7 @@ from ragkit.modelsignals import (
     ScoreCache,
     _key,
 )
+from ragkit.parent import Passage
 from ragkit.pipeline import RAGPipeline
 
 CV_FOLDS = 5

@@ -29,9 +29,15 @@ from ragkit.genbench import (
     judge_citations,
     verdicts_of,
 )
-from ragkit.generation import LLMAnswerer, Passage
+from ragkit.generation import LLMAnswerer
 from ragkit.llm import CachedMessages, usage_cost
-from ragkit.parent import ARTICLE_BUDGET_TOKENS, ARTICLE_K, estimate_tokens, parent_articles
+from ragkit.parent import (
+    ARTICLE_BUDGET_TOKENS,
+    ARTICLE_K,
+    Passage,
+    estimate_tokens,
+    parent_articles,
+)
 
 # Fixed before the scored run (docs/generation_protocol.md, Phase L): a text match, no judge.
 CONTEXT_GAP = re.compile(

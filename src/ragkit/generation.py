@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ragkit.llm import CachedMessages, request_key
+from ragkit.parent import Passage
 
 GEN_MAX_TOKENS = 1200
 JUDGE_MAX_TOKENS = 800
@@ -89,14 +90,6 @@ one article that the answer cites. Reply with one JSON object and nothing else:
 nothing in the article contradicts the answer's claims about it.
 - "partial": the article supports only a minor part of the answer or only loosely.
 - "no": the article does not contain support for the answer's claims, or contradicts them."""
-
-
-@dataclass(frozen=True)
-class Passage:
-    """A retrieved chunk labelled with the article it comes from."""
-
-    article_id: str
-    text: str
 
 
 @dataclass(frozen=True)

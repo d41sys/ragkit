@@ -27,12 +27,17 @@ from ragkit.rewrite import (
     TemplateLLM,
 )
 
-__version__ = "0.1.0"
+# Last import: importing the submodule ``ragkit.search`` binds the name ``search`` to the module,
+# and this import then rebinds it to the function.
+from ragkit.search import Article, SearchResult, search
+
+__version__ = "0.2.0"
 
 __all__ = [
     "LLM",
     "Answer",
     "AnthropicLLM",
+    "Article",
     "BM25Index",
     "Chunk",
     "CrossEncoderReranker",
@@ -49,6 +54,7 @@ __all__ = [
     "RAGPipeline",
     "Reranker",
     "STEmbedder",
+    "SearchResult",
     "TemplateLLM",
     "answer_relevance",
     "dcg_at_k",
@@ -60,6 +66,7 @@ __all__ = [
     "recall_at_k",
     "recursive",
     "rrf",
+    "search",
     "semantic",
     "sentence",
     "tokenize",

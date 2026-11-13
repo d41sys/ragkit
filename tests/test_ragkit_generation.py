@@ -35,7 +35,6 @@ from ragkit.genbench import (
 )
 from ragkit.generation import (
     LLMAnswerer,
-    Passage,
     context_block,
     corpus_block,
     parse_json_object,
@@ -54,6 +53,7 @@ from ragkit.modelsignals import (
 from ragkit.parent import (
     CHARS_PER_TOKEN,
     PACK_CHUNKS,
+    Passage,
     estimate_tokens,
     pack_articles,
     parent_articles,

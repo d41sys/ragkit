@@ -10,14 +10,21 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-
-from ragkit.generation import Passage
+from dataclasses import dataclass
 
 ARTICLE_K = 3
 ARTICLE_BUDGET_TOKENS = 12_000
 PACK_CHUNKS = 10  # chunks read by budget packing (dev-chosen, docs/packing_protocol.md)
 PACK_OVERFLOW = "stop"  # dev-chosen overflow policy of budget packing
 CHARS_PER_TOKEN = 4  # 337 kB of corpus = about 85 k tokens, the K-R2 full-context figure
+
+
+@dataclass(frozen=True)
+class Passage:
+    """A retrieved chunk (or a whole article) labelled with the article it comes from."""
+
+    article_id: str
+    text: str
 
 
 def estimate_tokens(text: str) -> int:

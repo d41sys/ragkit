@@ -166,15 +166,22 @@ def corpus_cache_path(embedder: SentenceEmbedder, texts: Sequence[str], cache_di
 
 
 def embed_corpus(
-    embedder: SentenceEmbedder, texts: Sequence[str], cache_dir: Path | None
+    embedder: SentenceEmbedder,
+    texts: Sequence[str],
+    cache_dir: Path | None,
+    *,
+    write: bool = True,
 ) -> np.ndarray:
-    """Document matrix of ``texts``; cached under ``cache_dir`` by model and text digest."""
+    """Document matrix of ``texts``; cached under ``cache_dir`` by model and text digest.
+
+    ``write=False`` only reads an existing cache file (a miss embeds in memory).
+    """
     path = corpus_cache_path(embedder, texts, cache_dir) if cache_dir is not None else None
     if path is not None and path.is_file():
         cached: np.ndarray = np.load(path)
         return cached
     matrix = embedder.embed(texts)
-    if path is not None:
+    if path is not None and write:
         path.parent.mkdir(parents=True, exist_ok=True)
         np.save(path, matrix)
     return matrix
@@ -227,11 +234,17 @@ def alpha_of_best(dev_scores: Mapping[float, float]) -> float:
 
 @dataclass
 class DenseSide:
-    """A document matrix with its embedder and a query-vector cache."""
+    """A document matrix with its embedder and a query-vector cache.
+
+    ``cache_queries=False`` (serving) forgets each query vector after ``search``, so the cache
+    cannot grow with the number of distinct questions; callers must then not share one side
+    between threads.
+    """
 
     embedder: SentenceEmbedder
     matrix: np.ndarray
     queries: dict[str, np.ndarray] = field(default_factory=dict)
+    cache_queries: bool = True
 
     def prepare(self, queries: Sequence[str]) -> None:
         """Embed every not yet seen query in one batched call."""
@@ -249,6 +262,8 @@ class DenseSide:
         """Top ``k`` units by cosine (units are unit-norm), best first."""
         self.prepare([query])
         scores = self.unit_scores(query)
+        if not self.cache_queries:
+            self.queries.pop(query, None)
         want = k + 1 if exclude is not None else k
         want = min(want, len(scores))
         top = np.argpartition(-scores, want - 1)[:want] if want < len(scores) else np.arange(want)
@@ -276,6 +291,7 @@ class NeuralEngine:
         *,
         depth: int = DEPTH,
         rrf_k: int = RRF_K,
+        cache_ce: bool = True,
     ) -> None:
         if len(bm25.chunks) != len(chunks):
             raise ValueError("the BM25 index must hold exactly the engine's units")
@@ -285,6 +301,7 @@ class NeuralEngine:
         self.ce = ce
         self.depth = depth
         self.rrf_k = rrf_k
+        self.cache_ce = cache_ce  # False (serving): scores live only for one ``ce_scores`` call
         self.ce_cache: dict[tuple[str, int], float] = {}
         self._index_of = {c.id: i for i, c in enumerate(self.chunks)}
 
@@ -308,14 +325,15 @@ class NeuralEngine:
         """Cross-encoder logits of ``(query, unit text)``; scored once per pair."""
         if self.ce is None:
             raise RuntimeError("this engine was built without a cross-encoder")
-        todo = [i for i in indices if (query, i) not in self.ce_cache]
+        cache = self.ce_cache if self.cache_ce else {}
+        todo = [i for i in indices if (query, i) not in cache]
         for start in range(0, len(todo), CE_SLICE):
             part = todo[start : start + CE_SLICE]
             for i, score in zip(
                 part, self.ce.score(query, [self.chunks[i].text for i in part]), strict=True
             ):
-                self.ce_cache[(query, i)] = score
-        return {i: self.ce_cache[(query, i)] for i in indices}
+                cache[(query, i)] = score
+        return {i: cache[(query, i)] for i in indices}
 
     def system(self, name: str, query: str, cands: Candidates, alpha: float | None = None) -> Hits:
         """Ranking of one protocol system (``bm25``, ``dense``, ``hybrid+ce@50`` ...)."""
@@ -347,8 +365,13 @@ def build_engine(
     cache_dir: Path | None = None,
     device: str | None = None,
     dense_e5: bool = True,
+    serving: bool = False,
 ) -> NeuralEngine:
-    """Encode the units and build an engine for the models ``level`` needs."""
+    """Encode the units and build an engine for the models ``level`` needs.
+
+    ``serving=True`` is the long-running-server mode: ``cache_dir`` is only read (never
+    written), and neither the query-vector nor the cross-encoder cache keeps anything.
+    """
     if level not in RETRIEVERS or level == "bm25":
         raise ValueError(f"level must be one of {RETRIEVERS[1:]}, got {level!r}")
     texts = [c.text for c in chunks]
@@ -357,11 +380,12 @@ def build_engine(
     if dense_e5:
         wanted.append(("e5", e5_small(device)))
     for key, embedder in wanted:
-        sides[key] = DenseSide(embedder, embed_corpus(embedder, texts, cache_dir))
+        matrix = embed_corpus(embedder, texts, cache_dir, write=not serving)
+        sides[key] = DenseSide(embedder, matrix, cache_queries=not serving)
     ce: PassageScorer | None = None
     if level == "hybrid+ce":
         ce = CrossEncoderScorer(CE_MODEL, CE_REVISION, device or default_device())
-    return NeuralEngine(chunks, bm25, sides, ce)
+    return NeuralEngine(chunks, bm25, sides, ce, cache_ce=not serving)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -372,18 +396,35 @@ def build_engine(
 class NeuralChunkRetriever:
     """``add`` / ``search`` over chunks with the ``dense``, ``hybrid`` or ``hybrid+ce`` system."""
 
-    def __init__(self, level: str, *, device: str | None = None) -> None:
+    def __init__(
+        self,
+        level: str,
+        *,
+        device: str | None = None,
+        cache_dir: Path | None = None,
+        serving: bool = False,
+    ) -> None:
         if level not in ("dense", "hybrid", "hybrid+ce"):
             raise ValueError(f"unsupported retriever {level!r}")
         self.level = level
         self.device = device
+        self.cache_dir = cache_dir
+        self.serving = serving
         self._engine: NeuralEngine | None = None
 
     def add(self, chunks: Sequence[Chunk]) -> None:
         """Index the chunks (replaces any earlier index)."""
         bm25 = BM25Index()
         bm25.add(chunks)
-        self._engine = build_engine(chunks, bm25, self.level, device=self.device, dense_e5=False)
+        self._engine = build_engine(
+            chunks,
+            bm25,
+            self.level,
+            cache_dir=self.cache_dir,
+            device=self.device,
+            dense_e5=False,
+            serving=self.serving,
+        )
 
     def search(self, query: str, k: int = 10) -> list[tuple[Chunk, float]]:
         """Top ``k`` chunks of the selected system (the cross-encoder reranks the top 100)."""

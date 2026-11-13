@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ragkit"
-version = "0.1.0"
+version = "0.2.0"
 description = "Modular RAG pipeline from scratch with hybrid search, lexical reranking, and evaluation"
 readme = "README.md"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "numpy>=1.26",
 ]

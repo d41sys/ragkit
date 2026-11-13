@@ -1,0 +1,239 @@
+{
+  "licence": "Unless otherwise specified, you can re-use the legal documents published in EUR-Lex for commercial or non-commercial purposes. The Commission's document reuse policy is based on Decision 2011/833/EU.",
+  "licence_source": "https://eur-lex.europa.eu/content/legal-notice/legal-notice.html",
+  "reuse_decision": "https://eur-lex.europa.eu/eli/dec/2011/833/oj/eng",
+  "note": "Latest EUR-Lex consolidated versions (a documentation tool without legal effect; the authentic texts are those published in the Official Journal).",
+  "conditions": "Source acknowledged in each file's metadata comment and in the README; the legal meaning is not altered (Decision 2011/833/EU, Art. 6(2)).",
+  "modifications": "Split into one file per article; footnote markers and footnote text removed; amendment markers (▼ ► ◄) removed; point tables flattened to indented lines; whitespace normalised.",
+  "acts": [
+    {
+      "short": "reg_2019_943",
+      "celex": "32019R0943",
+      "title": "Regulation (EU) 2019/943 (electricity market regulation)",
+      "url": "https://publications.europa.eu/resource/celex/02019R0943-20240716",
+      "consolidated_celex": "02019R0943-20240716",
+      "consolidated_date": "2024-07-16",
+      "retrieved_on": "2026-11-13",
+      "sha256": "763ec7f334375a32e11da4800f5e1e09293779d429238cb7cacb45baa0e37845",
+      "articles_in_act": 82,
+      "articles_kept": [
+        "2",
+        "3",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "21",
+        "22",
+        "34",
+        "35",
+        "37",
+        "42",
+        "49"
+      ],
+      "amended_by": [
+        {
+          "celex": "32022R0869",
+          "title": "Regulation (EU) 2022/869 on guidelines for trans-European energy infrastructure, amending Regulations (EC) No 715/2009, (EU) 2019/942 and (EU) 2019/943 and Directives 2009/73/EC and (EU) 2019/944, and repealing Regulation (EU) No 347/2013",
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/869/oj/eng"
+        },
+        {
+          "celex": "32024R1747",
+          "title": "Regulation (EU) 2024/1747 amending Regulations (EU) 2019/942 and (EU) 2019/943 as regards improving the Union's electricity market design",
+          "url": "https://eur-lex.europa.eu/eli/reg/2024/1747/oj/eng"
+        }
+      ]
+    },
+    {
+      "short": "reg_2017_2195",
+      "celex": "32017R2195",
+      "title": "Commission Regulation (EU) 2017/2195 (electricity balancing guideline)",
+      "url": "https://publications.europa.eu/resource/celex/02017R2195-20220619",
+      "consolidated_celex": "02017R2195-20220619",
+      "consolidated_date": "2022-06-19",
+      "retrieved_on": "2026-11-13",
+      "sha256": "bafe9414d77acdf34d4395cd42c46f648f04974287510d680d415a291ca52f1b",
+      "articles_in_act": 65,
+      "articles_kept": [
+        "2",
+        "3",
+        "4",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "29",
+        "30",
+        "32",
+        "33",
+        "34",
+        "35",
+        "38",
+        "39",
+        "40",
+        "41",
+        "42",
+        "52",
+        "53",
+        "54",
+        "55"
+      ],
+      "amended_by": [
+        {
+          "celex": "32021R0280",
+          "title": "Commission Implementing Regulation (EU) 2021/280 amending Regulations (EU) 2015/1222, (EU) 2016/1719, (EU) 2017/2195 and (EU) 2017/1485 in order to align them with Regulation (EU) 2019/943",
+          "url": "https://eur-lex.europa.eu/eli/reg_impl/2021/280/oj/eng"
+        },
+        {
+          "celex": "32022R0828",
+          "title": "Commission Implementing Regulation (EU) 2022/828 correcting the Polish language version of Regulation (EU) 2017/2195 establishing a guideline on electricity balancing",
+          "url": "https://eur-lex.europa.eu/eli/reg_impl/2022/828/oj/eng"
+        }
+      ]
+    },
+    {
+      "short": "reg_2015_1222",
+      "celex": "32015R1222",
+      "title": "Commission Regulation (EU) 2015/1222 (capacity allocation and congestion management)",
+      "url": "https://publications.europa.eu/resource/celex/02015R1222-20210315",
+      "consolidated_celex": "02015R1222-20210315",
+      "consolidated_date": "2021-03-15",
+      "retrieved_on": "2026-11-13",
+      "sha256": "dc27c2bc3a7836a99e3ea39bb51b708d84a57e5bb953035838eb0db95eb736e4",
+      "articles_in_act": 84,
+      "articles_kept": [
+        "14",
+        "15",
+        "20",
+        "21",
+        "22",
+        "25",
+        "26",
+        "29",
+        "32",
+        "33",
+        "35",
+        "70",
+        "72",
+        "73",
+        "74"
+      ],
+      "amended_by": [
+        {
+          "celex": "32021R0280",
+          "title": "Commission Implementing Regulation (EU) 2021/280 amending Regulations (EU) 2015/1222, (EU) 2016/1719, (EU) 2017/2195 and (EU) 2017/1485 in order to align them with Regulation (EU) 2019/943",
+          "url": "https://eur-lex.europa.eu/eli/reg_impl/2021/280/oj/eng"
+        }
+      ]
+    },
+    {
+      "short": "dir_2019_944",
+      "celex": "32019L0944",
+      "title": "Directive (EU) 2019/944 (internal market for electricity)",
+      "url": "https://publications.europa.eu/resource/celex/02019L0944-20251012",
+      "consolidated_celex": "02019L0944-20251012",
+      "consolidated_date": "2025-10-12",
+      "retrieved_on": "2026-11-13",
+      "sha256": "b5eb0a876af203c58c35867a66943b81f30da988d1e743ff24cc33710a65248e",
+      "articles_in_act": 79,
+      "articles_kept": [
+        "15",
+        "16",
+        "17",
+        "31",
+        "32",
+        "33",
+        "36",
+        "40",
+        "54"
+      ],
+      "amended_by": [
+        {
+          "celex": "32022R0869",
+          "title": "Regulation (EU) 2022/869 on guidelines for trans-European energy infrastructure, amending Regulations (EC) No 715/2009, (EU) 2019/942 and (EU) 2019/943 and Directives 2009/73/EC and (EU) 2019/944, and repealing Regulation (EU) No 347/2013",
+          "url": "https://eur-lex.europa.eu/eli/reg/2022/869/oj/eng"
+        },
+        {
+          "celex": "32024L1711",
+          "title": "Directive (EU) 2024/1711 amending Directives (EU) 2018/2001 and (EU) 2019/944 as regards improving the Union's electricity market design",
+          "url": "https://eur-lex.europa.eu/eli/dir/2024/1711/oj/eng"
+        }
+      ]
+    },
+    {
+      "short": "reg_2017_1485",
+      "celex": "32017R1485",
+      "title": "Commission Regulation (EU) 2017/1485 (system operation guideline)",
+      "url": "https://publications.europa.eu/resource/celex/02017R1485-20210315",
+      "consolidated_celex": "02017R1485-20210315",
+      "consolidated_date": "2021-03-15",
+      "retrieved_on": "2026-11-13",
+      "sha256": "e80a8cda31925d3735a0475dec8e27db8d6fe18f173ef99361df4d7a2b36f298",
+      "articles_in_act": 192,
+      "articles_kept": [
+        "20",
+        "21",
+        "22",
+        "23",
+        "143",
+        "145",
+        "146",
+        "147",
+        "153",
+        "156",
+        "157",
+        "158",
+        "166",
+        "176"
+      ],
+      "amended_by": [
+        {
+          "celex": "32021R0280",
+          "title": "Commission Implementing Regulation (EU) 2021/280 amending Regulations (EU) 2015/1222, (EU) 2016/1719, (EU) 2017/2195 and (EU) 2017/1485 in order to align them with Regulation (EU) 2019/943",
+          "url": "https://eur-lex.europa.eu/eli/reg_impl/2021/280/oj/eng"
+        }
+      ]
+    },
+    {
+      "short": "reg_2016_1719",
+      "celex": "32016R1719",
+      "title": "Commission Regulation (EU) 2016/1719 (forward capacity allocation)",
+      "url": "https://publications.europa.eu/resource/celex/02016R1719-20210315",
+      "consolidated_celex": "02016R1719-20210315",
+      "consolidated_date": "2021-03-15",
+      "retrieved_on": "2026-11-13",
+      "sha256": "572ad8b338756affb2283bb309176ecd60212c182f8792f1ac39136943bc60f0",
+      "articles_in_act": 64,
+      "articles_kept": [
+        "25",
+        "53",
+        "56",
+        "57"
+      ],
+      "amended_by": [
+        {
+          "celex": "32021R0280",
+          "title": "Commission Implementing Regulation (EU) 2021/280 amending Regulations (EU) 2015/1222, (EU) 2016/1719, (EU) 2017/2195 and (EU) 2017/1485 in order to align them with Regulation (EU) 2019/943",
+          "url": "https://eur-lex.europa.eu/eli/reg_impl/2021/280/oj/eng"
+        }
+      ]
+    }
+  ]
+}

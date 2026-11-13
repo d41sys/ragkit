@@ -16,18 +16,14 @@ import hashlib
 import json
 import os
 import sys
-import time
-import urllib.error
-import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from ragkit.eurlex import strip_metadata_comment
+from ragkit.llm import post_message
 
 MODEL = "claude-sonnet-5-5"
-API_URL = "https://api.anthropic.com/v1/messages"
-API_VERSION = "2023-06-01"
 MAX_CALLS = 150
 MAX_TOKENS = 1500
 
@@ -93,30 +89,6 @@ def parse_verdict(text: str) -> dict[str, Any]:
 
 
 Transport = Callable[[dict[str, Any], str], dict[str, Any]]
-
-
-def post_message(payload: dict[str, Any], api_key: str, retries: int = 3) -> dict[str, Any]:
-    """POST one Messages API request with ``urllib`` and return the decoded response body."""
-    body = json.dumps(payload).encode("utf-8")
-    headers = {
-        "content-type": "application/json",
-        "x-api-key": api_key,
-        "anthropic-version": API_VERSION,
-    }
-    for attempt in range(retries + 1):
-        request = urllib.request.Request(API_URL, data=body, headers=headers, method="POST")
-        try:
-            with urllib.request.urlopen(request, timeout=300) as response:
-                decoded = json.loads(response.read().decode("utf-8"))
-            if not isinstance(decoded, dict):
-                raise ValueError("unexpected response body")
-            return decoded
-        except urllib.error.HTTPError as err:
-            if err.code in (429, 500, 502, 503, 529) and attempt < retries:
-                time.sleep(5 * (attempt + 1))
-                continue
-            raise RuntimeError(f"API error {err.code}: {err.read().decode('utf-8')[:300]}") from err
-    raise RuntimeError("unreachable")
 
 
 def review_question(
