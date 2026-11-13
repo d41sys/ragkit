@@ -13,11 +13,13 @@ Serving behaviour:
   returns.
 - The document matrix is read from ``INDEX_DIR`` when a file for exactly this corpus exists
   (``ragkit build-index`` writes it) and is embedded in memory otherwise.
-- If the neural models cannot be loaded (extra not installed, no local copy while offline), the
-  pipeline falls back to BM25 alone; ``SearchResult.retriever`` says which one ran.
+- If the neural models of the default retriever cannot be loaded (extra not installed, no local
+  copy while offline), the pipeline falls back to BM25 alone; ``SearchResult.retriever`` says
+  which one ran. A retriever named explicitly never falls back: it raises ``RuntimeError``, so an
+  experiment cannot record BM25 numbers under another retriever's name.
 
-Importing this module loads no LLM or model code. ``ragkit.search`` is the function (re-exported
-by ``ragkit/__init__.py``), so import names from this module with ``from ragkit.search import ...``.
+Importing this module loads no LLM or model code. The public names are re-exported by
+``ragkit/__init__.py``; this module is private so that ``ragkit.search`` stays the function.
 """
 
 from __future__ import annotations
@@ -164,6 +166,7 @@ class _Entry:
     articles: dict[str, str]
     acts: dict[str, dict[str, Any]]
     retriever: str
+    load_error: str | None = None  # why the requested retriever fell back to bm25
     lock: threading.Lock = field(default_factory=threading.Lock)
 
 
@@ -175,30 +178,33 @@ def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
     documents = load_documents(corpus_dir)
     if not documents:
         raise ValueError(f"no .md or .txt documents in {corpus_dir}")
-    used = retriever
     try:
         pipeline = _make_pipeline(retriever, serving=True)
         pipeline.index_documents(documents)
         if retriever not in ("default", "bm25"):
             pipeline.retrieve(_WARMUP_QUERY, 1)  # loads every model now, not on the first query
-    except Exception:
+    except Exception as exc:
         log.warning("retriever %r unavailable, falling back to bm25", retriever, exc_info=True)
-        used = "bm25"
         pipeline = _make_pipeline("bm25", serving=True)
         pipeline.index_documents(documents)
-    return _Entry(pipeline, dict(documents), _load_acts(corpus_dir), used)
+        return _Entry(pipeline, dict(documents), _load_acts(corpus_dir), "bm25", repr(exc))
+    return _Entry(pipeline, dict(documents), _load_acts(corpus_dir), retriever)
 
 
-def _entry(corpus_dir: Path, retriever: str) -> _Entry:
-    key = (corpus_dir.resolve(), retriever)
+def _entry(corpus_dir: Path, retriever: str | None) -> _Entry:
+    """The pipeline for ``retriever``; ``None`` means the default, which may fall back to bm25."""
+    key = (corpus_dir.resolve(), retriever or DEFAULT_RETRIEVER)
     with _entries_lock:
         if key not in _entries:
             _entries[key] = _build_entry(*key)
-        return _entries[key]
+        entry = _entries[key]
+    if retriever is not None and entry.load_error is not None:
+        raise RuntimeError(f"retriever {retriever!r} is unavailable: {entry.load_error}")
+    return entry
 
 
-def _validated(query: str, retriever: str) -> str:
-    if retriever not in RETRIEVERS:
+def _validated(query: str, retriever: str | None) -> str:
+    if retriever is not None and retriever not in RETRIEVERS:
         raise ValueError(f"retriever must be one of {RETRIEVERS}, got {retriever!r}")
     query = query.strip()
     if not query:
@@ -228,7 +234,7 @@ def retrieve_chunks(
     k: int,
     *,
     corpus_dir: Path | str | None = None,
-    retriever: str = DEFAULT_RETRIEVER,
+    retriever: str | None = None,
 ) -> list[Passage]:
     """The top-``k`` chunks of the pipeline ``search`` uses (``ragkit answer`` gates on them)."""
     query = _validated(query, retriever)
@@ -241,7 +247,7 @@ def search(
     query: str,
     *,
     corpus_dir: Path | str | None = None,
-    retriever: str = DEFAULT_RETRIEVER,
+    retriever: str | None = None,
     budget_tokens: int = ARTICLE_BUDGET_TOKENS,
     pack_chunks: int = PACK_CHUNKS,
     answerable: bool = False,
@@ -249,6 +255,8 @@ def search(
 ) -> SearchResult:
     """Distinct parent articles of the top ``pack_chunks`` chunks, packed into ``budget_tokens``.
 
+    ``retriever=None`` uses ``DEFAULT_RETRIEVER`` and falls back to bm25 if its models cannot
+    load; a retriever named explicitly raises ``RuntimeError`` instead.
     ``answerable=True`` also fills ``answerable_score`` (the SQuAD2 reader signal on the top
     ``READER_CHUNKS`` chunks, needs the ``[st]`` extra) and ``answerable_threshold``
     (``ANSWERABLE_THRESHOLDS``; ``None`` where none was measured): refuse when the score is below

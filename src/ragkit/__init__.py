@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ragkit._search import Article, SearchResult, search
 from ragkit.bm25 import BM25Index, tokenize
 from ragkit.chunking import Chunk, fixed, recursive, semantic, sentence
 from ragkit.dense import DenseIndex
@@ -27,11 +28,7 @@ from ragkit.rewrite import (
     TemplateLLM,
 )
 
-# Last import: importing the submodule ``ragkit.search`` binds the name ``search`` to the module,
-# and this import then rebinds it to the function.
-from ragkit.search import Article, SearchResult, search
-
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __all__ = [
     "LLM",

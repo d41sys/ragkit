@@ -14,6 +14,8 @@ from typing import Any
 
 import numpy as np
 
+from ragkit._search import build_index, retrieve_chunks, search
+from ragkit._search import load_documents as _load_documents
 from ragkit.abstention import (
     SIGNALS,
     SignalTable,
@@ -101,8 +103,6 @@ from ragkit.parent import (
 from ragkit.pipeline import ABSTAIN_TEXT, DEFAULT_MIN_SUPPORT, RAGPipeline, query_support
 from ragkit.rerank import LexicalReranker
 from ragkit.rewrite import HyDERewriter, TemplateLLM
-from ragkit.search import build_index, retrieve_chunks, search
-from ragkit.search import load_documents as _load_documents
 
 DEFAULT_DATA_DIR = Path(__file__).parent / "data"
 DEFAULT_CORPUS_DIR = DEFAULT_DATA_DIR / "corpus"

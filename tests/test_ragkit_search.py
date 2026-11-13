@@ -1,4 +1,4 @@
-"""Tests for ``ragkit.search``: the library API, its serving guarantees and the fallbacks."""
+"""Tests for ``ragkit.search`` (``ragkit/_search.py``): the API, serving guarantees, fallbacks."""
 
 import json
 import subprocess
@@ -14,6 +14,13 @@ import pytest
 
 from ragkit import cli, neural
 from ragkit import search as search_fn
+from ragkit._search import (
+    ANSWERABLE_THRESHOLDS,
+    MAX_QUERY_CHARS,
+    SearchResult,
+    _entries,
+    _Entry,
+)
 from ragkit.abstention import best_threshold, cross_validated_accept
 from ragkit.bm25 import BM25Index
 from ragkit.chunking import Chunk
@@ -28,13 +35,6 @@ from ragkit.lexical import questions_from_records
 from ragkit.neural import DenseSide, NeuralChunkRetriever, NeuralEngine, embed_corpus
 from ragkit.parent import Passage
 from ragkit.pipeline import RAGPipeline
-from ragkit.search import (
-    ANSWERABLE_THRESHOLDS,
-    MAX_QUERY_CHARS,
-    SearchResult,
-    _entries,
-    _Entry,
-)
 
 ROOT = Path(__file__).parent.parent
 
@@ -75,7 +75,7 @@ def fresh_entries() -> Any:
 
 def test_import_leaves_llm_modules_out() -> None:
     code = (
-        "import sys, ragkit, ragkit.search\n"
+        "import sys, ragkit, ragkit._search\n"
         "bad = [m for m in ('ragkit.generation', 'ragkit.llm', 'ragkit.hardset_review', 'torch')"
         " if m in sys.modules]\n"
         "assert callable(ragkit.search), 'ragkit.search must stay the function'\n"
@@ -185,7 +185,7 @@ def test_cmd_answer_context_comes_from_search(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_pipeline_is_built_once(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    module = sys.modules["ragkit.search"]  # ``ragkit.search`` itself is the function
+    module = sys.modules["ragkit._search"]
     built: list[tuple[Path, str]] = []
     real = module._build_entry
     monkeypatch.setattr(module, "_build_entry", lambda d, r: built.append((d, r)) or real(d, r))
@@ -195,7 +195,7 @@ def test_pipeline_is_built_once(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     assert len(built) == 1
 
 
-def test_falls_back_to_bm25_when_models_cannot_load(
+def test_default_falls_back_to_bm25_but_an_explicit_retriever_fails(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     def offline(self: Any) -> Any:
@@ -203,11 +203,14 @@ def test_falls_back_to_bm25_when_models_cannot_load(
 
     monkeypatch.setattr(neural.SentenceEmbedder, "_load", offline)
     corpus = _corpus(tmp_path, False)
-    for name in ("hybrid+ce", "dense"):
-        result = search_fn("congestion market solutions", corpus_dir=corpus, retriever=name)
-        assert result.retriever == "bm25"
-        assert result.articles[0].id == "reg_2019_943_art16"
+    result = search_fn("congestion market solutions", corpus_dir=corpus)  # default: hybrid+ce
+    assert result.retriever == "bm25"
+    assert result.articles[0].id == "reg_2019_943_art16"
     assert "falling back to bm25" in caplog.text
+    # Named explicitly (as the CLI and experiments do), a missing model must not pass as bm25.
+    for name in ("hybrid+ce", "dense"):
+        with pytest.raises(RuntimeError, match="offline and no local copy"):
+            search_fn("congestion market solutions", corpus_dir=corpus, retriever=name)
 
 
 # --- serving: bounded caches, one lock, same answers under threads ------------------------------
@@ -352,7 +355,7 @@ class FakeReader:
 def test_answerable_score_is_the_best_reader_score_of_the_top_five(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = sys.modules["ragkit.search"]
+    module = sys.modules["ragkit._search"]
     reader = FakeReader()
     monkeypatch.setattr(module, "_reader", reader)
     result = search_fn(CONGESTION_Q, retriever="default", answerable=True)

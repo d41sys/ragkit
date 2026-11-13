@@ -79,7 +79,7 @@ flowchart LR
 ## Quickstart
 Releases: pushing a tag `vX.Y.Z` that matches `pyproject.toml` runs CI on Python 3.12 and 3.13, builds the wheel and sdist, and attaches them to a [GitHub release](https://github.com/d41sys/ragkit/releases) (`.github/workflows/release.yml`). The wheel bundles the corpora, the question sets and the prebuilt index. To use a release as a dependency:
 ```bash
-uv add "ragkit[st] @ https://github.com/d41sys/ragkit/releases/download/v0.2.0/ragkit-0.2.0-py3-none-any.whl"
+uv add "ragkit[st] @ https://github.com/d41sys/ragkit/releases/download/v0.2.1/ragkit-0.2.1-py3-none-any.whl"
 ```
 From a clone:
 ```bash
@@ -125,7 +125,7 @@ import ragkit
 result = ragkit.search(
     "What must a TSO do about congestion between bidding zones?",
     corpus_dir=None,  # default: the consolidated (in-force) EU corpus, src/ragkit/data/corpus_eu_consolidated
-    retriever="hybrid+ce",  # "default" | "bm25" | "dense" | "hybrid" | "hybrid+ce"
+    retriever=None,  # None: hybrid+ce with bm25 fallback; or name one (no fallback): "default" | "bm25" | "dense" | "hybrid" | "hybrid+ce"
     budget_tokens=12_000,  # articles are packed whole, in rank order, until this is full
     pack_chunks=10,  # chunks whose parent articles are candidates
     answerable=False,  # True: also return the reader score and its threshold
@@ -136,13 +136,13 @@ for a in result.articles:  # Article(id, act, celex, article, heading, text, ran
     print(a.rank, a.act, "Article", a.article, a.url, a.version)
 json.dumps(result.to_dict())
 ```
-`ragkit.search` is the function; import names from the module with `from ragkit.search import ...`.
+`ragkit.search`, `ragkit.SearchResult` and `ragkit.Article` are the public names; the implementation lives in the private module `ragkit._search` (patch there in tests, e.g. `mock.patch("ragkit._search.INDEX_DIR", ...)`).
 
 - **Input checks.** An empty or whitespace query, a query over 2000 characters, an unknown retriever and a non-positive `pack_chunks` or `budget_tokens` raise `ValueError`.
 - **Citation fields** come from `SOURCES.json` of the corpus directory (`acts[]`, matched to the document id by `short`): `act` is the act title, `url` the EUR-Lex URL, `version` is "consolidated version of <consolidated_date>" when the act has one and "original Official Journal text (retrieved <retrieved_on>)" otherwise. A corpus without `SOURCES.json` gets `None` for `celex`, `url` and `version`.
 - **Serving.** The pipeline of each `(corpus_dir, retriever)` is built once and reused; one lock per pipeline serialises calls, so threads are safe (8 threads return what a sequential run returns: `tests/test_ragkit_search.py`). The query-vector and cross-encoder caches, which the experiments rely on, are off on this path: `ce_cache` and `DenseSide.queries` stay empty however many distinct questions arrive.
 - **Memory, measured.** 10 000 distinct queries through `search()` with `hybrid+ce` (random 6 to 12 word windows of corpus sentences, so distinct strings, not human questions; 1 292 s): `ce_cache` and `DenseSide.queries` held 0 entries at all 20 samples, and the process RSS (macOS `ps`) went 271 MB at 500 queries to 98 MB at 10 000 with no upward trend (macOS compresses idle pages, so the drop after the first 1 500 is not a leak fix; Linux not measured). Python heap (`tracemalloc`) grew 1.1 to 1.6 MB over 1 000 queries; a separate run of 30 000 distinct BM25 queries shows why: 1.04 MB at 1 000, 1.42 MB at 30 000, the lazily cached posting arrays of the BM25 index, bounded by the vocabulary (2 261 of 2 644 terms at the end).
-- **Retriever.** `hybrid+ce` is the default because it is the measured best (`docs/packing_protocol.md`). If `sentence-transformers` is missing or the models cannot be loaded, `search()` logs a warning and falls back to plain BM25; `result.retriever` is then `"bm25"`. The first call runs a warm-up query that loads every model, so a load failure is caught there and the choice is made once per process.
+- **Retriever.** `hybrid+ce` is the default because it is the measured best (`docs/packing_protocol.md`). With `retriever` left at `None`, if `sentence-transformers` is missing or the models cannot be loaded, `search()` logs a warning and falls back to plain BM25; `result.retriever` is then `"bm25"`. A retriever named explicitly (including every `--retriever` of the CLI) never falls back: it raises `RuntimeError` with the load error, so a run cannot record BM25 numbers under another name. The first call runs a warm-up query that loads every model, so a load failure is caught there and the choice is made once per process.
 - **Gold article in the packed context** on the 130 held-out EU questions, through `search()`: `hybrid+ce` **111/130** (mean 6 879 estimated tokens, max 11 712), `default` 97/130, `bm25` 96/130 (command: `search()` over `qa_eu.jsonl`, `qa_eu_hard.jsonl`, `qa_eu_nokw.jsonl`). `ragkit packing score` prints the same 111/130 and 97/130 on the unchanged code of the commit before this change; `docs/packing_protocol.md` still says 96/130 and 6 876 tokens for `default` and `hybrid+ce` (111/130 matches).
 
 ### Prebuilt index and offline start
@@ -167,7 +167,7 @@ Cold start, process start to first result (measured on the original-text corpus,
 Later queries take 0.12 to 0.16 s each. Most of the start is model loading (the index saves the embedding pass, about 1 s here); a CPU-only server will be slower: not measured.
 
 ### Refusing: `answerable=True`
-`answerable_score` is the `qa_answerable` reader signal (SQuAD2 reader, best non-null span score minus null score, maximum over the top 5 chunks; `modelsignals.py`) and `answerable_threshold` the value above which to answer. A score below the threshold means: refuse. The thresholds are in `ANSWERABLE_THRESHOLDS` (`search.py`) for `default` and `hybrid+ce` only; other retrievers return the score and `None`. Each is what `abstention.best_threshold` picks on all 87 EU questions (42 answerable, 45 unanswerable), which is also the median of the five fold thresholds of the 5-fold stratified CV (seed 0) behind the published `reader` rows (`docs/generation_protocol.md` lines 56, 299, 458; README "Model-based signals").
+`answerable_score` is the `qa_answerable` reader signal (SQuAD2 reader, best non-null span score minus null score, maximum over the top 5 chunks; `modelsignals.py`) and `answerable_threshold` the value above which to answer. A score below the threshold means: refuse. The thresholds are in `ANSWERABLE_THRESHOLDS` (`_search.py`) for `default` and `hybrid+ce` only; other retrievers return the score and `None`. Each is what `abstention.best_threshold` picks on all 87 EU questions (42 answerable, 45 unanswerable), which is also the median of the five fold thresholds of the 5-fold stratified CV (seed 0) behind the published `reader` rows (`docs/generation_protocol.md` lines 56, 299, 458; README "Model-based signals").
 
 | Retriever | published `reader` row (5-fold CV, held-out) | reproduced from `search(answerable=True)` | one shipped threshold on all 87 (in-sample) |
 |---|---|---|---|
