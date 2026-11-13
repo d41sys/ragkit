@@ -253,3 +253,33 @@ Labels are agent-reviewed (README caveat), LLM judges are not human labels, one 
 family is the agent, and the sample resolves only large effects. Results hold for
 `qwen3.6:27b` with thinking and this system prompt; they say nothing about Claude or other
 models, and the earlier Sonnet-judged numbers are not comparable (see above).
+
+## Amendments after the protocol commit
+
+Dated 2026-11-13, written while A and B were being generated and before any judge call. None
+touches a prompt, a metric, the decision rule or a model.
+
+1. **Failed requests are not truncation.** The first driver version recorded a model call without
+   usage as `truncation guard: prompt of 0 tokens ...`. That was a misclassification: every such
+   call (A `u12`, `u17`; B `u05`, `u07`, `u13`, `u14`) has stop reason `error` or `aborted`: either
+   Bun's `fetch` gave up with "The operation timed out" after about 255 to 290 s without response
+   headers (the request waited in Ollama's queue behind the other stream or other users' jobs), or
+   the 900 s per-question timeout aborted it. It is not Ollama's prompt cache: a call that
+   answers reports the whole prompt, cached prefix included (checked, and `u17`'s later calls
+   report 54 041 prompt tokens). The driver now stores such a run as `error: model request failed
+   (<reason>)`; a call that answered without a prompt count is an error (`no prompt token count in
+   the reply`); the three truncation conditions are unchanged.
+2. **Errors and re-runs.** Any row with an `error` is run once more with the same settings
+   (`--redo-failed`, which now selects rows with an `error` or no answer). The new row is appended
+   to the run file and wins by question id; the first row stays in the file. A row that still has
+   an error after its re-run is a failed run: not judged, **not correct, not refused**, counted in
+   "failed runs" and under rule R3. Rows that were stored before the fix and carry the old wording
+   are re-run like any other error; none is scored as it stands.
+3. **Concurrency.** A and B ran as two concurrent streams (the limit set for this study) until
+   the timeouts above showed up; the remaining questions of A and B keep two streams, C and D run
+   as soon as a stream frees up, never more than two. Timeouts caused by queueing are infra
+   failures and are re-run; they are not model behaviour. Because Ollama may batch concurrent
+   requests, runs are not bit-for-bit repeatable (as stated above).
+4. **Context fit.** The largest prompt of A so far is 54 041 tokens (`u17`, a multi-search loop),
+   inside the 64 k variant; the guard checks every call, so a larger one would be recorded as an
+   error rather than scored.
