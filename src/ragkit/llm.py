@@ -60,6 +60,63 @@ def post_message(payload: dict[str, Any], api_key: str, retries: int = 3) -> dic
     raise RuntimeError("unreachable")
 
 
+def ollama_transport(base_url: str, *, num_ctx: int, seed: int = 0, retries: int = 2) -> Transport:
+    """A ``transport`` for a local Ollama server (native ``/api/chat``), replying in Messages shape.
+
+    ``num_ctx``, ``seed``, ``temperature`` and ``num_predict`` (= ``max_tokens``) go in ``options``;
+    the server needs no key (``CachedMessages`` still wants a non-empty ``api_key`` for live calls).
+    ``seed`` is not part of the cache key. Ollama cuts a prompt that does not fit ``num_ctx``
+    without an error, and its ``prompt_eval_count`` leaves out cached prefix tokens, so a request
+    whose size (at a pessimistic 3 characters per token) plus ``max_tokens`` exceeds ``num_ctx`` is
+    refused here instead.
+    """
+
+    def send(payload: dict[str, Any], api_key: str) -> dict[str, Any]:
+        system = "\n\n".join(str(b.get("text", "")) for b in payload.get("system", []))
+        messages = ([{"role": "system", "content": system}] if system else []) + list(
+            payload["messages"]
+        )
+        size = sum(len(str(m["content"])) for m in messages) // 3 + int(payload["max_tokens"])
+        if size > num_ctx:
+            raise RuntimeError(f"request of about {size} tokens does not fit num_ctx {num_ctx}")
+        options: dict[str, Any] = {
+            "num_ctx": num_ctx,
+            "seed": seed,
+            "num_predict": payload["max_tokens"],
+        }
+        if "temperature" in payload:
+            options["temperature"] = payload["temperature"]
+        body = json.dumps(
+            {"model": payload["model"], "messages": messages, "stream": False, "options": options}
+        ).encode("utf-8")
+        for attempt in range(retries + 1):
+            request = urllib.request.Request(
+                f"{base_url.rstrip('/')}/api/chat",
+                data=body,
+                headers={"content-type": "application/json"},
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=900) as response:
+                    decoded = json.loads(response.read().decode("utf-8"))
+            except (urllib.error.URLError, TimeoutError) as err:
+                if attempt < retries:
+                    time.sleep(5 * (attempt + 1))
+                    continue
+                raise RuntimeError(f"Ollama error: {err}") from err
+            return {
+                "content": [{"type": "text", "text": decoded["message"]["content"]}],
+                "usage": {
+                    "input_tokens": int(decoded.get("prompt_eval_count", 0)),
+                    "output_tokens": int(decoded.get("eval_count", 0)),
+                },
+                "stop_reason": decoded.get("done_reason"),
+            }
+        raise RuntimeError("unreachable")
+
+    return send
+
+
 class CacheMiss(RuntimeError):
     """An offline run asked for a request that is not in the cache."""
 

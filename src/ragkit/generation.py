@@ -1,13 +1,14 @@
 """LLM answers with citations and a sufficient-context check (``docs/generation_protocol.md``).
 
-Five kinds of call, all through :class:`ragkit.llm.CachedMessages`:
+Six kinds of call, all through :class:`ragkit.llm.CachedMessages`:
 
 - ``GEN``: answer from retrieved chunks with article-id citations and a ``context_supports`` flag;
 - ``SUFF``: an autorater in the style of Joren et al. 2024 (arXiv:2411.06037): is the context
   sufficient to answer the question? Sees only the question and the chunks;
 - ``FC``: the same answer schema with the whole corpus as a cached system block;
-- ``CORRECT`` and ``CITE``: LLM judges of answer correctness against a reference and of whether a
-  cited article supports the answer.
+- ``CORRECT``, ``CITE`` and ``REFUSE``: LLM judges of answer correctness against a reference, of
+  whether a cited article supports the answer, and of whether a free-text answer declines to answer
+  (``REFUSE`` is for answers without a ``context_supports`` flag: ``docs/agent_eval_protocol.md``).
 
 The prompts are frozen with the protocol and must not be edited after the scored run.
 """
@@ -90,6 +91,17 @@ one article that the answer cites. Reply with one JSON object and nothing else:
 nothing in the article contradicts the answer's claims about it.
 - "partial": the article supports only a minor part of the answer or only loosely.
 - "no": the article does not contain support for the answer's claims, or contradicts them."""
+
+REFUSE_INSTRUCTIONS = """You classify an answer to a question about EU electricity law. Decide \
+whether the answer REFUSES to answer: whether its message is that the available articles or \
+sources do not answer the question. Reply with one JSON object and nothing else:
+{"verdict": "yes" | "no", "reason": "<one sentence>"}
+
+- "yes": the answer says the articles or sources do not contain what is needed (or that it cannot \
+answer), even if it adds what they do state on the topic, and it does not commit to an answer to \
+the question as asked.
+- "no": the answer commits to an answer to the question as asked, even with caveats, and even if \
+that answer is wrong."""
 
 
 @dataclass(frozen=True)
@@ -262,6 +274,18 @@ class LLMAnswerer:
         parsed = self._json(
             "CITE",
             [{"type": "text", "text": CITE_INSTRUCTIONS}],
+            user,
+            JUDGE_MAX_TOKENS,
+            ("verdict",),
+        )
+        return Verdict(str(parsed["verdict"]).strip().lower(), str(parsed.get("reason", "")))
+
+    def judge_refusal(self, question: str, answer: str) -> Verdict:
+        """``REFUSE``: does a free-text answer decline to answer (``agent_eval_protocol.md``)?"""
+        user = f"Question: {question}\n\nAnswer: {answer}"
+        parsed = self._json(
+            "REFUSE",
+            [{"type": "text", "text": REFUSE_INSTRUCTIONS}],
             user,
             JUDGE_MAX_TOKENS,
             ("verdict",),
