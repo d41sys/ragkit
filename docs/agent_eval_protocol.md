@@ -285,9 +285,11 @@ touches a prompt, a metric, the decision rule or a model.
    error rather than scored.
 5. **Timeouts.** Bun's own header timeout (about 5 min) is switched off (`fetch` with
    `timeout: false`), and the per-question timeout is raised from 900 s to 1800 s for every run
-   after this fix, re-runs included. A question that finished under 900 s was never limited by
-   either limit, so the earlier rows are not re-run for this; the setting is recorded in
-   `runs/agent_eval/<setup>.jsonl.config.json`.
+   after this fix (ezcross-ems `77048567`, 2026-11-13 07:03 CET), re-runs included. A question
+   that finished under 900 s was never limited by either limit, so the earlier rows are not re-run
+   for this. The rows carry no timestamp and `<setup>.jsonl.config.json` is rewritten at every
+   driver start (it now shows 1800 s only), so which rows ran under 900 s is not recorded per row;
+   a row with a latency above 900 s ran under 1800 s.
 
 ### Amendment 2026-11-13 (later): C and D are not run; the decision is A against B
 
@@ -329,9 +331,12 @@ u13 u14 u16 u19 u20 u21 u23 u24 u26 u28 u31 u32 u35`. Causes: the 1800 s per-que
 (A 3, B 4) and one context overflow (A `u17`, prompt plus completion 65 600 > 65 536) after
 repeated searches, and an empty final answer after a thinking run hit the 8192-token limit (A 5,
 B 10). Each failure counts as not refused, so the refusal rows are lower bounds: of the runs that
-finished, A refused 23 of 35 and B 20 of 30. Ids `u17 u19 u21` (A) and `u05 u13 u14` (B) were run
-three times: once in the main pass, once by the redo of rows stored with the old error wording or
-the 900 s timeout (amendments 1, 2 and 5), and once by the final redo pass; all still failed.
+finished, A refused 23 of 35 and B 20 of 30. Re-runs only ever replaced a failed row (an error or
+an empty answer, the protocol's "failed run"); no row with an answer was re-run. Ids
+`u13 u16 u17 u19 u21 u23 u24` (A) and `u05 u13 u14` (B) were run three times: once in the main
+pass, once by the redo of rows stored with the old error wording or the 900 s timeout (amendments
+1, 2 and 5), and once by the final redo pass. Their second row had failed as well, so scoring the
+second row instead of the last one (last row wins) changes no number.
 
 **Predictions:** P1 fails (the tool was called on 0.885 of the 87 questions in A and in B, below
 0.95); P2 holds (B - A on `correct` includes 0); P5 holds (refusal 0.52 and 0.45, at most
@@ -340,6 +345,7 @@ the 900 s timeout (amendments 1, 2 and 5), and once by the final redo pass; all 
 **Read as:** on answerable questions the agent with `qwen3.6:27b` is right 93 % of the time with
 either context, and about 92 % of the articles it cites support the answer. The weak spot is
 unanswerable questions: the model searches again and again (A: 2.75 searches on average, up to 9)
-instead of saying the corpus does not cover the question, and about half the time it answers
-anyway. The judge is one local model, not human labels; the sample resolves only effects of about
+instead of saying the corpus does not cover the question. Of the 44 unanswerable questions it
+answered anyway on 12 (A) and 10 (B) and did not finish on 9 (A) and 14 (B). The judge is one
+local model, not human labels; the sample resolves only effects of about
 15 percentage points.
