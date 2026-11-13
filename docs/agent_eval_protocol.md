@@ -283,6 +283,11 @@ touches a prompt, a metric, the decision rule or a model.
 4. **Context fit.** The largest prompt of A so far is 54 041 tokens (`u17`, a multi-search loop),
    inside the 64 k variant; the guard checks every call, so a larger one would be recorded as an
    error rather than scored.
+5. **Timeouts.** Bun's own header timeout (about 5 min) is switched off (`fetch` with
+   `timeout: false`), and the per-question timeout is raised from 900 s to 1800 s for every run
+   after this fix, re-runs included. A question that finished under 900 s was never limited by
+   either limit, so the earlier rows are not re-run for this; the setting is recorded in
+   `runs/agent_eval/<setup>.jsonl.config.json`.
 
 ### Amendment 2026-11-13 (later): C and D are not run; the decision is A against B
 
