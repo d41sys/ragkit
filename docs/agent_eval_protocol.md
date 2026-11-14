@@ -7,6 +7,8 @@ scored run; the code it describes (`src/ragkit/agentbench.py`, the REFUSE prompt
 `feat/search-eu-law`) are committed right after it and before the first scored run. A smoke test
 on question `a01` (not scored, not kept) came first and fixed the settings below.
 
+Follow-up (issue #12): setup E, A plus a coverage check, is in [`agent_eval_e_protocol.md`](agent_eval_e_protocol.md).
+
 ## Problem
 
 Every measured answer number used ragkit's own `GEN` prompt with Sonnet. In ezcross-ems the agent's
