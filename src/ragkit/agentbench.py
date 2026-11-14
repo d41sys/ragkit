@@ -47,7 +47,7 @@ QA_FILE = DATA / "qa_eu_consolidated.jsonl"
 UNANSWERABLE_FILE = DATA / "unanswerable_eu_consolidated.jsonl"
 RUNS_DIR = Path("runs/agent_eval")
 JUDGE_CACHE = Path("data/llm_cache/agent_eval_judge.jsonl")
-SETUPS = ("A", "B", "C", "D")
+SETUPS = ("A", "B", "C", "D", "E")
 CANDIDATES = ("B", "C")  # D is a reference: the corpus does not go into every request
 K3_CHUNKS = 5  # the chunks ``ragkit answer --no-pack`` reads (``--top-k``)
 K3_ARTICLES = 3  # ``--articles``
@@ -57,6 +57,8 @@ D_NUM_CTX = 131072  # the corpus is about 68 k tokens (353 kB at 5.2 characters 
 D_MAX_TOKENS = 8192  # as the agent's local model (``createLocalModel`` fallback)
 MAX_FAILED = 3  # failed runs a setup may have and still be eligible
 REFUSAL_MARGIN = 0.10  # candidate may refuse this much less of the unanswerable questions than A
+E_CORRECT_MARGIN = 0.05  # E may be this much lower than A on correct answers (answerable)
+E_MAX_FAILED = 9  # failed runs of A (issue #12): E may have no more
 RESAMPLES = 2000
 SEED = 0
 
@@ -102,12 +104,14 @@ def sha256_file(path: Path) -> str:
 
 
 def search_for_setup(setup: str, query: str, max_tokens: int | None) -> dict[str, Any]:
-    """The JSON ``POST /regulation/search`` returns, shaped for setup A, B or C."""
+    """The JSON ``POST /regulation/search`` returns, shaped for setup A, B, C or E."""
     import ragkit
 
     kwargs: dict[str, Any] = {}
     if max_tokens is not None:
         kwargs["budget_tokens"] = max_tokens
+    if setup == "E":  # the endpoint of ``feat/eu-law-answerable``: A plus the coverage check
+        kwargs["answerable"] = True
     if setup == "B":
         kwargs["pack_chunks"] = K3_CHUNKS
     body = ragkit.search(query, **kwargs).to_dict()
@@ -118,6 +122,9 @@ def search_for_setup(setup: str, query: str, max_tokens: int | None) -> dict[str
     elif setup == "C":
         body["articles"] = body["articles"][::-1]
     body["estimated_tokens"] = sum(estimate_tokens(a["text"]) for a in body["articles"])
+    if setup == "E":
+        score, threshold = body["answerable_score"], body["answerable_threshold"]
+        body["answerable"] = None if score is None or threshold is None else score >= threshold
     return dict(body)
 
 
@@ -163,6 +170,8 @@ def _handler(setup: str, log_path: Path) -> type[BaseHTTPRequestHandler]:
                 "retriever": body["retriever"],
                 "ids": [a["id"] for a in body["articles"]],
                 "estimated_tokens": body["estimated_tokens"],
+                "answerable_score": body.get("answerable_score"),
+                "answerable": body.get("answerable"),
                 "ms": round((time.monotonic() - started) * 1000),
             }
             with lock, log_path.open("a", encoding="utf-8") as fh:
@@ -323,6 +332,14 @@ def returned_ids(record: Mapping[str, Any]) -> set[str]:
     return ids
 
 
+def _first_flag(record: Mapping[str, Any]) -> bool | None:
+    """``answerable`` of the first ``search_eu_law`` result of a transcript (None: none or null)."""
+    for message in record.get("messages", []):
+        if message.get("role") == "toolResult" and message.get("toolName") == "search_eu_law":
+            return ((message.get("details") or {}).get("data") or {}).get("answerable")
+    return None
+
+
 # --- scoring ---------------------------------------------------------------------------------
 
 
@@ -353,6 +370,7 @@ class Scored:
     searches: np.ndarray  # search_eu_law calls in the run
     max_prompt: np.ndarray  # largest prompt (tokens) of any model call of the run
     runaways: np.ndarray  # 1 iff a model call used the whole 8192-token limit
+    flagged: np.ndarray  # E: 1 iff the first search_eu_law result said answerable = false
     verdicts: list[dict[str, Any]]
 
 
@@ -449,6 +467,12 @@ def score_setup(
                 for q in questions
             ]
         ),
+        flagged=np.array(
+            [
+                float(_first_flag(by_id[q["id"]]) is False) if q["id"] in by_id else nan
+                for q in questions
+            ]
+        ),
         searches=np.array(
             [len(by_id[q["id"]]["tool_calls"]) if q["id"] in by_id else nan for q in questions],
             dtype=float,
@@ -513,6 +537,24 @@ def decide(results: Mapping[str, Scored]) -> tuple[str, list[str]]:
     return default, lines
 
 
+def decide_e(results: Mapping[str, Scored]) -> tuple[bool, list[str]]:
+    """The rule of ``docs/agent_eval_e_protocol.md``: does E (A + coverage check) ship?"""
+    a, e = results["A"], results["E"]
+    d_ref = paired(e.refused_unanswerable, a.refused_unanswerable)
+    correct_e, correct_a = float(np.nanmean(e.correct)), float(np.nanmean(a.correct))
+    r1 = d_ref[1] > 0
+    r2 = correct_e >= correct_a - E_CORRECT_MARGIN
+    r3 = e.failed <= E_MAX_FAILED
+    lines = [
+        f"E: R1 refusal on unanswerable E - A {d_ref[0]:+.3f} [{d_ref[1]:+.3f}, {d_ref[2]:+.3f}] "
+        f"lower bound > 0: {r1}; R2 correct on answerable {correct_e:.3f} vs {correct_a:.3f} "
+        f"(margin {E_CORRECT_MARGIN:.2f}): {r2}; R3 failed runs {e.failed} <= {E_MAX_FAILED}: {r3}",
+    ]
+    ships = r1 and r2 and r3
+    lines.append(f"E ships: {ships}")
+    return ships, lines
+
+
 def _fmt(t: tuple[float, float, float], scale: float = 1.0, digits: int = 3) -> str:
     return f"{t[0] * scale:.{digits}f} [{t[1] * scale:.{digits}f}, {t[2] * scale:.{digits}f}]"
 
@@ -547,6 +589,14 @@ def render(results: Mapping[str, Scored]) -> str:
             m, lo, hi, n = paired(getattr(results[s], attr), getattr(results["A"], attr))
             cells.append(f"{m:+.{digits}f} [{lo:+.{digits}f}, {hi:+.{digits}f}] (n={n})")
         out.append(f"| {label} | " + " | ".join(cells) + " |")
+    if "E" in results:
+        e = results["E"]
+        out += ["", "Coverage check of E (first search of each question; descriptive):", ""]
+        out.append("| kind | questions flagged `answerable = false` | n |")
+        out.append("|---|---|---|")
+        for kind, prefix in (("answerable", "a"), ("unanswerable", "u")):
+            keep = np.array([v["id"].startswith(prefix) for v in e.verdicts]) & ~np.isnan(e.flagged)
+            out.append(f"| {kind} | {int(e.flagged[keep].sum())} | {int(keep.sum())} |")
     out += [
         "",
         "Agent loop by question kind (mean / max per question; runaway = a call hit 8192 tokens):",
@@ -567,7 +617,11 @@ def render(results: Mapping[str, Scored]) -> str:
                     f"| {r.max_prompt[keep].mean():.0f} / {r.max_prompt[keep].max():.0f} "
                     f"| {int(r.runaways[keep].sum())} | {int(keep.sum())} |"
                 )
-    _, rule = decide(results)
+    rule: list[str] = []
+    if any(c in results for c in CANDIDATES):
+        rule += decide(results)[1]
+    if "E" in results:
+        rule += decide_e(results)[1]
     return "\n".join(out + ["", "Decision rule:", ""] + [f"- {line}" for line in rule])
 
 
@@ -578,8 +632,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m ragkit.agentbench", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("questions", help="write runs/agent_eval/questions.jsonl and print file hashes")
-    s = sub.add_parser("serve", help="backend stand-in for setup A, B or C")
-    s.add_argument("--setup", required=True, choices=("A", "B", "C"))
+    s = sub.add_parser("serve", help="backend stand-in for setup A, B, C or E")
+    s.add_argument("--setup", required=True, choices=("A", "B", "C", "E"))
     s.add_argument("--port", type=int, required=True)
     s.add_argument("--log", default=None)
     d = sub.add_parser("ask-full", help="setup D: the whole corpus in the prompt")

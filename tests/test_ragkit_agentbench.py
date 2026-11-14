@@ -43,6 +43,26 @@ def test_setups_shape_the_packed_list(fake_search: list[dict[str, Any]]) -> None
     assert fake_search == [{}, {"pack_chunks": 5, "budget_tokens": 4000}, {}]
 
 
+def test_setup_e_adds_the_endpoints_coverage_fields(monkeypatch: pytest.MonkeyPatch) -> None:
+
+    class Result:
+        def __init__(self, score: float | None, threshold: float | None) -> None:
+            self.score, self.threshold = score, threshold
+
+        def to_dict(self) -> dict[str, Any]:
+            return {
+                "retriever": "hybrid+ce",
+                "articles": [_article(1)],
+                "answerable_score": self.score,
+                "answerable_threshold": self.threshold,
+            }
+
+    results = iter([Result(-3.0, -0.74), Result(0.5, -0.74), Result(1.0, None)])
+    monkeypatch.setattr(ragkit, "search", lambda query, **kwargs: next(results))
+    flags = [agentbench.search_for_setup("E", "q", None)["answerable"] for _ in range(3)]
+    assert flags == [False, True, None]
+
+
 def test_cited_articles_ids_then_natural_references() -> None:
     corpus = {"reg_2019_943_art16", "dir_2019_944_art15", "reg_2019_943_art17"}
     assert agentbench.cited_articles("see reg_2019_943_art16 and dir_2019_999_art1", corpus) == [
@@ -120,6 +140,7 @@ def _scored(setup: str, correct: list[float], refused: list[float], failed: int 
         searches=nan,
         max_prompt=nan,
         runaways=nan,
+        flagged=nan,
         verdicts=[],
     )
 
@@ -135,3 +156,15 @@ def test_decision_rule() -> None:
     assert agentbench.decide({"A": a, "B": same})[0] == "A"
     flaky = _scored("B", [0.0] * 20 + [1.0] * 20, [1.0] * 30 + [0.0] * 10, failed=4)
     assert agentbench.decide({"A": a, "B": flaky})[0] == "A"
+
+
+def test_decision_rule_e() -> None:
+    a = _scored("A", [1.0] * 30 + [0.0] * 10, [1.0] * 20 + [0.0] * 20, failed=9)
+    good = _scored("E", [1.0] * 30 + [0.0] * 10, [1.0] * 35 + [0.0] * 5, failed=9)
+    assert agentbench.decide_e({"A": a, "E": good})[0] is True
+    no_gain = _scored("E", [1.0] * 30 + [0.0] * 10, [1.0] * 20 + [0.0] * 20, failed=9)
+    assert agentbench.decide_e({"A": a, "E": no_gain})[0] is False  # R1: lower bound not above 0
+    lossy = _scored("E", [1.0] * 27 + [0.0] * 13, [1.0] * 35 + [0.0] * 5, failed=9)
+    assert agentbench.decide_e({"A": a, "E": lossy})[0] is False  # R2: 0.675 < 0.75 - 0.05
+    flaky = _scored("E", [1.0] * 30 + [0.0] * 10, [1.0] * 35 + [0.0] * 5, failed=10)
+    assert agentbench.decide_e({"A": a, "E": flaky})[0] is False  # R3: 10 > 9
