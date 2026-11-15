@@ -168,3 +168,16 @@ def test_decision_rule_e() -> None:
     assert agentbench.decide_e({"A": a, "E": lossy})[0] is False  # R2: 0.675 < 0.75 - 0.05
     flaky = _scored("E", [1.0] * 30 + [0.0] * 10, [1.0] * 35 + [0.0] * 5, failed=10)
     assert agentbench.decide_e({"A": a, "E": flaky})[0] is False  # R3: 10 > 9
+
+
+def test_decision_rule_f() -> None:
+    a = _scored("A", [1.0] * 30 + [0.0] * 10, [1.0] * 20 + [0.0] * 20, failed=9)
+    e = _scored("E", [1.0] * 30 + [0.0] * 10, [1.0] * 36 + [0.0] * 4, failed=0)
+    same = _scored("F", [1.0] * 30 + [0.0] * 10, [1.0] * 35 + [0.0] * 5, failed=2)
+    assert agentbench.decide_f({"A": a, "E": e, "F": same})[0] is True
+    weak = _scored("F", [1.0] * 30 + [0.0] * 10, [1.0] * 32 + [0.0] * 8, failed=2)
+    assert agentbench.decide_f({"A": a, "E": e, "F": weak})[0] is False  # N1: 4 fewer than E
+    flaky = _scored("F", [1.0] * 30 + [0.0] * 10, [1.0] * 35 + [0.0] * 5, failed=4)
+    assert agentbench.decide_f({"A": a, "E": e, "F": flaky})[0] is False  # N3: 4 > 3
+    no_gain = _scored("F", [1.0] * 30 + [0.0] * 10, [1.0] * 20 + [0.0] * 20, failed=0)
+    assert agentbench.decide_f({"A": a, "E": e, "F": no_gain})[0] is False  # R1 and N1

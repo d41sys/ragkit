@@ -47,7 +47,7 @@ QA_FILE = DATA / "qa_eu_consolidated.jsonl"
 UNANSWERABLE_FILE = DATA / "unanswerable_eu_consolidated.jsonl"
 RUNS_DIR = Path("runs/agent_eval")
 JUDGE_CACHE = Path("data/llm_cache/agent_eval_judge.jsonl")
-SETUPS = ("A", "B", "C", "D", "E")
+SETUPS = ("A", "B", "C", "D", "E", "F")
 CANDIDATES = ("B", "C")  # D is a reference: the corpus does not go into every request
 K3_CHUNKS = 5  # the chunks ``ragkit answer --no-pack`` reads (``--top-k``)
 K3_ARTICLES = 3  # ``--articles``
@@ -59,6 +59,9 @@ MAX_FAILED = 3  # failed runs a setup may have and still be eligible
 REFUSAL_MARGIN = 0.10  # candidate may refuse this much less of the unanswerable questions than A
 E_CORRECT_MARGIN = 0.05  # E may be this much lower than A on correct answers (answerable)
 E_MAX_FAILED = 9  # failed runs of A (issue #12): E may have no more
+F_REFUSAL_MARGIN = 0.07  # F may refuse this much less of the unanswerable questions than E
+F_CORRECT_MARGIN = 0.05  # F may be this much lower than E on correct answers (answerable)
+F_MAX_FAILED = 3  # failed runs F may have (E had 0)
 RESAMPLES = 2000
 SEED = 0
 
@@ -104,7 +107,7 @@ def sha256_file(path: Path) -> str:
 
 
 def search_for_setup(setup: str, query: str, max_tokens: int | None) -> dict[str, Any]:
-    """The JSON ``POST /regulation/search`` returns, shaped for setup A, B, C or E."""
+    """The JSON ``POST /regulation/search`` returns for setup A, B, C, E or F (F: A's response)."""
     import ragkit
 
     kwargs: dict[str, Any] = {}
@@ -537,21 +540,39 @@ def decide(results: Mapping[str, Scored]) -> tuple[str, list[str]]:
     return default, lines
 
 
-def decide_e(results: Mapping[str, Scored]) -> tuple[bool, list[str]]:
-    """The rule of ``docs/agent_eval_e_protocol.md``: does E (A + coverage check) ship?"""
-    a, e = results["A"], results["E"]
+def decide_e(results: Mapping[str, Scored], name: str = "E") -> tuple[bool, list[str]]:
+    """The rule of ``docs/agent_eval_e_protocol.md`` against A, for setup E (or F, part a)."""
+    a, e = results["A"], results[name]
     d_ref = paired(e.refused_unanswerable, a.refused_unanswerable)
     correct_e, correct_a = float(np.nanmean(e.correct)), float(np.nanmean(a.correct))
     r1 = d_ref[1] > 0
     r2 = correct_e >= correct_a - E_CORRECT_MARGIN
     r3 = e.failed <= E_MAX_FAILED
     lines = [
-        f"E: R1 refusal on unanswerable E - A {d_ref[0]:+.3f} [{d_ref[1]:+.3f}, {d_ref[2]:+.3f}] "
-        f"lower bound > 0: {r1}; R2 correct on answerable {correct_e:.3f} vs {correct_a:.3f} "
+        f"{name}: R1 refusal on unanswerable {name} - A {d_ref[0]:+.3f} "
+        f"[{d_ref[1]:+.3f}, {d_ref[2]:+.3f}] lower bound > 0: {r1}; "
+        f"R2 correct on answerable {correct_e:.3f} vs {correct_a:.3f} "
         f"(margin {E_CORRECT_MARGIN:.2f}): {r2}; R3 failed runs {e.failed} <= {E_MAX_FAILED}: {r3}",
     ]
     ships = r1 and r2 and r3
-    lines.append(f"E ships: {ships}")
+    lines.append(f"{name} passes the rule against A: {ships}")
+    return ships, lines
+
+
+def decide_f(results: Mapping[str, Scored]) -> tuple[bool, list[str]]:
+    """The rule of ``docs/agent_eval_e_protocol.md`` (setup F): passes E's rule and matches E."""
+    a_ok, lines = decide_e(results, "F")
+    e, f = results["E"], results["F"]
+    d_ref = float(np.nanmean(f.refused_unanswerable)) - float(np.nanmean(e.refused_unanswerable))
+    d_cor = float(np.nanmean(f.correct)) - float(np.nanmean(e.correct))
+    n1, n2, n3 = d_ref >= -F_REFUSAL_MARGIN, d_cor >= -F_CORRECT_MARGIN, f.failed <= F_MAX_FAILED
+    lines.append(
+        f"F vs E: N1 refusal on unanswerable {d_ref:+.3f} >= -{F_REFUSAL_MARGIN:.2f}: {n1}; "
+        f"N2 correct on answerable {d_cor:+.3f} >= -{F_CORRECT_MARGIN:.2f}: {n2}; "
+        f"N3 failed runs {f.failed} <= {F_MAX_FAILED}: {n3}"
+    )
+    ships = a_ok and n1 and n2 and n3
+    lines.append(f"F ships: {ships} (else E ships)")
     return ships, lines
 
 
@@ -589,6 +610,15 @@ def render(results: Mapping[str, Scored]) -> str:
             m, lo, hi, n = paired(getattr(results[s], attr), getattr(results["A"], attr))
             cells.append(f"{m:+.{digits}f} [{lo:+.{digits}f}, {hi:+.{digits}f}] (n={n})")
         out.append(f"| {label} | " + " | ".join(cells) + " |")
+    if "E" in results and "F" in results:
+        out += ["", "Paired differences F - E (descriptive; N1 to N3 use the point estimates):", ""]
+        out.append("| metric | F - E |")
+        out.append("|---|---|")
+        for label, attr, _, digits in rows[:5]:
+            m, lo, hi, n = paired(getattr(results["F"], attr), getattr(results["E"], attr))
+            out.append(
+                f"| {label} | {m:+.{digits}f} [{lo:+.{digits}f}, {hi:+.{digits}f}] (n={n}) |"
+            )
     if "E" in results:
         e = results["E"]
         out += ["", "Coverage check of E (first search of each question; descriptive):", ""]
@@ -622,6 +652,8 @@ def render(results: Mapping[str, Scored]) -> str:
         rule += decide(results)[1]
     if "E" in results:
         rule += decide_e(results)[1]
+    if "F" in results and "E" in results:
+        rule += decide_f(results)[1]
     return "\n".join(out + ["", "Decision rule:", ""] + [f"- {line}" for line in rule])
 
 
@@ -632,8 +664,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m ragkit.agentbench", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("questions", help="write runs/agent_eval/questions.jsonl and print file hashes")
-    s = sub.add_parser("serve", help="backend stand-in for setup A, B, C or E")
-    s.add_argument("--setup", required=True, choices=("A", "B", "C", "E"))
+    s = sub.add_parser("serve", help="backend stand-in for setup A, B, C, E or F")
+    s.add_argument("--setup", required=True, choices=("A", "B", "C", "E", "F"))
     s.add_argument("--port", type=int, required=True)
     s.add_argument("--log", default=None)
     d = sub.add_parser("ask-full", help="setup D: the whole corpus in the prompt")
