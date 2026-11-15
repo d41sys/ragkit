@@ -216,17 +216,28 @@ not correct, not refused). Harness: `eu-law-run.ts` from `feat/eu-law-search-hin
 E's rows are the ones already committed. A ran on another day under another server load, and so
 did E; F is a third day.
 
-**Decision rule (F against A, the same R1 to R3 as E).** F ships iff all of:
+**Decision rule.** *Corrected 2026-11-15 by user decision ("ship F if it matches E"), in the
+commit after `adab848`, which had a weaker rule (F against A only); no F code or run existed
+before the correction.* F ships iff **both**:
+
+(a) F passes E's rule against A:
 
 1. R1: the paired 95 % CI of `refused(unanswerable, F) - refused(unanswerable, A)` has a lower
    bound above 0;
 2. R2: `correct(answerable, F) >= correct(answerable, A) - 0.05` (at least 38 of 43);
-3. R3: F has at most 9 failed runs.
+3. R3: F has at most 9 failed runs;
 
-If F passes it ships instead of E (simpler: no third model, no extra latency, no always-false
-field): a PR for `feat/eu-law-search-hint` against `feat/search-eu-law`, PR #241 closed with the
-numbers. If F fails, E ships as measured (PR #241 unchanged). F against E is reported paired and
-descriptive; it decides nothing.
+(b) F is non-inferior to E on the same questions (paired F - E, point estimates):
+
+4. N1: `refused(unanswerable, F) >= refused(unanswerable, E) - 0.07` (at most 3 of 44 fewer);
+5. N2: `correct(answerable, F) >= correct(answerable, E) - 0.05` (at most 2 of 43 fewer; together
+   with R2 that means at least 38 of 43);
+6. N3: F has at most 3 failed runs (`MAX_FAILED` of #7; E had 0).
+
+If F passes (a) and (b) it ships instead of E (simpler: no third model, no extra latency, no
+always-false field): a PR for `feat/eu-law-search-hint` against `feat/search-eu-law`, PR #241
+closed with the numbers. If F fails (a) or (b), E ships as measured (PR #241 unchanged). The
+paired F - E CIs are reported too; the rule uses the point estimates above.
 
 **Predictions.**
 
