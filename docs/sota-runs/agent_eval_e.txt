@@ -1,0 +1,44 @@
+| metric (mean [95 % CI]) | A | E |
+|---|---|---|
+| correct (answerable) | 0.930 [0.860, 1.000] | 0.884 [0.791, 0.977] |
+| partial (answerable) | 0.047 [0.000, 0.116] | 0.047 [0.000, 0.116] |
+| wrongly refused (answerable) | 0.000 [0.000, 0.000] | 0.047 [0.000, 0.116] |
+| refused (unanswerable) | 0.523 [0.364, 0.659] | 0.909 [0.818, 0.977] |
+| cited articles judged `yes` (answerable, answered) | 0.919 [0.837, 0.977] | 0.976 [0.939, 1.000] |
+| articles cited per answer | 1.42 [1.21, 1.65] | 1.41 [1.22, 1.66] |
+| answers without citation | 0.047 [0.000, 0.116] | 0.000 [0.000, 0.000] |
+| agent called the tool (all) | 0.885 [0.816, 0.943] | 0.920 [0.862, 0.977] |
+| prompt tokens of the last call (all) | 13939 [11521, 16704] | 9832 [9122, 10559] |
+| latency, s per question (all) | 400 [301, 515] | 110 [99, 124] |
+| failed runs | 9 | 0 |
+
+Paired differences against A (X - A; paired bootstrap over questions):
+
+| metric | E - A |
+|---|---|
+| correct (answerable) | -0.047 [-0.163, +0.047] (n=43) |
+| partial (answerable) | +0.000 [-0.093, +0.093] (n=43) |
+| wrongly refused (answerable) | +0.047 [+0.000, +0.116] (n=43) |
+| refused (unanswerable) | +0.386 [+0.227, +0.545] (n=44) |
+| cited articles judged `yes` (answerable, answered) | +0.049 [-0.024, +0.134] (n=41) |
+
+Coverage check of E (first search of each question; descriptive):
+
+| kind | questions flagged `answerable = false` | n |
+|---|---|---|
+| answerable | 40 | 43 |
+| unanswerable | 36 | 44 |
+
+Agent loop by question kind (mean / max per question; runaway = a call hit 8192 tokens):
+
+| setup | kind | searches | max prompt tokens | runaways | n |
+|---|---|---|---|---|---|
+| A | answerable | 1.07 / 2 | 9872 / 22069 | 0 | 43 |
+| A | unanswerable | 2.75 / 9 | 22400 / 64896 | 5 | 44 |
+| E | answerable | 1.00 / 1 | 9535 / 13703 | 0 | 43 |
+| E | unanswerable | 1.00 / 2 | 10122 / 22708 | 0 | 44 |
+
+Decision rule:
+
+- E: R1 refusal on unanswerable E - A +0.386 [+0.227, +0.545] lower bound > 0: True; R2 correct on answerable 0.884 vs 0.930 (margin 0.05): True; R3 failed runs 0 <= 9: True
+- E ships: True

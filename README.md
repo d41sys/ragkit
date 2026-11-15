@@ -1219,6 +1219,19 @@ The real `ezc-cli` agent session (shipped system prompt and tools, `search_eu_la
 
 **Decision rule:** B is not better (R1 fails) and has too many failed runs (R3); A also has more than 3 failed runs, so the study is invalid for the default decision and A stays the default; nothing changes. Failed runs are 1800 s timeouts, one 64 k context overflow, and empty answers after an 8192-token thinking run, all on unanswerable questions where the model searches up to 10 times instead of declining. Not comparable with the Sonnet-judged numbers above. Raw output: `docs/sota-runs/agent_eval.txt`.
 
+### A coverage check in the agent, issue #12 ([`docs/agent_eval_e_protocol.md`](docs/agent_eval_e_protocol.md))
+
+Setup E = A plus a coverage check: the backend endpoint calls `ragkit.search(answerable=True)` and returns `answerable_score`, `answerable_threshold` and `answerable`; the `search_eu_law` tool shows them and tells the agent to say the corpus does not cover the question after a negative check instead of searching again (ezcross-ems branch `feat/eu-law-answerable`, stacked on PR #239). Same 87 questions, models and judge as A; protocol committed before the run (`6aeea6c`). A ran on another day under another server load; not comparable with the earlier Sonnet-judged numbers.
+
+| | A | E | E - A (paired) |
+|---|---|---|---|
+| refused (unanswerable) | 0.523 [0.364, 0.659] | 0.909 [0.818, 0.977] | +0.386 [+0.227, +0.545] |
+| correct (answerable) | 0.930 [0.860, 1.000] | 0.884 [0.791, 0.977] | -0.047 [-0.163, +0.047] |
+| wrongly refused (answerable) | 0.000 | 0.047 | +0.047 [+0.000, +0.116] |
+| failed runs | 9 | 0 | |
+
+**Decision rule:** R1 (lower bound of the refusal gain above 0), R2 (correct on answerable at most 0.05 below A) and R3 (at most 9 failed runs) all pass, so E ships; R2 passes with no room (38 of 43 against the 38 needed). **Read this before relying on the check:** it is negative on 40 of 43 answerable and 36 of 44 unanswerable questions, because the reader scores the keyword query the agent writes while the threshold was fitted on whole questions (AUC 0.656 on first-search scores). The gain comes from the agent stopping after one search and judging the articles itself, not from a discriminating signal; a threshold calibrated on agent queries is not measured. A's 9 failed rows count as not refused; on the 35 unanswerable questions A finished the paired gain is +0.229 [+0.086, +0.400] (post hoc).
+
 ### LegalBench-RAG-mini: does the query prefix pull in the wrong documents? ([`docs/legalsplit_protocol.md`](docs/legalsplit_protocol.md))
 
 Every mini query reads `Consider <document description>; <question>` (776 of 776). Hypothesis: that shared prefix pulls retrieval towards the wrong documents. Pre-registered (`d38195d`), retrieval only (**no API call, no download**; only queries are embedded with the cached `e5-small-v2`, the document matrices come from the existing cache), same chunkers and engines as the baseline rows. Dev split of the queries (20% per source, seed 20261106: 156 dev, 620 test) for the design choices; test scored once. Arm A searches with the question after the first `;` only. Arm B **uses document metadata, not comparable to the published rows**: it ranks the 72 documents by matching the prefix against file name plus the first 2000 characters (profile chosen on dev, 94.2% top-1 on dev, 95.6% on test), then searches only the top-1 document with the question only (also dev-chosen).

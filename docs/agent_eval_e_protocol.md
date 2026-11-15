@@ -101,3 +101,81 @@ nothing of A is re-run or re-judged.
 
 That the threshold is right (in-sample, unstable); that the effect holds for other models; that
 E is better at telling the user *why* the corpus does not cover a question (not measured).
+
+## Results (2026-11-15; raw: `docs/sota-runs/agent_eval_e.txt`, verdicts `agent_eval_e_verdicts.json`)
+
+Protocol commit `6aeea6c`, code `0953d39`, ezcross-ems `feat/eu-law-answerable` at `2ae4af62`
+(driver, tool and endpoint; the run used that checkout). Main pass 2026-11-14 22:54Z to
+2026-11-15 01:34Z (2 h 40 m, one stream); the redo pass found nothing to redo (no failed row);
+judging 01:34Z to 01:59Z (`gemma3:27b`, A's verdicts replayed from the cache). 87 of 87 questions
+ran, 0 failed. **Not comparable one-to-one with the earlier Sonnet-judged numbers.** A ran on
+another day under another server load.
+
+| metric (mean [95 % CI]) | A | E |
+|---|---|---|
+| correct (answerable) | 0.930 [0.860, 1.000] | 0.884 [0.791, 0.977] |
+| partial (answerable) | 0.047 [0.000, 0.116] | 0.047 [0.000, 0.116] |
+| wrongly refused (answerable) | 0.000 [0.000, 0.000] | 0.047 [0.000, 0.116] |
+| refused (unanswerable) | 0.523 [0.364, 0.659] | 0.909 [0.818, 0.977] |
+| cited articles judged `yes` (answerable, answered) | 0.919 [0.837, 0.977] | 0.976 [0.939, 1.000] |
+| articles cited per answer | 1.42 [1.21, 1.65] | 1.41 [1.22, 1.66] |
+| answers without citation | 0.047 [0.000, 0.116] | 0.000 [0.000, 0.000] |
+| agent called the tool (all) | 0.885 [0.816, 0.943] | 0.920 [0.862, 0.977] |
+| prompt tokens of the last call (all) | 13939 [11521, 16704] | 9832 [9122, 10559] |
+| latency, s per question (all) | 400 [301, 515] | 110 [99, 124] |
+| failed runs | 9 | 0 |
+
+Paired differences, E - A (paired bootstrap over questions):
+
+| metric | E - A |
+|---|---|
+| correct (answerable) | -0.047 [-0.163, +0.047] (n=43) |
+| partial (answerable) | +0.000 [-0.093, +0.093] (n=43) |
+| wrongly refused (answerable) | +0.047 [+0.000, +0.116] (n=43) |
+| refused (unanswerable) | **+0.386 [+0.227, +0.545]** (n=44) |
+| cited articles judged `yes` (answerable, answered) | +0.049 [-0.024, +0.134] (n=41) |
+
+Agent loop (mean / max per question; runaway = a call used all 8192 tokens):
+
+| setup | kind | searches | max prompt tokens | runaways | n |
+|---|---|---|---|---|---|
+| A | answerable | 1.07 / 2 | 9872 / 22069 | 0 | 43 |
+| A | unanswerable | 2.75 / 9 | 22400 / 64896 | 5 | 44 |
+| E | answerable | 1.00 / 1 | 9535 / 13703 | 0 | 43 |
+| E | unanswerable | 1.00 / 2 | 10122 / 22708 | 0 | 44 |
+
+### Decision
+
+- R1: refusal on unanswerable E - A = +0.386, CI lower bound +0.227 > 0: **pass**.
+- R2: correct on answerable 0.884 (38 of 43) vs 0.930 (40 of 43); margin 0.05 (0.880): **pass**,
+  with no room left (one more lost answer would fail it).
+- R3: 0 failed runs <= 9: **pass**.
+
+**E ships by the pre-written rule.** The endpoint and tool change stays in the stacked PR for
+review.
+
+### What the numbers do not say (read before relying on the check)
+
+Post-hoc, descriptive; none of it changes the decision.
+
+- **P1 was wrong: the check is negative on almost every question.** First search of each
+  question: `answerable = false` on 40 of 43 answerable and 36 of 44 unanswerable questions
+  (predicted about 7 and 35). The reader scores the query the agent writes, a keyword string such
+  as "minimum share transmission capacity TSOs cross-zonal trade electricity", while the threshold
+  was fitted on whole natural-language questions. Median first-search score: -5.06 (answerable,
+  n=43) and -7.27 (unanswerable, n=37 with a search); the threshold is -0.74. The score separates
+  the two kinds only weakly (AUC 0.656).
+- So the gain does not come from a discriminating signal. The agent read a negative hint on 40 of
+  43 answerable questions and still answered 38 of them correctly; it declined on 40 of 44
+  unanswerable ones. The hint changes what the agent does after one search (1.00 searches on
+  both kinds, against 2.75 on unanswerable questions in A), and it judged the articles itself.
+  Whether a calibrated check (for example scoring the user's question, not the model's query)
+  would do better is not measured.
+- **A's 9 failed rows were unanswerable questions and count as not refused.** On the 35
+  unanswerable questions A finished, A refused 23 (0.657) and E refused 31 (0.886): paired
+  +0.229 [+0.086, +0.400]. The rule's R1 used all 44, as pre-registered.
+- Wrongly refused answerable questions: E `a24`, `a43` (A: none). E did not answer correctly on
+  `a06` and `a21` (partial) and `a19` (no); A on `a22`, `a24` (partial) and `a30` (no).
+- E did not refuse unanswerable `u09`, `u38`, `u42`, `u44`.
+- Latency fell from 400 to 110 s per question and no run failed, because the agent stops after
+  one search; the latency is not a controlled comparison (other day, one stream against two).
