@@ -247,3 +247,10 @@ paired F - E CIs are reported too; the rule uses the point estimates above.
 - P2: F answers the answerable questions as well as A (R2 passes with room, because the hint does
   not tell the agent the corpus fails).
 - P3: failed runs fall below A's 9, but stay above E's 0.
+
+**Note 2026-11-15 (before any scored F row).** The first F start failed on every row with
+`CUDA error: out of memory` (another user's jobs filled GPU 2 of the shared server); those rows
+were deleted unscored. From now on a pass that contains any row with `out of memory` is
+infrastructure failure, not model behaviour: the whole pass is moved aside unscored
+(`F.oom-<time>.jsonl`) and F restarts from the first question once the model loads again
+(`runs/agent_eval/wait_and_run_f.sh`, `pipeline_f.sh`). Other failures are handled as in A and E.
