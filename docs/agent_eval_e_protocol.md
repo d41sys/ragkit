@@ -179,3 +179,60 @@ Post-hoc, descriptive; none of it changes the decision.
 - E did not refuse unanswerable `u09`, `u38`, `u42`, `u44`.
 - Latency fell from 400 to 110 s per question and no run failed, because the agent stops after
   one search; the latency is not a controlled comparison (other day, one stream against two).
+
+## Setup F (hint only): protocol, frozen before any F run
+
+Date: 2026-11-15. User decision after the E result: the check was negative on almost every
+question, so its score carried little information (see "What the numbers do not say"). F keeps
+only the instruction. This section is committed alone, before the F code and before any F run.
+
+**What F is.** A's endpoint, unchanged: no `answerable` fields, no reader model, no third model
+in the request path. The tool text changes, in ezcross-ems branch `feat/eu-law-search-hint`
+(from `feat/search-eu-law`; tool text only, backend unchanged; E's branch
+`feat/eu-law-answerable` stays as it is). The wording follows E's without naming a check.
+
+Description as sent (sha256 `651bac3f3d8fa9256e474362ebfee3ae0f23485dea52a2de959f721f3db025a7`;
+the added sentence is `If the returned articles do not answer the question, ...`):
+
+> Search EU law (articles of EU regulations and directives on energy, data and AI) and return the best-matching articles with id, act, article number, heading, url, corpus version and text. Retrieval only: write the answer yourself from these articles. Cite every claim by article id and url, and quote the corpus version when it matters. If the returned articles do not answer the question, tell the user the bundled corpus does not cover it and do not keep searching (at most one rephrased search). If no returned article supports an answer, say so plainly; do not answer EU-law questions from memory.
+
+Hint on **every** tool result (A's hint ended with "If none of these articles supports an
+answer, say so instead of guessing."):
+
+> Cite article ids and urls. If the returned articles do not answer the question, tell the user the bundled corpus does not cover it and do not keep searching (at most one rephrased search).
+
+and, when a search returns no article:
+
+> No article found: tell the user the bundled corpus does not cover it; do not keep searching (at most one rephrased search).
+
+Unlike E the hint does not depend on a score: it is the same advice after every search, and the
+agent decides from the articles whether they answer the question.
+
+**Runs.** Same as E: all 87 questions, the same models, variant (`qwen3.6:27b-ctx64k`,
+num_ctx 64k), temperature 0, seed 0, 1800 s timeout, judge `gemma3:27b`, same metrics, one
+stream on the shared server, one redo pass of failed rows (a row that fails again stays failed:
+not correct, not refused). Harness: `eu-law-run.ts` from `feat/eu-law-search-hint`; stand-in
+`python -m ragkit.agentbench serve --setup F` (A's response, A's list, no shaping). A's rows and
+E's rows are the ones already committed. A ran on another day under another server load, and so
+did E; F is a third day.
+
+**Decision rule (F against A, the same R1 to R3 as E).** F ships iff all of:
+
+1. R1: the paired 95 % CI of `refused(unanswerable, F) - refused(unanswerable, A)` has a lower
+   bound above 0;
+2. R2: `correct(answerable, F) >= correct(answerable, A) - 0.05` (at least 38 of 43);
+3. R3: F has at most 9 failed runs.
+
+If F passes it ships instead of E (simpler: no third model, no extra latency, no always-false
+field): a PR for `feat/eu-law-search-hint` against `feat/search-eu-law`, PR #241 closed with the
+numbers. If F fails, E ships as measured (PR #241 unchanged). F against E is reported paired and
+descriptive; it decides nothing.
+
+**Predictions.**
+
+- P1: F refuses more of the unanswerable questions than A and fewer than E (a hint that is the
+  same after every search is weaker than one that was negative on 93 % of answerable questions);
+  R1 is uncertain.
+- P2: F answers the answerable questions as well as A (R2 passes with room, because the hint does
+  not tell the agent the corpus fails).
+- P3: failed runs fall below A's 9, but stay above E's 0.
