@@ -5,7 +5,9 @@ Four setups, one question set (``eu-consolidated``: 43 answerable + 44 unanswera
 - ``A``: ``ragkit.search`` defaults (budget packing, 12k tokens, 10 chunks);
 - ``B``: the three best articles only (``ragkit answer --no-pack``, k = 3);
 - ``C``: the packed articles of ``A`` in reversed order (worst first);
-- ``D``: the whole corpus in the prompt, no tool.
+- ``D``: the whole corpus in the prompt, no tool;
+- ``E``/``F``: ``A`` with a coverage check / a hint only (``docs/agent_eval_e_protocol.md``);
+- ``G``: ``E`` with the article list reversed (``docs/agent_eval_gd_protocol.md``).
 
 A to C run through the real agent loop (``ezc-cli`` session, model ``local/<id>``) and the real
 ``search_eu_law`` tool; ``serve`` stands in for the backend's ``POST /regulation/search`` (it calls
@@ -47,7 +49,7 @@ QA_FILE = DATA / "qa_eu_consolidated.jsonl"
 UNANSWERABLE_FILE = DATA / "unanswerable_eu_consolidated.jsonl"
 RUNS_DIR = Path("runs/agent_eval")
 JUDGE_CACHE = Path("data/llm_cache/agent_eval_judge.jsonl")
-SETUPS = ("A", "B", "C", "D", "E", "F")
+SETUPS = ("A", "B", "C", "D", "E", "F", "G")
 CANDIDATES = ("B", "C")  # D is a reference: the corpus does not go into every request
 K3_CHUNKS = 5  # the chunks ``ragkit answer --no-pack`` reads (``--top-k``)
 K3_ARTICLES = 3  # ``--articles``
@@ -107,13 +109,13 @@ def sha256_file(path: Path) -> str:
 
 
 def search_for_setup(setup: str, query: str, max_tokens: int | None) -> dict[str, Any]:
-    """The JSON ``POST /regulation/search`` returns for setup A, B, C, E or F (F: A's response)."""
+    """The JSON ``POST /regulation/search`` returns for a setup (F: A's; G: E's, reversed)."""
     import ragkit
 
     kwargs: dict[str, Any] = {}
     if max_tokens is not None:
         kwargs["budget_tokens"] = max_tokens
-    if setup == "E":  # the endpoint of ``feat/eu-law-answerable``: A plus the coverage check
+    if setup in ("E", "G"):  # the endpoint of ``feat/eu-law-answerable``: A plus the coverage check
         kwargs["answerable"] = True
     if setup == "B":
         kwargs["pack_chunks"] = K3_CHUNKS
@@ -122,10 +124,10 @@ def search_for_setup(setup: str, query: str, max_tokens: int | None) -> dict[str
         setup == "B"
     ):  # the first k articles of the packed list are what ``parent_articles(k)`` takes
         body["articles"] = body["articles"][:K3_ARTICLES]
-    elif setup == "C":
+    elif setup in ("C", "G"):
         body["articles"] = body["articles"][::-1]
     body["estimated_tokens"] = sum(estimate_tokens(a["text"]) for a in body["articles"])
-    if setup == "E":
+    if setup in ("E", "G"):
         score, threshold = body["answerable_score"], body["answerable_threshold"]
         body["answerable"] = None if score is None or threshold is None else score >= threshold
     return dict(body)
@@ -224,19 +226,28 @@ def truncation_problem(
 
 
 def ask_full(
-    questions: Sequence[Mapping[str, Any]], out: Path, base_url: str, model: str, system: str
+    questions: Sequence[Mapping[str, Any]],
+    out: Path,
+    base_url: str,
+    model: str,
+    system: str,
+    *,
+    redo_failed: bool = False,
 ) -> None:
     """Setup D: the whole corpus in the system prompt, no tool, one native ``/api/chat`` call each.
 
     The native API takes ``options.num_ctx`` (the ``/v1`` one ignores it). Every call is checked
-    with ``truncation_problem``; a call that fails it is recorded as failed, never scored.
+    with ``truncation_problem``; a call that fails it is recorded as failed, never scored. With
+    ``redo_failed`` only questions whose last row has an error or no answer run again; the new row
+    is appended and wins by id (as the agent driver's ``--redo-failed``).
     """
     from ragkit._search import load_documents
 
     system_prompt = f"{system}\n\n{D_PREAMBLE}\n\n{corpus_block(load_documents(CORPUS_DIR))}"
-    done = {r["id"] for r in _load_records(out)} if out.is_file() else set()
+    last = {r["id"]: r for r in _load_records(out)} if out.is_file() else {}
+    failed = {i for i, r in last.items() if r.get("error") or not r.get("final_text")}
     for question in questions:
-        if question["id"] in done:
+        if (question["id"] not in failed) if redo_failed else (question["id"] in last):
             continue
         chars = len(system_prompt) + len(question["q"])
         body = json.dumps(
@@ -580,6 +591,19 @@ def _fmt(t: tuple[float, float, float], scale: float = 1.0, digits: int = 3) -> 
     return f"{t[0] * scale:.{digits}f} [{t[1] * scale:.{digits}f}, {t[2] * scale:.{digits}f}]"
 
 
+def follow_up_gd(results: Mapping[str, Scored]) -> list[str]:
+    """``docs/agent_eval_gd_protocol.md``: validity of G and D, and whether one beats E."""
+    lines: list[str] = []
+    for x in (s for s in ("G", "D") if s in results):
+        r = results[x]
+        lo = paired(r.correct, results["E"].correct)[1]
+        lines.append(
+            f"{x}: failed runs {r.failed} <= {MAX_FAILED}: {r.failed <= MAX_FAILED}; "
+            f"correct {x} - E lower bound {lo:+.3f} > 0 (new issue, nothing ships): {lo > 0}"
+        )
+    return lines
+
+
 def render(results: Mapping[str, Scored]) -> str:
     """Markdown tables of the study: per setup with CIs, then paired differences against A."""
     names = [s for s in SETUPS if s in results]
@@ -610,12 +634,13 @@ def render(results: Mapping[str, Scored]) -> str:
             m, lo, hi, n = paired(getattr(results[s], attr), getattr(results["A"], attr))
             cells.append(f"{m:+.{digits}f} [{lo:+.{digits}f}, {hi:+.{digits}f}] (n={n})")
         out.append(f"| {label} | " + " | ".join(cells) + " |")
-    if "E" in results and "F" in results:
-        out += ["", "Paired differences F - E (descriptive; N1 to N3 use the point estimates):", ""]
-        out.append("| metric | F - E |")
+    for x in (s for s in ("F", "G", "D") if s in results and "E" in results):
+        note = "N1 to N3 use the point estimates" if x == "F" else "docs/agent_eval_gd_protocol.md"
+        out += ["", f"Paired differences {x} - E (descriptive; {note}):", ""]
+        out.append(f"| metric | {x} - E |")
         out.append("|---|---|")
         for label, attr, _, digits in rows[:5]:
-            m, lo, hi, n = paired(getattr(results["F"], attr), getattr(results["E"], attr))
+            m, lo, hi, n = paired(getattr(results[x], attr), getattr(results["E"], attr))
             out.append(
                 f"| {label} | {m:+.{digits}f} [{lo:+.{digits}f}, {hi:+.{digits}f}] (n={n}) |"
             )
@@ -654,6 +679,8 @@ def render(results: Mapping[str, Scored]) -> str:
         rule += decide_e(results)[1]
     if "F" in results and "E" in results:
         rule += decide_f(results)[1]
+    if "E" in results:
+        rule += follow_up_gd(results)
     return "\n".join(out + ["", "Decision rule:", ""] + [f"- {line}" for line in rule])
 
 
@@ -664,8 +691,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="python -m ragkit.agentbench", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("questions", help="write runs/agent_eval/questions.jsonl and print file hashes")
-    s = sub.add_parser("serve", help="backend stand-in for setup A, B, C, E or F")
-    s.add_argument("--setup", required=True, choices=("A", "B", "C", "E", "F"))
+    s = sub.add_parser("serve", help="backend stand-in for setup A, B, C, E, F or G")
+    s.add_argument("--setup", required=True, choices=("A", "B", "C", "E", "F", "G"))
     s.add_argument("--port", type=int, required=True)
     s.add_argument("--log", default=None)
     d = sub.add_parser("ask-full", help="setup D: the whole corpus in the prompt")
@@ -673,6 +700,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     d.add_argument("--model", required=True)
     d.add_argument("--system-prompt-from", default=str(RUNS_DIR / "A.jsonl.config.json"))
     d.add_argument("--only", default=None, help="comma-separated question ids")
+    d.add_argument(
+        "--redo-failed", action="store_true", help="run again the ids whose last row failed"
+    )
     r = sub.add_parser("report", help="judge (cached) and print the tables and the decision")
     r.add_argument("--base-url", default="http://localhost:21434")
     r.add_argument(
@@ -701,7 +731,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         ]
         wanted = args.only.split(",") if args.only else None
         rows = [q for q in load_questions() if wanted is None or q["id"] in wanted]
-        ask_full(rows, RUNS_DIR / "D.jsonl", args.base_url, args.model, system)
+        ask_full(
+            rows,
+            RUNS_DIR / "D.jsonl",
+            args.base_url,
+            args.model,
+            system,
+            redo_failed=args.redo_failed,
+        )
     else:
         from ragkit._search import load_documents
 

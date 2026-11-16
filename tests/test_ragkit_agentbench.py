@@ -63,6 +63,58 @@ def test_setup_e_adds_the_endpoints_coverage_fields(monkeypatch: pytest.MonkeyPa
     assert flags == [False, True, None]
 
 
+def test_setup_g_is_e_with_the_list_reversed(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[dict[str, Any]] = []
+
+    class Result:
+        def to_dict(self) -> dict[str, Any]:
+            return {
+                "articles": [_article(i) for i in (1, 2, 3)],
+                "answerable_score": -3.0,
+                "answerable_threshold": -0.74,
+            }
+
+    def search(query: str, **kwargs: Any) -> Result:
+        calls.append(kwargs)
+        return Result()
+
+    monkeypatch.setattr(ragkit, "search", search)
+    g = agentbench.search_for_setup("G", "q", None)
+    assert [x["rank"] for x in g["articles"]] == [3, 2, 1]
+    assert g["answerable"] is False and calls == [{"answerable": True}]
+
+
+def test_ask_full_redo_runs_only_failed_ids(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    asked: list[str] = []
+
+    class Response(io.BytesIO):
+        def __enter__(self) -> "Response":
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            return None
+
+    def urlopen(request: Any, timeout: int) -> Response:
+        body = json.loads(request.data)
+        question = body["messages"][1]["content"]
+        asked.append(question)
+        if question == "q2" and asked.count("q2") == 1:
+            raise TimeoutError("first try times out")
+        tokens = sum(len(m["content"]) for m in body["messages"]) // 5
+        reply = {"message": {"content": "answer"}, "prompt_eval_count": tokens, "eval_count": 3}
+        return Response(json.dumps(reply).encode())
+
+    monkeypatch.setattr(agentbench.urllib.request, "urlopen", urlopen)
+    out = tmp_path / "D.jsonl"
+    questions = [{"id": "a01", "q": "q1"}, {"id": "a02", "q": "q2"}]
+    agentbench.ask_full(questions, out, "http://h:1", "m", "sys")
+    agentbench.ask_full(questions, out, "http://h:1", "m", "sys")  # resume: nothing left
+    agentbench.ask_full(questions, out, "http://h:1", "m", "sys", redo_failed=True)
+    assert asked == ["q1", "q2", "q2"]
+    last = {r["id"]: r for r in agentbench._load_records(out)}
+    assert "error" not in last["a02"] and last["a02"]["final_text"] == "answer"
+
+
 def test_cited_articles_ids_then_natural_references() -> None:
     corpus = {"reg_2019_943_art16", "dir_2019_944_art15", "reg_2019_943_art17"}
     assert agentbench.cited_articles("see reg_2019_943_art16 and dir_2019_999_art1", corpus) == [
