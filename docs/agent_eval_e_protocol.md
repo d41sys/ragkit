@@ -254,3 +254,32 @@ were deleted unscored. From now on a pass that contains any row with `out of mem
 infrastructure failure, not model behaviour: the whole pass is moved aside unscored
 (`F.oom-<time>.jsonl`) and F restarts from the first question once the model loads again
 (`runs/agent_eval/wait_and_run_f.sh`, `pipeline_f.sh`). Other failures are handled as in A and E.
+
+### Setup F results (2026-11-16; raw: `docs/sota-runs/agent_eval_f.txt`, verdicts `agent_eval_f_verdicts.json`)
+
+Waited for GPU 2 from 2026-11-15 20:13Z; the model loaded at 2026-11-16 01:33Z. Main pass 01:33Z
+to 03:23Z, redo pass to 03:29Z, judged by 03:39Z, one stream; no pass was discarded for GPU out of
+memory (no `F.oom-*` file). One failed run: `u28`, empty final answer in the main and the redo pass.
+
+| | A | E | F | F - A (paired) | F - E (paired) |
+|---|---|---|---|---|---|
+| refused (unanswerable) | 0.523 | 0.909 | 0.795 | +0.273 [+0.136, +0.432] | -0.114 [-0.227, +0.000] |
+| correct (answerable) | 0.930 | 0.884 | 0.907 | -0.023 [-0.140, +0.070] | +0.023 [-0.093, +0.140] |
+| wrongly refused (answerable) | 0.000 | 0.047 | 0.000 | +0.000 | -0.047 [-0.116, +0.000] |
+| failed runs | 9 | 0 | 1 | | |
+| searches per unanswerable question | 2.75 | 1.00 | 1.84 | | |
+
+**Decision (rule as corrected in `dff330f`):** (a) passes (R1 +0.273 lower bound > 0, R2 0.907,
+R3 1); (b) fails on N1 (refusal -0.114 < -0.07: 35 against E's 40 of 44); N2 and N3 pass. **F does
+not ship; E ships as measured (PR #241).** The failed run does not decide it: counted as refused,
+F would still be 4 of 44 below E (-0.091).
+
+**Predictions:** P1 holds (F between A and E on refusal); P2 holds only in part (correct 0.907, one
+question below A; R2 passes with one question of room); P3 holds (1 failed run, between E's 0 and
+A's 9).
+
+**Read as:** the score field is almost always negative, but the setup that tells the agent "the
+corpus likely does not answer this" declines 5 more unanswerable questions than the one with a
+neutral instruction, and searches less. It also refuses 2 answerable questions F answers. E and F
+ran on different days of the same shared server; the difference is in the refusal decision, not
+in failures.

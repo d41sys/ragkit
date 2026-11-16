@@ -1232,6 +1232,18 @@ Setup E = A plus a coverage check: the backend endpoint calls `ragkit.search(ans
 
 **Decision rule:** R1 (lower bound of the refusal gain above 0), R2 (correct on answerable at most 0.05 below A) and R3 (at most 9 failed runs) all pass, so E ships; R2 passes with no room (38 of 43 against the 38 needed). **Read this before relying on the check:** it is negative on 40 of 43 answerable and 36 of 44 unanswerable questions, because the reader scores the keyword query the agent writes while the threshold was fitted on whole questions (AUC 0.656 on first-search scores). The gain comes from the agent stopping after one search and judging the articles itself, not from a discriminating signal; a threshold calibrated on agent queries is not measured. A's 9 failed rows count as not refused; on the 35 unanswerable questions A finished the paired gain is +0.229 [+0.086, +0.400] (post hoc).
 
+**Hint only, setup F (protocol section "Setup F", `adab848`, rule corrected in `dff330f` before any F run):** the same "do not keep searching" instruction on every tool result, no reader score and no third model (ezcross-ems branch `feat/eu-law-search-hint`). It had to beat A under E's rule and match E (refusal at most 3 of 44 below E, correct at most 2 of 43 below E, at most 3 failed runs).
+
+| | A | E | F | F - E (paired) |
+|---|---|---|---|---|
+| refused (unanswerable) | 0.523 | 0.909 | 0.795 | -0.114 [-0.227, +0.000] |
+| correct (answerable) | 0.930 | 0.884 | 0.907 | +0.023 [-0.093, +0.140] |
+| wrongly refused (answerable) | 0.000 | 0.047 | 0.000 | -0.047 [-0.116, +0.000] |
+| failed runs | 9 | 0 | 1 | |
+| latency, s per question | 400 | 110 | 76 | |
+
+F beats A (refusal +0.273 [+0.136, +0.432]) but refuses 5 of 44 fewer unanswerable questions than E, so it fails the match with E and **E ships** (PR #241). So the flag, although negative on almost every question, still changes behaviour: "the corpus likely does not answer this" makes the agent decline more often than a neutral instruction (searches per unanswerable question: E 1.00, F 1.84), at the cost of 2 wrongly refused answerable questions. Raw output: `docs/sota-runs/agent_eval_f.txt`.
+
 ### LegalBench-RAG-mini: does the query prefix pull in the wrong documents? ([`docs/legalsplit_protocol.md`](docs/legalsplit_protocol.md))
 
 Every mini query reads `Consider <document description>; <question>` (776 of 776). Hypothesis: that shared prefix pulls retrieval towards the wrong documents. Pre-registered (`d38195d`), retrieval only (**no API call, no download**; only queries are embedded with the cached `e5-small-v2`, the document matrices come from the existing cache), same chunkers and engines as the baseline rows. Dev split of the queries (20% per source, seed 20261106: 156 dev, 620 test) for the design choices; test scored once. Arm A searches with the question after the first `;` only. Arm B **uses document metadata, not comparable to the published rows**: it ranks the 72 documents by matching the prefix against file name plus the first 2000 characters (profile chosen on dev, 94.2% top-1 on dev, 95.6% on test), then searches only the top-1 document with the question only (also dev-chosen).
