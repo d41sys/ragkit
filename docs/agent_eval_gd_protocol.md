@@ -71,3 +71,16 @@ not listed here is labelled post-hoc.
 As in `agent_eval_protocol.md`: one agent model, an LLM judge, agent-reviewed labels, effects of
 about 15 percentage points resolvable. G and D run on another day than E under another server
 load, so latency and timeouts are not a controlled comparison; the answers are.
+
+## Amendment 2026-11-16 (G running, before any D row and before any judge call)
+
+- **D's refusal is not a clean contrast with E's.** D's instruction (`D_PREAMBLE`, "If no article
+  supports an answer, say so plainly") is neutral like F's tool text, while E's tool text says the
+  bundled corpus "likely does not cover" the question; F showed that wording alone moves refusal by
+  5 of 44. So D - E on refusal mixes "full context vs retrieval" with "strong vs neutral refusal
+  instruction". P4 and the D - E refusal row are descriptive; D's refusal is also read against F's
+  0.795 (point estimates, descriptive). The D - E follow-up rule already uses `correct` only and is
+  unchanged.
+- **Transport.** D calls Ollama's native `/api/chat` with `temperature 0`, `seed 0` in the request;
+  E and G go through `/v1` with the variant's `temperature 0`, `seed 0` and the runner's
+  temperature 0. Same sampling settings, different API path; recorded, not tested.
