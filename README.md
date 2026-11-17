@@ -1189,6 +1189,19 @@ Tuning selected B0 for F2 (depth 100), F3 (RRF) and S (joint stack). Sensitivity
 
 **Verdict**: none adopted per the decision rule (F1: MRR CI lower bound <= 0 and wrong-act rose; F4: CI spans 0). Default retrieval remains chunk-level `hybrid+ce@100`.
 
+### Larger models and LLM query expansion against vocabulary mismatch, Phase K-R5 ([`docs/vocab_protocol.md`](docs/vocab_protocol.md))
+
+K-R3 left 29 of 31 held-out misses as vocabulary mismatch. A pre-registered follow-up (issue #13) tested three fixes on the same 130 held-out questions, tuned on fresh 29 + synthetic 40: a larger embedder (bge-base-en-v1.5, M1), a larger cross-encoder (bge-reranker-base, M2) and query2doc-style expansion (Q1: Qwen3.6 27B writes a ~120-word passage in regulatory wording, added to the BM25 and dense queries; the cross-encoder keeps the original question, chosen in tuning). The 199 passages are public in `docs/sota-runs/vocab_expansions.jsonl`; raw output `docs/sota-runs/vocab_heldout.txt`. B0 reproduces K-R3 (MRR 0.664, wrong-act 32) and the packing study (pack recall 111/130).
+
+| System | MRR | G@5 (prod) | pack recall | wrong-act | paired d MRR vs B0 | synthetic d MRR |
+|---|---|---|---|---|---|---|
+| B0 (`hybrid+ce`: bge-small, MiniLM) | 0.664 [0.596, 0.732] | 0.762 | 111/130 | 32 | baseline | baseline |
+| M1 bge-base | 0.661 [0.593, 0.730] | 0.769 | 109/130 | 32 | -0.003 [-0.007, +0.000] | +0.000 |
+| M2 bge-reranker-base | 0.704 [0.636, 0.771] | 0.785 | 111/130 | 31 | +0.040 [-0.011, +0.091] | -0.031 [-0.087, +0.025] |
+| Q1 Qwen expansion | 0.671 [0.603, 0.740] | 0.769 | 111/130 | 32 | +0.007 [-0.001, +0.017] | +0.000 |
+
+**Verdict**: nothing adopted. M1 and Q1 show no evidence of a gain; M2 is rejected by the synthetic guard (-0.031 < -0.02) and its CI also includes 0. The defaults are unchanged. Non-gating and post-hoc: the cell bge-reranker-base + expansion (original query to the cross-encoder) has the only CI above 0 among 11 cells, +0.051 [+0.002, +0.101], with pack recall 117/130. It was not selected (the saturated tuning sets ranked it below B0) and needs new, unseen questions to confirm. Giving the cross-encoder the expanded query is harmful (-0.08 to -0.29 MRR).
+
 ### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
 
 `ragkit answer` passed the first 3 distinct parent articles of the top-5 chunks under a 12 000-token budget the contexts never filled (mean 3 229 to 3 526 estimated tokens on the 130 pooled held-out questions). Budget packing adds distinct articles in rank order until the budget is full, never exceeds it, and drops the first article that does not fit and all later ones (`stop`; `skip` is the alternative). Pre-registered (`13aa661`), retrieval only: **no generation, no API call, answer quality not re-measured**. Overflow policy and pool depth were chosen on the dev sets (fresh 29 + synthetic 40, at the ceiling, so by tie-break: `stop`, 10 chunks) before one held-out run (`ragkit packing score`).

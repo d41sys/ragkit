@@ -153,3 +153,60 @@ one passes condition 1 under the null).
 Answer quality, latency and cost under the agent are not measured here. Expansion results hold for
 this one LLM, prompt and decoding setting. The held-out questions are agent-drafted and
 agent-reviewed, and were already used to find this problem.
+
+## Outcome (scored once; raw output `docs/sota-runs/vocab_heldout.txt`, tuning `vocab_tuning.txt` / `vocab_tuning.json`, passages `vocab_expansions.jsonl`)
+
+Order in `git log`: protocol `d672246`, code `d2bc5a3`, expansions `997897c` (199 passages, 0 empty,
+0 failed calls; about 120 words each), tuning `bafc7db`, held-out run `97d7515`.
+
+**Reproduction check.** B0 reproduces the earlier studies exactly: tuning objective 0.9765 (K-R3:
+0.9765), pooled MRR 0.664 and wrong-act 32 / 130 (K-R3), pack recall 0.854 = 111 / 130 (packing
+study).
+
+**Tuning (fresh 29 + synthetic 40).** The tuning sets are saturated: B0 has fresh MRR 0.966 and
+synthetic 0.988, and pack recall 1.000 on both. Four cells tie at the top (B0, expansion with the
+original CE query, bge-base, and both), so S = B0 by the tie-break; every `bge-reranker` cell scores
+below B0 (objective 0.944 to 0.945), and every `ce_query = expanded` cell is worse still. Q1 chose
+`ce_query = original`.
+
+**Held-out, pooled 130 (gating).**
+
+| system | cell | MRR | G@5 (prod) | pack recall | wrong-act | d MRR vs B0 | d pack vs B0 |
+|---|---|---|---|---|---|---|---|
+| B0 | `bge-small/minilm/exp=off` | 0.664 [0.596, 0.732] | 0.762 | 0.854 | 32 | baseline | baseline |
+| M1 | `bge-base/minilm/exp=off` | 0.661 [0.593, 0.730] | 0.769 | 0.838 | 32 | -0.003 [-0.007, +0.000] | -0.015 (0 / 2) |
+| M2 | `bge-small/bge-reranker/exp=off` | 0.704 [0.636, 0.771] | 0.785 | 0.854 | 31 | +0.040 [-0.011, +0.091] | +0.000 (5 / 5) |
+| Q1 | `bge-small/minilm/exp=on/ce=original` | 0.671 [0.603, 0.740] | 0.769 | 0.854 | 32 | +0.007 [-0.001, +0.017] | +0.000 (1 / 1) |
+
+Synthetic guard (paired MRR vs B0): M1 +0.000, M2 -0.031 [-0.087, +0.025] (below -0.02), Q1 +0.000.
+
+**Verdicts.** M1: not adopted (no evidence; pack recall also fell). M2: **rejected** by the
+synthetic guard (its pooled MRR CI also includes 0). Q1: not adopted (no evidence). S: tuning
+selected B0. **Nothing is adopted; the defaults stay** (`hybrid+ce` = bge-small + MiniLM, no
+expansion).
+
+**Non-gating (post-hoc reading; nothing is selected on it).**
+
+- The one cell whose pooled MRR CI is above 0 is `bge-small/bge-reranker/exp=on/ce=original`:
+  +0.051 [+0.002, +0.101] (29 better / 16 worse), pack recall 0.900 (117 / 130, +6 against B0,
+  +0.046 [-0.008, +0.100]), wrong-act 31. It was not a candidate after tuning (the saturated tuning
+  sets ranked it below B0), and picking it now would be choosing on the held-out data. Eleven
+  non-B0 cells were looked at, so one CI above 0 can arise by chance (roughly 1 in 4 if nothing
+  works, ignoring that the cells are correlated). It is a hypothesis for a new, confirmatory study
+  on unseen questions, not a result.
+- Giving the cross-encoder the expanded query is harmful in every cell: about -0.08 MRR with MiniLM
+  (39 / 130 wrong-act) and about -0.29 with bge-reranker-base (62 to 66 / 130 wrong-act).
+- By set, expansion helps where it was meant to: Q1 is +0.015 MRR on the keyword-free 49, +0.004 on
+  the original 42 and +0.000 on the hard 39; bge-reranker-base gains most on the original 42
+  (+0.074 [-0.002, +0.155]).
+
+**Predictions.** P-M1 failed (−0.003, not +0.02). P-M2 held (+0.040, the largest model gain, CI
+lower bound −0.011, near 0). P-Q1 held in direction (keyword-free gains most; tuning chose
+`ce_query = original`) but its size failed (+0.007, not +0.03 to +0.06). P-S failed (S = B0: the
+tuning sets cannot separate the cells). The pack-recall prediction held for the candidates (moves of
+0 to 2 questions); the post-hoc cell above moved 6.
+
+**What this says.** Neither a bigger embedder nor LLM expansion alone fixes the vocabulary-mismatch
+misses of the default retriever. A stronger cross-encoder moves MRR by about +0.04 but costs the
+synthetic set 0.03 and does not pass. The protocol's weak point was its tuning data: fresh 29 and
+synthetic 40 are at their ceiling, so tuning could not see what the held-out sets show.
