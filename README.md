@@ -1163,6 +1163,18 @@ Because ragkit serves general retrieval for the group, not only EU law, the K-R5
 
 **Verdict**: neither adopted; the defaults are unchanged. On EU law the K-R5 lead is confirmed on new questions (MRR +0.08 to +0.10, CI above 0; wrong-act 12 against 15), but the larger reranker is reliably worse on NFCorpus (medical and nutrition research) and only level on SciFact, so it is not better as a general default, and it costs about 6 times the cross-encoder time. Synthetic (non-gating): -0.031 and -0.029. After the run, by the owner's decision, R ships **opt-in** as `retriever="hybrid+bge-ce"` for the EU-law corpus (see "Library use"); this choice per corpus was not pre-registered, and its evidence is the 60 EU questions above. C (expansion) is not shipped.
 
+### The published industry recipe: larger chunks and contextual retrieval, Phase K-R7 ([`docs/contextual_protocol.md`](docs/contextual_protocol.md))
+
+ragkit already had the core of the pipeline OpenAI, Azure, Google and Anthropic publish (BM25 + dense, RRF, cross-encoder). Two parts were missing and were tested once (issue #15): larger chunks (S: 1600 characters with 400 overlap, about 400 tokens, the 512-token / 25 % setting of Azure and Vertex sized to ragkit's 512-token models) and Anthropic's contextual retrieval (SC: Qwen3.6 27B writes a short context for each chunk from the whole document with Anthropic's published prompt; the context is prepended before BM25, embedding and reranking). EU: the 190 held-out questions on the served corpus. Other collection: LegalBench-RAG-mini privacy policies and NDAs (388 queries, documents up to 54 000 characters), share of gold text retrieved within a budget of 8000 characters. Raw output `docs/sota-runs/contextual_score.txt`; 668 contexts in `contextual_contexts.jsonl`.
+
+| | EU 190 MRR d | EU wrong-act | EU pack recall | LegalBench budget recall (8000) |
+|---|---|---|---|---|
+| B0 (shipped, 500-character chunks; absolute values) | 0.681 | 46 | 159/190 | 0.415 |
+| S (1600 / 400) | -0.039 [-0.079, -0.001] | 53 | 150/190 | +0.034 [-0.010, +0.076] |
+| SC (S + Qwen context) | -0.033 [-0.075, +0.010] | 50 | 153/190 | +0.145 [+0.103, +0.191] |
+
+**Verdict**: nothing ships (the rule needed an EU gain). The recipe pays off on long documents: on privacy policies and NDAs the context raises the share of gold text retrieved from 0.415 to 0.560 (+35 % relative; SC beats S by +0.112, so it is the context, not the size). On EU articles, which are short and start with a heading naming the act and article, larger chunks lose, and the context recovers only part of that. Context on the shipped 500-character chunks was not tested. Whether SC helps on the group's own long reports is not measured (no labelled questions exist).
+
 ### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
 
 `ragkit answer` passed the first 3 distinct parent articles of the top-5 chunks under a 12 000-token budget the contexts never filled (mean 3 229 to 3 526 estimated tokens on the 130 pooled held-out questions). Budget packing adds distinct articles in rank order until the budget is full, never exceeds it, and drops the first article that does not fit and all later ones (`stop`; `skip` is the alternative). Pre-registered (`13aa661`), retrieval only: **no generation, no API call, answer quality not re-measured**. Overflow policy and pool depth were chosen on the dev sets (fresh 29 + synthetic 40, at the ceiling, so by tie-break: `stop`, 10 chunks) before one held-out run (`ragkit packing score`).

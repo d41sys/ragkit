@@ -134,3 +134,27 @@ share of SC chunk texts over 512 bge-small tokens (cut by the embedder).
 Answer quality through the agent; hosted embedders or rerankers (Voyage, Gemini, Cohere), which the
 published results used; other prompts or LLMs for the context; MAUD and CUAD; the group's own
 research documents (no labelled questions exist yet).
+
+## Outcome (scored once; raw output `docs/sota-runs/contextual_score.txt`, contexts `contextual_contexts.jsonl`)
+
+| | EU 190 MRR d | EU wrong-act | EU pack recall d | LegalBench budget recall d (8000) |
+|---|---|---|---|---|
+| S (1600 / 400) | -0.039 [-0.079, -0.001] | 53 vs 46 | -0.047 | +0.034 [-0.010, +0.076] |
+| SC (S + context) | -0.033 [-0.075, +0.010] | 50 vs 46 | -0.032 | +0.145 [+0.103, +0.191] |
+
+**Verdicts.** S rejected (EU CI below 0). SC not adopted (no evidence): EU MRR CI includes 0, and
+wrong-act and pack recall are worse. Nothing ships; the defaults stay B0.
+
+**Predictions.** P-S: EU -0.039, just below the predicted -0.02 to +0.03; LegalBench +3.4 points,
+at the top of +0 to +3. P-SC wrong on EU (predicted +0.03 to +0.08, got -0.033) and far
+exceeded on LegalBench (predicted +1 to +5 points, got +14.5; +11.6 at 4000, +15.8 at 16000).
+P-cost right: 668 calls in 55 minutes, none empty, mean context 25 words.
+
+**What this says.** The recipe works where its authors measured it, on long documents: on
+privacy policies and NDAs (up to 54 000 characters) the Qwen context raises the share of the gold
+text retrieved within 8000 characters from 0.415 to 0.560, and most of that is the context
+(SC - S +0.112), not the chunk size. On the EU articles (median 3 000 characters, each starting
+with a heading that names the act and article) larger chunks lose: an article becomes one to three
+chunks, close to K-R3's article units, and the context only recovers part of the loss (SC beats S
+on the hard and keyword-free sets, not on the 60 new questions). Context on the shipped
+500-character chunks was not tested.
