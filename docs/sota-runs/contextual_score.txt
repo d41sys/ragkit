@@ -1,0 +1,85 @@
+### ragkit contextual score: K-R7 (docs/contextual_protocol.md)
+
+#### EU pooled (190 questions, consolidated corpus)
+
+| system | MRR | Recall@5 | G@5 (prod) | pack recall | wrong-act | MRR difference vs B0 |
+|---|---|---|---|---|---|---|
+| B0 | 0.681 [0.624, 0.735] | 0.782 [0.724, 0.834] | 0.758 [0.695, 0.816] | 0.837 [0.784, 0.889] | 46 |  |
+| S | 0.641 [0.584, 0.699] | 0.766 [0.705, 0.821] | 0.747 [0.684, 0.805] | 0.789 [0.732, 0.847] | 53 | -0.039 [-0.079, -0.001] (24/39/127) |
+| SC | 0.648 [0.590, 0.708] | 0.766 [0.708, 0.821] | 0.753 [0.695, 0.811] | 0.805 [0.753, 0.858] | 50 | -0.033 [-0.075, +0.010] (25/41/124) |
+
+#### EU original (42)
+
+| system | MRR | Recall@5 | G@5 (prod) | pack recall | wrong-act | MRR difference vs B0 |
+|---|---|---|---|---|---|---|
+| B0 | 0.750 [0.642, 0.851] | 0.845 [0.738, 0.940] | 0.810 [0.690, 0.929] | 0.952 [0.881, 1.000] | 7 |  |
+| S | 0.777 [0.672, 0.871] | 0.917 [0.833, 0.988] | 0.881 [0.785, 0.976] | 0.952 [0.881, 1.000] | 4 | +0.028 [-0.039, +0.100] (8/6/28) |
+| SC | 0.743 [0.633, 0.845] | 0.869 [0.762, 0.953] | 0.881 [0.762, 0.976] | 0.905 [0.810, 0.976] | 4 | -0.007 [-0.079, +0.065] (6/7/29) |
+
+#### EU hard (39)
+
+| system | MRR | Recall@5 | G@5 (prod) | pack recall | wrong-act | MRR difference vs B0 |
+|---|---|---|---|---|---|---|
+| B0 | 0.862 [0.758, 0.951] | 0.949 [0.872, 1.000] | 0.897 [0.795, 0.974] | 0.949 [0.872, 1.000] | 3 |  |
+| S | 0.774 [0.665, 0.880] | 0.923 [0.846, 1.000] | 0.897 [0.795, 0.974] | 0.923 [0.846, 1.000] | 5 | -0.088 [-0.159, -0.026] (1/7/31) |
+| SC | 0.835 [0.729, 0.936] | 0.897 [0.795, 0.974] | 0.872 [0.769, 0.974] | 0.897 [0.795, 0.974] | 4 | -0.026 [-0.105, +0.049] (4/4/31) |
+
+#### EU keyword-free (49)
+
+| system | MRR | Recall@5 | G@5 (prod) | pack recall | wrong-act | MRR difference vs B0 |
+|---|---|---|---|---|---|---|
+| B0 | 0.437 [0.322, 0.557] | 0.571 [0.429, 0.714] | 0.551 [0.408, 0.694] | 0.653 [0.510, 0.776] | 21 |  |
+| S | 0.410 [0.301, 0.532] | 0.551 [0.408, 0.694] | 0.531 [0.388, 0.673] | 0.592 [0.449, 0.735] | 29 | -0.027 [-0.121, +0.059] (10/14/25) |
+| SC | 0.432 [0.321, 0.550] | 0.612 [0.469, 0.735] | 0.612 [0.469, 0.735] | 0.653 [0.530, 0.776] | 27 | -0.005 [-0.105, +0.097] (8/16/25) |
+
+#### EU confirm (60)
+
+| system | MRR | Recall@5 | G@5 (prod) | pack recall | wrong-act | MRR difference vs B0 |
+|---|---|---|---|---|---|---|
+| B0 | 0.713 [0.606, 0.815] | 0.800 [0.700, 0.900] | 0.800 [0.700, 0.900] | 0.833 [0.733, 0.917] | 15 |  |
+| S | 0.649 [0.536, 0.757] | 0.733 [0.617, 0.833] | 0.733 [0.617, 0.833] | 0.750 [0.633, 0.850] | 15 | -0.065 [-0.142, +0.002] (5/12/43) |
+| SC | 0.636 [0.522, 0.741] | 0.733 [0.617, 0.850] | 0.700 [0.567, 0.817] | 0.800 [0.683, 0.900] | 15 | -0.077 [-0.147, -0.017] (7/14/39) |
+
+#### LegalBench privacy_qa + contractnli (388), budget 4000
+
+| system | budget recall | difference vs B0 (better/worse/tied) | by source |
+|---|---|---|---|
+| B0 | 0.297 [0.260, 0.337] |  | privacy_qa 0.235, contractnli 0.360 |
+| S | 0.337 [0.294, 0.377] | +0.039 [-0.003, +0.078] (121/93/174) | privacy_qa 0.332, contractnli 0.341 |
+| SC | 0.413 [0.371, 0.456] | +0.116 [+0.072, +0.161] (157/84/147) | privacy_qa 0.399, contractnli 0.427 |
+
+#### LegalBench privacy_qa + contractnli (388), budget 8000
+
+| system | budget recall | difference vs B0 (better/worse/tied) | by source |
+|---|---|---|---|
+| B0 | 0.415 [0.374, 0.454] |  | privacy_qa 0.361, contractnli 0.468 |
+| S | 0.448 [0.404, 0.490] | +0.034 [-0.010, +0.076] (138/111/139) | privacy_qa 0.444, contractnli 0.453 |
+| SC | 0.560 [0.519, 0.602] | +0.145 [+0.103, +0.191] (189/72/127) | privacy_qa 0.567, contractnli 0.554 |
+
+#### LegalBench privacy_qa + contractnli (388), budget 16000
+
+| system | budget recall | difference vs B0 (better/worse/tied) | by source |
+|---|---|---|---|
+| B0 | 0.537 [0.495, 0.576] |  | privacy_qa 0.504, contractnli 0.571 |
+| S | 0.639 [0.596, 0.681] | +0.102 [+0.059, +0.146] (172/86/130) | privacy_qa 0.701, contractnli 0.577 |
+| SC | 0.695 [0.655, 0.733] | +0.158 [+0.114, +0.204] (199/75/114) | privacy_qa 0.726, contractnli 0.664 |
+
+#### Verdicts
+
+- S: **rejected**. EU MRR -0.039 [-0.079, -0.001], wrong-act 53 vs 46, pack recall -0.047; LegalBench budget recall (8000) +0.0335.
+  - failed 1: EU MRR CI lower bound -0.079 <= 0
+  - failed 2: EU wrong-act 53 > 46
+  - failed 2: EU pack recall difference -0.047 < 0
+- SC: **not adopted (no evidence)**. EU MRR -0.033 [-0.075, +0.010], wrong-act 50 vs 46, pack recall -0.032; LegalBench budget recall (8000) +0.1455.
+  - failed 1: EU MRR CI lower bound -0.075 <= 0
+  - failed 2: EU wrong-act 50 > 46
+  - failed 2: EU pack recall difference -0.032 < 0
+- Ships: **nothing**.
+
+#### Not gating
+
+- chunks, B0: EU 982, LegalBench 1006
+- chunks, S: EU 320, LegalBench 348
+- chunks, SC: EU 320, LegalBench 348
+- contexts: 668, mean 25.2 words, 0 empty
+- SC chunk texts over 512 bge-small tokens (cut by the embedder): 6 / 668
