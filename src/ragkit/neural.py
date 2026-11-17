@@ -22,7 +22,14 @@ import numpy as np
 
 from ragkit.bm25 import BM25Index, top_k_indices
 from ragkit.chunking import Chunk
-from ragkit.modelsignals import CE_MODEL, CE_REVISION, CrossEncoderScorer, PassageScorer
+from ragkit.modelsignals import (
+    BGE_RERANKER_MODEL,
+    BGE_RERANKER_REVISION,
+    CE_MODEL,
+    CE_REVISION,
+    CrossEncoderScorer,
+    PassageScorer,
+)
 
 BGE_MODEL = "BAAI/bge-small-en-v1.5"  # MIT
 BGE_REVISION = "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a"
@@ -37,7 +44,13 @@ ALPHA_GRID = tuple(i / 10 for i in range(11))
 MAX_SEQ_LENGTH = 512
 CE_SLICE = 50  # pairs per cross-encoder forward pass (bounds memory on long BEIR documents)
 
-RETRIEVERS = ("bm25", "dense", "hybrid", "hybrid+ce")
+# Cross-encoder of each reranking level; ``hybrid+bge-ce`` is the opt-in EU-law reranker
+# (docs/confirm_protocol.md: better on EU law, worse on NFCorpus, about 6 times slower).
+CROSS_ENCODERS: dict[str, tuple[str, str]] = {
+    "hybrid+ce": (CE_MODEL, CE_REVISION),
+    "hybrid+bge-ce": (BGE_RERANKER_MODEL, BGE_RERANKER_REVISION),
+}
+RETRIEVERS = ("bm25", "dense", "hybrid", *CROSS_ENCODERS)
 # Systems reported by each ``--retriever`` level (docs/neural_protocol.md, "Systems").
 LEVEL_SYSTEMS: dict[str, tuple[str, ...]] = {
     "bm25": ("bm25",),
@@ -383,8 +396,8 @@ def build_engine(
         matrix = embed_corpus(embedder, texts, cache_dir, write=not serving)
         sides[key] = DenseSide(embedder, matrix, cache_queries=not serving)
     ce: PassageScorer | None = None
-    if level == "hybrid+ce":
-        ce = CrossEncoderScorer(CE_MODEL, CE_REVISION, device or default_device())
+    if level in CROSS_ENCODERS:
+        ce = CrossEncoderScorer(*CROSS_ENCODERS[level], device or default_device())
     return NeuralEngine(chunks, bm25, sides, ce, cache_ce=not serving)
 
 
@@ -394,7 +407,7 @@ def build_engine(
 
 
 class NeuralChunkRetriever:
-    """``add`` / ``search`` over chunks with the ``dense``, ``hybrid`` or ``hybrid+ce`` system."""
+    """``add`` / ``search`` over chunks with the ``dense``, ``hybrid`` or a reranking system."""
 
     def __init__(
         self,
@@ -404,7 +417,7 @@ class NeuralChunkRetriever:
         cache_dir: Path | None = None,
         serving: bool = False,
     ) -> None:
-        if level not in ("dense", "hybrid", "hybrid+ce"):
+        if level not in RETRIEVERS[1:]:
             raise ValueError(f"unsupported retriever {level!r}")
         self.level = level
         self.device = device
@@ -432,6 +445,6 @@ class NeuralChunkRetriever:
             return []
         engine = self._engine
         cands = engine.candidates(query)
-        system = {"dense": "dense", "hybrid": "hybrid", "hybrid+ce": "hybrid+ce@100"}[self.level]
+        system = "hybrid+ce@100" if self.level in CROSS_ENCODERS else self.level
         hits = engine.system(system, query, cands)[:k]
         return [(engine.chunks[i], score) for i, score in hits]

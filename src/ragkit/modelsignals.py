@@ -33,6 +33,8 @@ MODEL_SIGNALS: dict[str, str] = {
 # Pinned Hugging Face commits (read from the Hub API on 2026-10-23) and licences.
 CE_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"  # Apache-2.0
 CE_REVISION = "233902d25c440f23af6f7d6e94d2946bac0bee0a"
+BGE_RERANKER_MODEL = "BAAI/bge-reranker-base"  # MIT; read 2026-11-17 (docs/vocab_protocol.md)
+BGE_RERANKER_REVISION = "2cfc18c9415c912f9d8155881c133215df768a70"
 QA_MODEL = "deepset/roberta-base-squad2"  # CC-BY-4.0
 QA_REVISION = "adc3b06f79f797d1c575d5479d6f5efe54a9e3b4"
 

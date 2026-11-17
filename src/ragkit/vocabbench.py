@@ -19,7 +19,7 @@ from ragkit.ctxprefix import SEARCH_CHUNKS, SYNTHETIC_MAX_DROP, is_wrong_act
 from ragkit.eval import bootstrap_ci, mrr, paired_bootstrap_ci, recall_at_k
 from ragkit.lexical import Question
 from ragkit.llm import CachedMessages
-from ragkit.modelsignals import PassageScorer
+from ragkit.modelsignals import BGE_RERANKER_MODEL, BGE_RERANKER_REVISION, PassageScorer
 from ragkit.neural import (
     BGE_QUERY_INSTRUCTION,
     CE_SLICE,
@@ -41,8 +41,6 @@ from ragkit.parent import (
 # Frozen by the protocol (pinned Hugging Face revisions, read 2026-11-17).
 BGE_BASE_MODEL = "BAAI/bge-base-en-v1.5"  # MIT
 BGE_BASE_REVISION = "a5beb1e3e68b9ab74eb54cfd186867f64f240e1a"
-BGE_RERANKER_MODEL = "BAAI/bge-reranker-base"  # MIT
-BGE_RERANKER_REVISION = "2cfc18c9415c912f9d8155881c133215df768a70"
 EMBEDDERS = ("bge-small", "bge-base")
 RERANKERS = ("minilm", "bge-reranker")
 EXPANSION_MODEL = "qwen3.6:27b-ctx4k"

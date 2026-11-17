@@ -1107,9 +1107,15 @@ def cmd_vocab(args: argparse.Namespace) -> int:
         print(f"{len(passages)} passages ({client.live_calls} new, {empty} empty)")
         return 0
 
-    from ragkit.modelsignals import CE_MODEL, CE_REVISION, CrossEncoderScorer
+    from ragkit.modelsignals import (
+        BGE_RERANKER_MODEL,
+        BGE_RERANKER_REVISION,
+        CE_MODEL,
+        CE_REVISION,
+        CrossEncoderScorer,
+    )
     from ragkit.neural import DenseSide, bge_small, default_device, embed_corpus
-    from ragkit.vocabbench import BGE_RERANKER_MODEL, BGE_RERANKER_REVISION, Engine, bge_base
+    from ragkit.vocabbench import Engine, bge_base
 
     device = args.device or default_device()
     cache_dir = Path(args.cache_dir)
@@ -1183,9 +1189,15 @@ def cmd_confirm(args: argparse.Namespace) -> int:
     old = client(args.vocab_expansions, False)
     passages["synthetic"] = expand(old, [q.text for q in syn_qs], expansion_system("synthetic"))
 
-    from ragkit.modelsignals import CE_MODEL, CE_REVISION, CrossEncoderScorer
+    from ragkit.modelsignals import (
+        BGE_RERANKER_MODEL,
+        BGE_RERANKER_REVISION,
+        CE_MODEL,
+        CE_REVISION,
+        CrossEncoderScorer,
+    )
     from ragkit.neural import DenseSide, bge_small, default_device, embed_corpus
-    from ragkit.vocabbench import BGE_RERANKER_MODEL, BGE_RERANKER_REVISION, Engine
+    from ragkit.vocabbench import Engine
 
     device = args.device or default_device()
     small = bge_small(device)
