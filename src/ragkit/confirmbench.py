@@ -221,6 +221,6 @@ def render(
         note = " (shares R's cross-encoder cache, so understated)" if name == "C" else ""
         ms = f"{row.ce_ms_per_query:.0f} ms / query"
         lines.append(f"- cross-encoder time on BEIR, {name}: {ms}{note}")
-    for reranker, ms in cpu.items():
-        lines.append(f"- cross-encoder time on CPU, {reranker}: {ms:.0f} ms / question")
+    for reranker, cpu_time in cpu.items():
+        lines.append(f"- cross-encoder time on CPU, {reranker}: {cpu_time:.0f} ms / question")
     return "\n".join(lines)
