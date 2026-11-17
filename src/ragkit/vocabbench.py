@@ -19,7 +19,7 @@ from ragkit.ctxprefix import SEARCH_CHUNKS, SYNTHETIC_MAX_DROP, is_wrong_act
 from ragkit.eval import bootstrap_ci, mrr, paired_bootstrap_ci, recall_at_k
 from ragkit.lexical import Question
 from ragkit.llm import CachedMessages
-from ragkit.modelsignals import BGE_RERANKER_MODEL, BGE_RERANKER_REVISION, PassageScorer
+from ragkit.modelsignals import PassageScorer
 from ragkit.neural import (
     BGE_QUERY_INSTRUCTION,
     CE_SLICE,
