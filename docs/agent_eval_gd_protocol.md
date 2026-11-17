@@ -120,9 +120,11 @@ question against E's 110 s and G's 49 s. *[Inference, not measured]* Ollama reus
 68 k-token system prompt across questions (identical prefix; the first question, `a01`, took
 115 s); E's and G's latency is not a controlled comparison either (other days, other server load).
 
-**Read as:** for this model and this 94-article corpus, article order does not matter, and putting
-the whole corpus in the prompt is at least as good as retrieval on every metric, with point
-estimates higher on correct (+3 of 43) and refusal (+3 of 44), resolved on neither. It costs a
-68 k-token prompt per question, which a local server with prefix caching absorbs and a paid API
-would bill on every call; the corpus is small enough that this is possible at all. The judge is
-one local model; the author's read of 15 judged answers (original protocol) is not done yet.
+**Read as:** for this model and this 94-article corpus, reversing the article order shows no
+resolved effect (the CI on correct allows anything from -5 to +14 points; this sample resolves
+effects of about 15 points only). Putting the whole corpus in the prompt has point estimates
+favouring D on correct (+3 of 43), unresolved; no non-inferiority margin was pre-registered, so
+"as good as retrieval" is not claimed. D's higher refusal (+3 of 44) is descriptive (amendment:
+instruction confound). D costs a 68 k-token prompt per question, which a local server with prefix
+caching absorbs and a paid API would bill on every call. The judge is one local model; the
+author's read of 15 judged answers (original protocol) is not done yet.
