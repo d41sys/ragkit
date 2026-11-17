@@ -1203,10 +1203,7 @@ def cmd_confirm(args: argparse.Namespace) -> int:
     engines = {n: engine(_flat_chunks(d), {}) for n, d in beir.items()}
     engines["eu"] = engine(build_chunks(eu_docs, prefix=False), dict(eu_docs))
     engines["synthetic"] = engine(build_chunks(syn_docs, prefix=False), dict(syn_docs))
-    for scorer in rerankers.values():
-        scorer.score("warm-up", ["warm-up"])  # model loading stays out of the BEIR timing
-    rows = run(engines, beir, eu_qs, syn_qs, passages)
-    cpu = cpu_ms(
+    cpu = cpu_ms(  # first, so a CPU load failure stops the run before any score exists
         {
             "minilm": CrossEncoderScorer(CE_MODEL, CE_REVISION, device="cpu"),
             "bge-reranker": CrossEncoderScorer(BGE_RERANKER_MODEL, BGE_RERANKER_REVISION, "cpu"),
@@ -1214,7 +1211,9 @@ def cmd_confirm(args: argparse.Namespace) -> int:
         [q.text for q in eu_qs[:10]],
         [c.text for c in engines["eu"].chunks[:100]],
     )
-    text = render(rows, passages, cpu)
+    for scorer in rerankers.values():
+        scorer.score("warm-up", ["warm-up"])  # model loading stays out of the BEIR timing
+    text = render(run(engines, beir, eu_qs, syn_qs, passages), passages, cpu)
     print()
     print(text)
     if args.out:
