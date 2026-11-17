@@ -1064,6 +1064,88 @@ def cmd_retrieval_miss(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_vocab(args: argparse.Namespace) -> int:
+    """Larger models and LLM query expansion against vocabulary mismatch (vocab_protocol.md)."""
+    from ragkit.ctxprefix import build_chunks
+    from ragkit.llm import ollama_transport
+    from ragkit.retrievalmiss import dump_json
+    from ragkit.vocabbench import (
+        EXPANSION_MODEL,
+        EXPANSION_NUM_CTX,
+        Tuning,
+        expand,
+        render_heldout,
+        render_tuning,
+        run_heldout,
+        tune,
+    )
+
+    def load(path: Path) -> list[Question]:
+        return questions_from_records(_read_jsonl(path))
+
+    fresh_qs, syn_qs = load(EU_FRESH_QA_PATH), load(DEFAULT_QA_PATH)
+    heldout_sets = {
+        "original 42": load(EU_QA_PATH),
+        "hard 39": load(EU_HARD_QA_PATH),
+        "keyword-free 49": load(EU_NOKW_QA_PATH),
+    }
+    every = [q.text for qs in (fresh_qs, syn_qs, *heldout_sets.values()) for q in qs]
+    live = args.action == "expand"
+    client = CachedMessages(
+        Path(args.expansions),
+        api_key="ollama" if live else "",  # offline replay outside the expand stage
+        model=EXPANSION_MODEL,
+        temperature=0.0,
+        max_calls=len(set(every)),
+        max_cost_usd=10.0,  # Ollama is free; the assumed API prices only bound the cache size
+        transport=ollama_transport(args.base_url, num_ctx=EXPANSION_NUM_CTX, think=False),
+    )
+    passages = expand(client, every)
+    if live:
+        empty = sum(1 for p in passages.values() if not p)
+        print(f"{len(passages)} passages ({client.live_calls} new, {empty} empty)")
+        return 0
+
+    from ragkit.modelsignals import CE_MODEL, CE_REVISION, CrossEncoderScorer
+    from ragkit.neural import DenseSide, bge_small, default_device, embed_corpus
+    from ragkit.vocabbench import BGE_RERANKER_MODEL, BGE_RERANKER_REVISION, Engine, bge_base
+
+    device = args.device or default_device()
+    cache_dir = Path(args.cache_dir)
+    embedders = {"bge-small": bge_small(device), "bge-base": bge_base(device)}
+    rerankers = {
+        "minilm": CrossEncoderScorer(CE_MODEL, CE_REVISION, device=device),
+        "bge-reranker": CrossEncoderScorer(BGE_RERANKER_MODEL, BGE_RERANKER_REVISION, device),
+    }
+
+    def engine(documents: list[tuple[str, str]]) -> Engine:
+        chunks = build_chunks(documents, prefix=False)
+        texts = [c.text for c in chunks]
+        sides = {n: DenseSide(e, embed_corpus(e, texts, cache_dir)) for n, e in embedders.items()}
+        return Engine(chunks, dict(documents), sides, rerankers)
+
+    eu = engine(_load_documents(EU_CORPUS_DIR))
+    synthetic = engine(_load_documents(DEFAULT_CORPUS_DIR))
+    tuning_path = Path(args.tuning_json)
+    if args.action == "tune":
+        tuning = tune(eu, synthetic, fresh_qs, syn_qs, passages)
+        dump_json(tuning_path, tuning.to_json())
+        text = render_tuning(tuning)
+    else:
+        if not tuning_path.is_file():
+            print(f"Error: {tuning_path} not found; run `ragkit vocab tune`.", file=sys.stderr)
+            return 2
+        tuning = Tuning.from_json(json.loads(tuning_path.read_text(encoding="utf-8")))
+        text = render_heldout(run_heldout(eu, synthetic, heldout_sets, syn_qs, passages, tuning))
+    print()
+    print(text)
+    if args.out:
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text + "\n", encoding="utf-8")
+    return 0
+
+
 def cmd_legalsplit(args: argparse.Namespace) -> int:
     """LegalBench-RAG-mini query split and document routing (docs/legalsplit_protocol.md)."""
     from ragkit.legalsplit import (
@@ -1705,6 +1787,26 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_rm.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
     p_rm.add_argument("--out", default=None, help="Write the report to this file as well.")
 
+    # Vocabulary-mismatch fixes: larger models, LLM query expansion (docs/vocab_protocol.md)
+    p_vocab = subparsers.add_parser(
+        "vocab",
+        help="K-R5: bge-base, bge-reranker-base and Qwen query expansion against vocabulary "
+        "mismatch (expand needs an Ollama server; tune/score replay the expansion cache offline).",
+    )
+    p_vocab.add_argument("action", choices=("expand", "tune", "score"), help="Study stage.")
+    p_vocab.add_argument(
+        "--expansions",
+        default="docs/sota-runs/vocab_expansions.jsonl",
+        help="Expansion call cache (written by expand, read by tune and score).",
+    )
+    p_vocab.add_argument(
+        "--base-url", default="http://localhost:11434", help="Ollama server (expand only)."
+    )
+    p_vocab.add_argument("--tuning-json", default="docs/sota-runs/vocab_tuning.json")
+    p_vocab.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
+    p_vocab.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
+    p_vocab.add_argument("--out", default=None, help="Write the report to this file as well.")
+
     # LegalBench-RAG-mini query-prefix removal and document routing (docs/legalsplit_protocol.md)
     p_ls = subparsers.add_parser(
         "legalsplit",
@@ -1921,6 +2023,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_retrieval_miss(parsed))
     elif parsed.subcommand == "packing":
         sys.exit(cmd_packing(parsed))
+    elif parsed.subcommand == "vocab":
+        sys.exit(cmd_vocab(parsed))
     elif parsed.subcommand == "legalsplit":
         sys.exit(cmd_legalsplit(parsed))
     elif parsed.subcommand == "legalsize":

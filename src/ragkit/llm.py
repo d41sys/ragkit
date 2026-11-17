@@ -60,7 +60,14 @@ def post_message(payload: dict[str, Any], api_key: str, retries: int = 3) -> dic
     raise RuntimeError("unreachable")
 
 
-def ollama_transport(base_url: str, *, num_ctx: int, seed: int = 0, retries: int = 2) -> Transport:
+def ollama_transport(
+    base_url: str,
+    *,
+    num_ctx: int,
+    seed: int = 0,
+    retries: int = 2,
+    think: bool | None = None,
+) -> Transport:
     """A ``transport`` for a local Ollama server (native ``/api/chat``), replying in Messages shape.
 
     ``num_ctx``, ``seed``, ``temperature`` and ``num_predict`` (= ``max_tokens``) go in ``options``;
@@ -68,7 +75,7 @@ def ollama_transport(base_url: str, *, num_ctx: int, seed: int = 0, retries: int
     ``seed`` is not part of the cache key. Ollama cuts a prompt that does not fit ``num_ctx``
     without an error, and its ``prompt_eval_count`` leaves out cached prefix tokens, so a request
     whose size (at a pessimistic 3 characters per token) plus ``max_tokens`` exceeds ``num_ctx`` is
-    refused here instead.
+    refused here instead. ``think`` (when set) is Ollama's switch for a reasoning model's thinking.
     """
 
     def send(payload: dict[str, Any], api_key: str) -> dict[str, Any]:
@@ -86,9 +93,15 @@ def ollama_transport(base_url: str, *, num_ctx: int, seed: int = 0, retries: int
         }
         if "temperature" in payload:
             options["temperature"] = payload["temperature"]
-        body = json.dumps(
-            {"model": payload["model"], "messages": messages, "stream": False, "options": options}
-        ).encode("utf-8")
+        request_body: dict[str, Any] = {
+            "model": payload["model"],
+            "messages": messages,
+            "stream": False,
+            "options": options,
+        }
+        if think is not None:
+            request_body["think"] = think
+        body = json.dumps(request_body).encode("utf-8")
         for attempt in range(retries + 1):
             request = urllib.request.Request(
                 f"{base_url.rstrip('/')}/api/chat",

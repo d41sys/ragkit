@@ -168,6 +168,9 @@ def test_ollama_transport_sends_options_and_maps_reply(monkeypatch: pytest.Monke
     assert sent["messages"][0] == {"role": "system", "content": "sys"}
     assert reply["content"] == [{"type": "text", "text": "hi"}]
     assert reply["usage"] == {"input_tokens": 7, "output_tokens": 2}
+    assert "think" not in sent
+    llm.ollama_transport("http://h:1/", num_ctx=8192, think=False)(payload, "k")
+    assert sent["think"] is False
     with pytest.raises(RuntimeError, match="does not fit"):
         send({**payload, "messages": [{"role": "user", "content": "u" * 30_000}]}, "k")
 
