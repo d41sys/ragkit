@@ -114,6 +114,12 @@ Per set and pooled: means with CIs, paired differences with better / worse / tie
 cross-encoder wall time per query of each reranker on this machine (Apple MPS), since R makes every
 `hybrid+ce` search slower.
 
+**Amendment (committed after the questions, before any code ran on study data).** A deployed
+search may run on CPU, where a 278M-parameter cross-encoder over 100 chunks costs far more than on
+MPS. So the run also times each reranker **on CPU**: one call scoring 100 EU chunks per question for
+the first 10 EU-new questions, mean milliseconds per question. It does not gate; if R is adopted,
+the README states that CPU time next to MiniLM's.
+
 ## Predictions (written before any run)
 
 - P-R: R gains on SciFact and NFCorpus (bge-reranker-base is a stronger general reranker than
