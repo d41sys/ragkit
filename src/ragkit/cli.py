@@ -1237,6 +1237,8 @@ def cmd_confirm(args: argparse.Namespace) -> int:
 
 def cmd_contextual(args: argparse.Namespace) -> int:
     """Larger chunks and contextual retrieval, the industry recipe (contextual_protocol.md)."""
+    if args.action.endswith("-small"):
+        return _contextual_small(args)
     from ragkit.contextualbench import (
         CONTEXT_MODEL,
         CONTEXT_NUM_CTX,
@@ -1327,6 +1329,86 @@ def cmd_contextual(args: argparse.Namespace) -> int:
         f"SC chunk texts over 512 bge-small tokens (cut by the embedder): {over} / {len(sc_texts)}",
     ]
     text = render(run(engines, eu_sets, legal), notes)
+    print()
+    print(text)
+    if args.out:
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text + "\n", encoding="utf-8")
+    return 0
+
+
+def _contextual_small(args: argparse.Namespace) -> int:
+    """K-R8: Anthropic's context on the shipped 500 / 50 EU chunks (contextual_small_protocol)."""
+    from ragkit.contextualbench import (
+        CONTEXT_MODEL,
+        SMALL_NUM_CTX,
+        Row,
+        contexts,
+        render_small,
+        with_contexts,
+    )
+    from ragkit.ctxprefix import build_chunks
+    from ragkit.llm import ollama_transport
+
+    eu_docs = _load_documents(EU_CONSOLIDATED_CORPUS_DIR)
+    chunks = build_chunks(eu_docs, prefix=False)
+    live = args.action == "contextualize-small"
+    client = CachedMessages(
+        Path(args.small_contexts),
+        api_key="ollama" if live else "",  # offline replay outside the contextualize stage
+        model=CONTEXT_MODEL,
+        temperature=0.0,
+        max_calls=len(chunks),
+        max_cost_usd=1000.0,  # Ollama is free; the assumed API prices only bound the cache size
+        transport=ollama_transport(args.base_url, num_ctx=SMALL_NUM_CTX, think=False),
+    )
+    by_id = contexts(client, dict(eu_docs), chunks)
+    if live:
+        empty = sum(1 for v in by_id.values() if not v)
+        print(f"{len(by_id)} contexts ({client.live_calls} new, {empty} empty)")
+        return 0
+
+    from transformers import AutoTokenizer
+
+    from ragkit.modelsignals import CE_MODEL, CE_REVISION, CrossEncoderScorer
+    from ragkit.neural import (
+        BGE_MODEL,
+        BGE_REVISION,
+        DenseSide,
+        bge_small,
+        default_device,
+        embed_corpus,
+    )
+    from ragkit.vocabbench import BASELINE, Engine, score_set
+
+    device = args.device or default_device()
+    small = bge_small(device)
+    rerankers = {"minilm": CrossEncoderScorer(CE_MODEL, CE_REVISION, device=device)}
+    eu_sets = {
+        name: questions_from_records(_read_jsonl(path))
+        for name, path in (
+            ("original", EU_QA_PATH),
+            ("hard", EU_HARD_QA_PATH),
+            ("keyword-free", EU_NOKW_QA_PATH),
+            ("confirm", EU_CONFIRM_QA_PATH),
+        )
+    }
+    texts = {"B0": chunks, "C8": with_contexts(chunks, by_id)}
+    rows: dict[str, Row] = {}
+    for name, units in texts.items():
+        vectors = embed_corpus(small, [c.text for c in units], Path(args.cache_dir))
+        engine = Engine(units, dict(eu_docs), {"bge-small": DenseSide(small, vectors)}, rerankers)
+        rows[name] = Row({s: score_set(engine, BASELINE, qs, {}) for s, qs in eu_sets.items()}, {})
+    tokenizer = AutoTokenizer.from_pretrained(BGE_MODEL, revision=BGE_REVISION)
+    over = sum(1 for c in texts["C8"] if len(tokenizer(c.text)["input_ids"]) > 512)
+    words = [len(v.split()) for v in by_id.values()]
+    notes = [
+        f"chunks: {len(chunks)}; contexts: mean {sum(words) / len(words):.1f} words, "
+        f"{sum(1 for w in words if w == 0)} empty",
+        f"C8 chunk texts over 512 bge-small tokens (cut by the embedder): {over} / {len(chunks)}",
+    ]
+    text = render_small(rows, notes)
     print()
     print(text)
     if args.out:
@@ -2024,8 +2106,13 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="K-R7: 1600/400 chunks and Anthropic contextual retrieval (contextualize needs an "
         "Ollama server; score replays the context cache offline).",
     )
-    p_ctx.add_argument("action", choices=("contextualize", "score"), help="Study stage.")
+    p_ctx.add_argument(
+        "action",
+        choices=("contextualize", "score", "contextualize-small", "score-small"),
+        help="Study stage; -small = K-R8, context on the shipped 500/50 EU chunks.",
+    )
     p_ctx.add_argument("--contexts", default="docs/sota-runs/contextual_contexts.jsonl")
+    p_ctx.add_argument("--small-contexts", default="docs/sota-runs/contextual_small_contexts.jsonl")
     p_ctx.add_argument(
         "--base-url", default="http://localhost:11434", help="Ollama server (contextualize only)."
     )

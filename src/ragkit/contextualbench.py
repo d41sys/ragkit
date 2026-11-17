@@ -32,6 +32,7 @@ CHUNK_SIZE = 1600
 OVERLAP = 400
 CONTEXT_MODEL = "qwen3.6:27b-ctx4k"
 CONTEXT_NUM_CTX = 24576
+SMALL_NUM_CTX = 8192  # K-R8: EU articles only, the longest is 13 253 characters
 CONTEXT_MAX_TOKENS = 200
 CONTEXT_PROMPT = (
     "<document>\n{document}\n</document>\n"
@@ -157,12 +158,15 @@ class Verdict:
 
 
 def decide(base: Row, cand: Row) -> Verdict:
-    """The protocol's three conditions (EU gain, EU serving context, LegalBench not hurt)."""
+    """The protocol's conditions: EU gain, EU serving context, LegalBench not hurt (K-R7 only).
+
+    K-R8 rows have no LegalBench results, so the third condition does not apply to them.
+    """
     b, c = base.eu_pooled(), cand.eu_pooled()
     d_mrr = paired_bootstrap_ci(c.scores["mrr"], b.scores["mrr"])
     wrong, base_wrong = sum(c.wrong_act), sum(b.wrong_act)
     d_pack = _mean_diff(c.scores["pack"], b.scores["pack"])
-    d_legal = _mean_diff(cand.legal_pooled(), base.legal_pooled())
+    d_legal = _mean_diff(cand.legal_pooled(), base.legal_pooled()) if base.legal else 0.0
     failed = []
     if d_mrr[1] <= 0:
         failed.append(f"1: EU MRR CI lower bound {d_mrr[1]:+.3f} <= 0")
@@ -218,16 +222,39 @@ def _eu_table(rows: Mapping[str, Row], pick: str | None) -> list[str]:
     return lines
 
 
-def render(rows: Mapping[str, Row], notes: Sequence[str]) -> str:
-    """EU and LegalBench tables with paired differences, the verdicts and the non-gating notes."""
+def _eu_section(rows: Mapping[str, Row]) -> list[str]:
     base = rows["B0"]
-    lines = ["### ragkit contextual score: K-R7 (docs/contextual_protocol.md)", ""]
     pooled = len(base.eu_pooled().wrong_act)
-    lines += [f"#### EU pooled ({pooled} questions, consolidated corpus)", ""]
+    lines = [f"#### EU pooled ({pooled} questions, consolidated corpus)", ""]
     lines += _eu_table(rows, None)
     for name in base.eu:
         lines += ["", f"#### EU {name} ({len(base.eu[name].wrong_act)})", ""]
         lines += _eu_table(rows, name)
+    return lines
+
+
+def render_small(rows: Mapping[str, Row], notes: Sequence[str]) -> str:
+    """K-R8: the EU tables of B0 and C8, the verdict and the non-gating notes."""
+    lines = ["### ragkit contextual score-small: K-R8 (docs/contextual_small_protocol.md)", ""]
+    lines += _eu_section(rows)
+    v = decide(rows["B0"], rows["C8"])
+    m, lo, hi = v.d_mrr
+    lines += ["", "#### Verdict", ""]
+    lines.append(
+        f"- C8: **{v.status}**. EU MRR {m:+.3f} [{lo:+.3f}, {hi:+.3f}], wrong-act {v.wrong} vs "
+        f"{v.base_wrong}, pack recall {v.d_pack:+.3f}."
+    )
+    lines += [f"  - failed {f}" for f in v.failed]
+    lines += ["", "#### Not gating", ""]
+    lines += [f"- {note}" for note in notes]
+    return "\n".join(lines)
+
+
+def render(rows: Mapping[str, Row], notes: Sequence[str]) -> str:
+    """EU and LegalBench tables with paired differences, the verdicts and the non-gating notes."""
+    base = rows["B0"]
+    lines = ["### ragkit contextual score: K-R7 (docs/contextual_protocol.md)", ""]
+    lines += _eu_section(rows)
     for budget in BUDGETS:
         size = len(base.legal_pooled(budget))
         lines += ["", f"#### LegalBench {' + '.join(LEGAL_SOURCES)} ({size}), budget {budget}", ""]
