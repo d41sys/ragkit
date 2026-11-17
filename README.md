@@ -1202,6 +1202,18 @@ K-R3 left 29 of 31 held-out misses as vocabulary mismatch. A pre-registered foll
 
 **Verdict**: nothing adopted. M1 and Q1 show no evidence of a gain; M2 is rejected by the synthetic guard (-0.031 < -0.02) and its CI also includes 0. The defaults are unchanged. Non-gating and post-hoc: the cell bge-reranker-base + expansion (original query to the cross-encoder) has the only CI above 0 among 11 cells, +0.051 [+0.002, +0.101], with pack recall 117/130. It was not selected (the saturated tuning sets ranked it below B0) and needs new, unseen questions to confirm. Giving the cross-encoder the expanded query is harmful (-0.08 to -0.29 MRR).
 
+### Confirming the K-R5 lead on unseen data, Phase K-R6 ([`docs/confirm_protocol.md`](docs/confirm_protocol.md))
+
+Because ragkit serves general retrieval for the group, not only EU law, the K-R5 lead was re-tested once on data no candidate had seen (issue #14): 60 new EU questions on the consolidated corpus (agent-written, agent-reviewed, no human), and two public research-paper benchmarks, BEIR SciFact (300) and NFCorpus (323), replacing the saturated synthetic guard. R = bge-reranker-base as the cross-encoder; C = R plus Qwen expansion (original question to the cross-encoder). Rule: pooled BEIR nDCG@10 CI above 0, no set below 0, EU wrong-act and pack recall not worse. Raw output `docs/sota-runs/confirm_score.txt`; passages `confirm_expansions.jsonl`.
+
+| | SciFact nDCG@10 d | NFCorpus nDCG@10 d | pooled BEIR d | EU-new MRR d | EU-new pack recall | CE time / search (CPU) |
+|---|---|---|---|---|---|---|
+| B0 (shipped; absolute values) | 0.689 | 0.353 | 0.515 | 0.713 | 50/60 | 215 ms |
+| R | +0.021 [-0.006, +0.051] | -0.037 [-0.055, -0.022] | -0.009 [-0.026, +0.007] | +0.081 [+0.013, +0.151] | 56/60 | 1305 ms |
+| C | +0.025 [-0.003, +0.054] | -0.033 [-0.050, -0.018] | -0.005 [-0.022, +0.011] | +0.097 [+0.027, +0.172] | 56/60 | 1305 ms + one LLM call |
+
+**Verdict**: neither adopted; the defaults are unchanged. On EU law the K-R5 lead is confirmed on new questions (MRR +0.08 to +0.10, CI above 0; wrong-act 12 against 15), but the larger reranker is reliably worse on NFCorpus (medical and nutrition research) and only level on SciFact, so it is not better as a general default, and it costs about 6 times the cross-encoder time. Synthetic (non-gating): -0.031 and -0.029. A reranker chosen per corpus (bge-reranker-base for EU law only) is a different decision that this study did not pre-register.
+
 ### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
 
 `ragkit answer` passed the first 3 distinct parent articles of the top-5 chunks under a 12 000-token budget the contexts never filled (mean 3 229 to 3 526 estimated tokens on the 130 pooled held-out questions). Budget packing adds distinct articles in rank order until the budget is full, never exceeds it, and drops the first article that does not fit and all later ones (`stop`; `skip` is the alternative). Pre-registered (`13aa661`), retrieval only: **no generation, no API call, answer quality not re-measured**. Overflow policy and pool depth were chosen on the dev sets (fresh 29 + synthetic 40, at the ceiling, so by tie-break: `stop`, 10 chunks) before one held-out run (`ragkit packing score`).

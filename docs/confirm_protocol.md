@@ -135,3 +135,28 @@ the README states that CPU time next to MiniLM's.
 
 Answer quality through the agent; other LLMs, prompts or decodings for expansion; collections
 unlike EU law and biomedical abstracts. The EU-new questions are agent-written and agent-reviewed.
+
+## Outcome (scored once; raw output `docs/sota-runs/confirm_score.txt`, passages `confirm_expansions.jsonl`)
+
+One earlier score attempt was stopped after 17 s while loading models (no score produced) to move
+the CPU timing in front of the scoring (`3036db1`); the run above is the only one that scored.
+
+| | SciFact nDCG@10 d | NFCorpus nDCG@10 d | pooled BEIR d | EU-new MRR d | EU-new wrong-act | EU-new pack recall d |
+|---|---|---|---|---|---|---|
+| R | +0.021 [-0.006, +0.051] | -0.037 [-0.055, -0.022] | -0.009 [-0.026, +0.007] | +0.081 [+0.013, +0.151] | 12 vs 15 | +0.100 |
+| C | +0.025 [-0.003, +0.054] | -0.033 [-0.050, -0.018] | -0.005 [-0.022, +0.011] | +0.097 [+0.027, +0.172] | 12 vs 15 | +0.100 |
+
+**Verdicts.** R and C: not adopted (no evidence). Both fail condition 1 (pooled BEIR CI includes 0)
+and condition 2 (NFCorpus below 0, with a CI entirely below 0). Condition 3 passes for both. The
+defaults stay B0; nothing ships.
+
+**Predictions.** P-R wrong: R gained on SciFact (CI includes 0) and lost on NFCorpus. P-C partly
+right: C beat R on EU-new (+0.097 against +0.081) and expansion raised NFCorpus Recall@100 (0.346
+against 0.313), but did not fix its nDCG@10 loss. P-time right: 6.2 times MiniLM on MPS (2506 against
+405 ms per query on BEIR), 6.1 times on CPU (1305 against 215 ms per question over 100 EU chunks).
+
+**What this says.** On EU law the K-R5 lead holds on unseen questions: the larger reranker finds the
+right article more often (MRR +0.08, CI above 0) and packs the gold article for 56 of 60 questions
+against 50. It does not generalise: on medical and nutrition research it ranks worse than MiniLM,
+so it is not a better default for "RAG for everything". Choosing the reranker per corpus would be a
+new decision with its own protocol; this study did not test it.
