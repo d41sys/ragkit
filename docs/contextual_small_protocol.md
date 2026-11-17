@@ -12,6 +12,10 @@ chunks**, so the chunk size that works for EU stays, and decides whether it beco
   190 EU questions are scored again; no question was used to choose a setting here, and there is
   nothing to tune. They have now been scored in K-R3, K-R5, packing, K-R6 and K-R7.
 - B0 on these 190 is known: MRR 0.681, wrong-act 46, pack recall 159 / 190 (K-R7).
+- Closest prior: the model-free heading prefix (act title plus article heading prepended to these
+  same 500 / 50 chunks, `ragkit.ctxprefix`) was not adopted on three sets and fixed none of BM25's
+  wrong-act top-1 errors on the keyword-free set (README, "Context prefix on a keyword-free set").
+  It ran only with BM25 and the hashing hybrid, never with `hybrid+ce`.
 
 ## Systems
 
@@ -55,6 +59,12 @@ questions). The agent evaluations are not re-run (README says so). Any other cor
 
 Per EU set: MRR, Recall@5, G@5 (prod), pack recall, wrong-act with paired differences; mean context
 length; empty contexts; chunk texts over 512 bge-small tokens.
+
+**Amendment (committed while the contexts were being generated, before any score).** A control
+arm **P0** = the heading prefix of `ctxprefix` (`build_chunks(..., prefix=True)`) on the same
+chunks with `hybrid+ce`, scored alongside and judged by the same rule, but **not gating**: it is
+printed to show whether C8's effect, if any, is only the act and heading names, which would need no
+LLM to ship.
 
 ## Predictions (written before any run)
 
