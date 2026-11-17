@@ -10,71 +10,19 @@ Which retrieval stack actually finds the right document? ragkit implements every
 ## Architecture
 
 ### Request flow
-```mermaid
-flowchart TD
-  D["Markdown corpus (EU: 94 EUR-Lex articles, built by fetch-eu)"] --> C["chunking: recursive, 500 chars, 50 overlap"]
-  Q[question] --> RET
-  C --> RET
-  subgraph RET["retrieval, chosen by --retriever"]
-    direction LR
-    subgraph OFF["default: offline, numpy only"]
-      B1[BM25] --> F1["RRF k=60"]
-      H["HashingEmbedder (char 3-5 grams)"] --> F1
-      F1 --> LXR["LexicalReranker"]
-    end
-    subgraph NEU["dense / hybrid / hybrid+ce: needs the st extra"]
-      B2[BM25] --> F2["RRF k=60, top 100"]
-      E["bge-small-en-v1.5"] --> F2
-      F2 --> CE["MiniLM cross-encoder rerank"]
-    end
-  end
-  RET --> ASK["ragkit ask: query support >= 0.5? extractive answer with chunk_id citations, else abstain"]
-  RET --> PACK["ragkit answer: whole parent articles, top 10 chunks packed into 12k tokens (--no-pack: 3 articles)"]
-  PACK --> GATE{"gate: none (default) / suff / self"}
-  GATE --> LLM["Claude through CachedMessages (JSONL call cache)"]
-  LLM --> OUT["answer with article citations, or abstain"]
-```
+![ragkit request flow: the chunked corpus and the question go to offline numpy or neural st-extra retrievers, then to ragkit ask (support threshold 0.5) or ragkit answer (pack to 12k tokens, gate, Claude through CachedMessages)](docs/diagrams/ragkit-flow.svg)
 
 ### Code layout
 Each layer imports only layers below it. `import ragkit` and `ragkit.search` load no LLM module (a test checks it).
-```mermaid
-flowchart TB
-  CLI["cli.py: 18 subcommands"] --> HAR
-  CLI --> MOD
-  CLI --> CORE
-  subgraph HAR["experiment harnesses: one per pre-registered study, protocol in docs/*_protocol.md"]
-    H1["abstention, lexical, lexical_explain, ctxprefix, nokw, hardset_review"]
-    H2["neuralbench, retrievalmiss, genbench, articlebench, packbench"]
-    H3["beir, legalbench, legalsplit, legalsize"]
-  end
-  subgraph MOD["model-backed: st extra or Anthropic API"]
-    M1["neural: pinned bge / e5 + RRF + cross-encoder engine"]
-    M2["modelsignals: cross-encoder and SQuAD2 abstention signals"]
-    M3["parent: chunk to article packing; search: library search(), prebuilt index, BM25 fallback"]
-    M4["generation: prompts and LLM judges; llm: cached Messages client"]
-  end
-  subgraph CORE["core library: numpy only, offline, deterministic"]
-    C1["chunking, bm25, bm25f, embed, dense, hybrid, rerank, pipeline"]
-    C2["eval: metrics, bootstrap and Wilson intervals; analysis: Lucene analyzer clone"]
-    C3["expand, rewrite"]
-  end
-  HAR --> MOD --> CORE
-  EUR["eurlex.py (fetch-eu)"] --> DATA[("data/: corpora, question sets, LLM call cache")]
-```
+
+![ragkit code layout: cli.py drives experiment harnesses, model-backed modules and the numpy-only core library, each layer importing only the layers below it; eurlex.py writes the data directory](docs/diagrams/ragkit-layout.svg)
+
 Optional extras: `[st]` swaps in `all-MiniLM-L6-v2` embeddings and the `ms-marco-MiniLM-L-6-v2` cross-encoder, enables the model-based abstention signals (`ce_top`, `qa_answerable`: `ms-marco-MiniLM-L-6-v2` and `deepset/roberta-base-squad2`), and provides the neural retrievers of `--retriever dense|hybrid|hybrid+ce` (`BAAI/bge-small-en-v1.5`, `intfloat/e5-small-v2`, `cross-encoder/ms-marco-MiniLM-L-6-v2`; no model library is imported unless one of those flags is used); `[llm]` adds `AnthropicLLM` (needs `ANTHROPIC_API_KEY`) for rewriting. `ragkit answer` and `ragkit generation` call the Anthropic Messages API with the standard library only (no SDK); every call is cached in `data/llm_cache/`, so replays need no key and no network.
 
 ### ezcross-ems integration
 ragkit is the retrieval tool of the ezcross-ems agent: the backend calls `ragkit.search()` (see [Library use](#library-use)) behind a JWT-protected endpoint, and the agent tool `search_eu_law` wraps that endpoint. ragkit only retrieves; the agent's own model writes the answer, so sign-in and logging come from ezcross-ems. Answer quality through the agent with the local `qwen3.6:27b`: 0.93 correct on answerable questions, about half of the unanswerable ones refused (see "Answers through the ezcross-ems agent" below, [#7](https://github.com/d41sys/ragkit/issues/7)).
-```mermaid
-flowchart LR
-  U[user] -->|JWT sign-in| A["ezc-server agent session"]
-  A -->|tool call| T["EzcTool search_eu_law (read-only)"]
-  T --> API["FastAPI endpoint, get_current_user"]
-  API --> S["ragkit.search(): articles, ids, EUR-Lex URLs (#1)"]
-  S --> A
-  A -->|answer with citations| U
-  A --> LOG[("agent_session_entries: every tool call and result")]
-```
+
+![ragkit inside the ezcross-ems agent: a signed-in user talks to the agent session, whose search_eu_law tool calls a JWT-protected FastAPI endpoint that runs ragkit.search, and the agent answers with citations and logs every tool call](docs/diagrams/ragkit-ezcross.svg)
 
 ## Quickstart
 Releases: pushing a tag `vX.Y.Z` that matches `pyproject.toml` runs CI on Python 3.12 and 3.13, builds the wheel and sdist, and attaches them to a [GitHub release](https://github.com/d41sys/ragkit/releases) (`.github/workflows/release.yml`). The wheel bundles the corpora, the question sets and the prebuilt index. To use a release as a dependency:
