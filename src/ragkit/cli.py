@@ -1394,7 +1394,11 @@ def _contextual_small(args: argparse.Namespace) -> int:
             ("confirm", EU_CONFIRM_QA_PATH),
         )
     }
-    texts = {"B0": chunks, "C8": with_contexts(chunks, by_id)}
+    texts = {
+        "B0": chunks,
+        "C8": with_contexts(chunks, by_id),
+        "P0": build_chunks(eu_docs, prefix=True),  # amendment: model-free heading prefix control
+    }
     rows: dict[str, Row] = {}
     for name, units in texts.items():
         vectors = embed_corpus(small, [c.text for c in units], Path(args.cache_dir))

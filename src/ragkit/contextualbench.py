@@ -237,14 +237,16 @@ def render_small(rows: Mapping[str, Row], notes: Sequence[str]) -> str:
     """K-R8: the EU tables of B0 and C8, the verdict and the non-gating notes."""
     lines = ["### ragkit contextual score-small: K-R8 (docs/contextual_small_protocol.md)", ""]
     lines += _eu_section(rows)
-    v = decide(rows["B0"], rows["C8"])
-    m, lo, hi = v.d_mrr
     lines += ["", "#### Verdict", ""]
-    lines.append(
-        f"- C8: **{v.status}**. EU MRR {m:+.3f} [{lo:+.3f}, {hi:+.3f}], wrong-act {v.wrong} vs "
-        f"{v.base_wrong}, pack recall {v.d_pack:+.3f}."
-    )
-    lines += [f"  - failed {f}" for f in v.failed]
+    for name in ("C8", "P0"):
+        v = decide(rows["B0"], rows[name])
+        m, lo, hi = v.d_mrr
+        label = "" if name == "C8" else " (control, not gating)"
+        lines.append(
+            f"- {name}{label}: **{v.status}**. EU MRR {m:+.3f} [{lo:+.3f}, {hi:+.3f}], wrong-act "
+            f"{v.wrong} vs {v.base_wrong}, pack recall {v.d_pack:+.3f}."
+        )
+        lines += [f"  - failed {f}" for f in v.failed]
     lines += ["", "#### Not gating", ""]
     lines += [f"- {note}" for note in notes]
     return "\n".join(lines)
