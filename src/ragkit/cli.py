@@ -115,6 +115,7 @@ EU_CONSOLIDATED_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_consolidated.jsonl"
 EU_FRESH_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_fresh.jsonl"
 EU_HARD_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_hard.jsonl"
 EU_NOKW_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_nokw.jsonl"
+EU_CONFIRM_QA_PATH = DEFAULT_DATA_DIR / "qa_eu_confirm.jsonl"
 EU_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable_eu.jsonl"
 EU_CONSOLIDATED_UNANSWERABLE_PATH = DEFAULT_DATA_DIR / "unanswerable_eu_consolidated.jsonl"
 COHORTS = ("all", "original-12", "expanded")
@@ -1146,6 +1147,83 @@ def cmd_vocab(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_confirm(args: argparse.Namespace) -> int:
+    """Confirm bge-reranker-base with and without expansion on unseen data (confirm_protocol.md)."""
+    from ragkit.beir import _flat_chunks
+    from ragkit.confirmbench import BEIR_SETS, cpu_ms, expansion_system, render, run
+    from ragkit.ctxprefix import build_chunks
+    from ragkit.llm import ollama_transport
+    from ragkit.vocabbench import EXPANSION_MODEL, EXPANSION_NUM_CTX, expand
+
+    eu_qs = questions_from_records(_read_jsonl(EU_CONFIRM_QA_PATH))
+    syn_qs = questions_from_records(_read_jsonl(DEFAULT_QA_PATH))
+    beir = {n: load_beir(n, Path(args.beir_dir)) for n in BEIR_SETS}
+    texts = {"eu": [q.text for q in eu_qs]} | {n: list(d.queries.values()) for n, d in beir.items()}
+    live = args.action == "expand"
+
+    def client(path: str, live_calls: bool) -> CachedMessages:
+        return CachedMessages(
+            Path(path),
+            api_key="ollama" if live_calls else "",  # offline replay outside the expand stage
+            model=EXPANSION_MODEL,
+            temperature=0.0,
+            max_calls=sum(len(set(t)) for t in texts.values()),
+            max_cost_usd=10.0,  # Ollama is free; the assumed API prices only bound the cache size
+            transport=ollama_transport(args.base_url, num_ctx=EXPANSION_NUM_CTX, think=False),
+        )
+
+    new = client(args.expansions, live)
+    passages = {k: expand(new, t, expansion_system(k)) for k, t in texts.items()}
+    if live:
+        empty = sum(1 for by_text in passages.values() for p in by_text.values() if not p)
+        total = sum(len(by_text) for by_text in passages.values())
+        print(f"{total} passages ({new.live_calls} new, {empty} empty)")
+        return 0
+    # The synthetic passages are K-R5's, replayed from its cache (same prompt, same domain).
+    old = client(args.vocab_expansions, False)
+    passages["synthetic"] = expand(old, [q.text for q in syn_qs], expansion_system("synthetic"))
+
+    from ragkit.modelsignals import CE_MODEL, CE_REVISION, CrossEncoderScorer
+    from ragkit.neural import DenseSide, bge_small, default_device, embed_corpus
+    from ragkit.vocabbench import BGE_RERANKER_MODEL, BGE_RERANKER_REVISION, Engine
+
+    device = args.device or default_device()
+    small = bge_small(device)
+    rerankers = {
+        "minilm": CrossEncoderScorer(CE_MODEL, CE_REVISION, device=device),
+        "bge-reranker": CrossEncoderScorer(BGE_RERANKER_MODEL, BGE_RERANKER_REVISION, device),
+    }
+
+    def engine(chunks: list[Chunk], articles: dict[str, str]) -> Engine:
+        vectors = embed_corpus(small, [c.text for c in chunks], Path(args.cache_dir))
+        return Engine(chunks, articles, {"bge-small": DenseSide(small, vectors)}, rerankers)
+
+    eu_docs = _load_documents(EU_CONSOLIDATED_CORPUS_DIR)
+    syn_docs = _load_documents(DEFAULT_CORPUS_DIR)
+    engines = {n: engine(_flat_chunks(d), {}) for n, d in beir.items()}
+    engines["eu"] = engine(build_chunks(eu_docs, prefix=False), dict(eu_docs))
+    engines["synthetic"] = engine(build_chunks(syn_docs, prefix=False), dict(syn_docs))
+    for scorer in rerankers.values():
+        scorer.score("warm-up", ["warm-up"])  # model loading stays out of the BEIR timing
+    rows = run(engines, beir, eu_qs, syn_qs, passages)
+    cpu = cpu_ms(
+        {
+            "minilm": CrossEncoderScorer(CE_MODEL, CE_REVISION, device="cpu"),
+            "bge-reranker": CrossEncoderScorer(BGE_RERANKER_MODEL, BGE_RERANKER_REVISION, "cpu"),
+        },
+        [q.text for q in eu_qs[:10]],
+        [c.text for c in engines["eu"].chunks[:100]],
+    )
+    text = render(rows, passages, cpu)
+    print()
+    print(text)
+    if args.out:
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text + "\n", encoding="utf-8")
+    return 0
+
+
 def cmd_legalsplit(args: argparse.Namespace) -> int:
     """LegalBench-RAG-mini query split and document routing (docs/legalsplit_protocol.md)."""
     from ragkit.legalsplit import (
@@ -1807,6 +1885,27 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_vocab.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
     p_vocab.add_argument("--out", default=None, help="Write the report to this file as well.")
 
+    # Confirmation of bge-reranker-base with and without expansion (docs/confirm_protocol.md)
+    p_confirm = subparsers.add_parser(
+        "confirm",
+        help="K-R6: bge-reranker-base with and without Qwen expansion on SciFact, NFCorpus and "
+        "60 new EU questions (expand needs an Ollama server; score replays the cache offline).",
+    )
+    p_confirm.add_argument("action", choices=("expand", "score"), help="Study stage.")
+    p_confirm.add_argument("--expansions", default="docs/sota-runs/confirm_expansions.jsonl")
+    p_confirm.add_argument(
+        "--vocab-expansions",
+        default="docs/sota-runs/vocab_expansions.jsonl",
+        help="K-R5 cache holding the synthetic passages.",
+    )
+    p_confirm.add_argument(
+        "--base-url", default="http://localhost:11434", help="Ollama server (expand only)."
+    )
+    p_confirm.add_argument("--beir-dir", default=str(DEFAULT_BEIR_DIR), help="BEIR zip cache.")
+    p_confirm.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
+    p_confirm.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
+    p_confirm.add_argument("--out", default=None, help="Write the report to this file as well.")
+
     # LegalBench-RAG-mini query-prefix removal and document routing (docs/legalsplit_protocol.md)
     p_ls = subparsers.add_parser(
         "legalsplit",
@@ -2025,6 +2124,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_packing(parsed))
     elif parsed.subcommand == "vocab":
         sys.exit(cmd_vocab(parsed))
+    elif parsed.subcommand == "confirm":
+        sys.exit(cmd_confirm(parsed))
     elif parsed.subcommand == "legalsplit":
         sys.exit(cmd_legalsplit(parsed))
     elif parsed.subcommand == "legalsize":

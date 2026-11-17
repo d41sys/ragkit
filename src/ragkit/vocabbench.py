@@ -8,6 +8,7 @@ which query the cross-encoder scores. Retrieval only; expansions are read from a
 
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -47,12 +48,13 @@ RERANKERS = ("minilm", "bge-reranker")
 EXPANSION_MODEL = "qwen3.6:27b-ctx4k"
 EXPANSION_NUM_CTX = 4096
 EXPANSION_MAX_TOKENS = 256
-EXPANSION_SYSTEM = (
-    "You write one short passage that answers the question as it would be worded in EU "
-    "electricity-market legislation or in a technical document on energy flexibility. Use the "
-    "formal terms such a text would use. Write only the passage, 80 to 120 words: no preamble, "
-    "no title, no citations, no mention that the passage is hypothetical."
+EXPANSION_TEMPLATE = (
+    "You write one short passage that answers the question as it would be worded in {domain}. "
+    "Use the formal terms such a text would use. Write only the passage, 80 to 120 words: no "
+    "preamble, no title, no citations, no mention that the passage is hypothetical."
 )
+EU_DOMAIN = "EU electricity-market legislation or in a technical document on energy flexibility"
+EXPANSION_SYSTEM = EXPANSION_TEMPLATE.format(domain=EU_DOMAIN)
 BM25_QUERY_REPEATS = 5  # query2doc's sparse form: the question five times, then the passage
 PROD_UNITS = 5
 METRICS = ("mrr", "r5", "g3_prod", "g5_prod", "pack")
@@ -136,13 +138,15 @@ def grid() -> list[Cell]:
 # ---------------------------------------------------------------------------------------------
 
 
-def expand(client: CachedMessages, questions: Sequence[str]) -> dict[str, str]:
+def expand(
+    client: CachedMessages, questions: Sequence[str], system_text: str = EXPANSION_SYSTEM
+) -> dict[str, str]:
     """One generated passage per distinct question (``""`` for an empty reply).
 
     A failed live call raises: the expansion stage runs before any score exists, so it is simply
     run again. An offline client raises ``CacheMiss`` for a question without a stored reply.
     """
-    system = [{"type": "text", "text": EXPANSION_SYSTEM}]
+    system = [{"type": "text", "text": system_text}]
     return {
         q: client.complete("expand", system, q, EXPANSION_MAX_TOKENS).text.strip()
         for q in dict.fromkeys(questions)
@@ -180,6 +184,7 @@ class Engine:
         self.sides = dict(sides)
         self.rerankers = dict(rerankers)
         self.ce_cache: dict[tuple[str, str, int], float] = {}
+        self.ce_seconds: dict[str, float] = dict.fromkeys(self.rerankers, 0.0)
 
     def prepare(
         self, cells: Sequence[Cell], texts: Sequence[str], passages: Mapping[str, str]
@@ -199,11 +204,13 @@ class Engine:
         """Cross-encoder logits of ``(query, chunk)``; each pair is scored once per process."""
         todo = [i for i in indices if (reranker, query, i) not in self.ce_cache]
         scorer = self.rerankers[reranker]
+        started = time.perf_counter()
         for start in range(0, len(todo), CE_SLICE):
             part = todo[start : start + CE_SLICE]
             texts = [self.chunks[i].text for i in part]
             for i, score in zip(part, scorer.score(query, texts), strict=True):
                 self.ce_cache[(reranker, query, i)] = score
+        self.ce_seconds[reranker] += time.perf_counter() - started
         return {i: self.ce_cache[(reranker, query, i)] for i in indices}
 
     def rank(self, cell: Cell, question: str, passage: str) -> Hits:
