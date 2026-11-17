@@ -1235,6 +1235,107 @@ def cmd_confirm(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_contextual(args: argparse.Namespace) -> int:
+    """Larger chunks and contextual retrieval, the industry recipe (contextual_protocol.md)."""
+    from ragkit.contextualbench import (
+        CONTEXT_MODEL,
+        CONTEXT_NUM_CTX,
+        LEGAL_SOURCES,
+        contexts,
+        large_chunks,
+        render,
+        run,
+        with_contexts,
+    )
+    from ragkit.ctxprefix import build_chunks
+    from ragkit.llm import ollama_transport
+
+    eu_docs = _load_documents(EU_CONSOLIDATED_CORPUS_DIR)
+    bench = load_mini(Path(args.data_zip), download=False)
+    legal = {s: [t for t in bench.tests if t.source == s] for s in LEGAL_SOURCES}
+    files = sorted({p for tests in legal.values() for t in tests for p, _, _ in t.truth})
+    legal_docs = [(p, bench.corpus[p]) for p in files]
+    documents = {"eu": dict(eu_docs), "legal": dict(legal_docs)}
+    large = {"eu": large_chunks(eu_docs), "legal": large_chunks(legal_docs)}
+    live = args.action == "contextualize"
+    client = CachedMessages(
+        Path(args.contexts),
+        api_key="ollama" if live else "",  # offline replay outside the contextualize stage
+        model=CONTEXT_MODEL,
+        temperature=0.0,
+        max_calls=sum(len(c) for c in large.values()),
+        max_cost_usd=1000.0,  # Ollama is free; the assumed API prices only bound the cache size
+        transport=ollama_transport(args.base_url, num_ctx=CONTEXT_NUM_CTX, think=False),
+    )
+    by_id = {k: contexts(client, documents[k], chunks) for k, chunks in large.items()}
+    if live:
+        total = sum(len(d) for d in by_id.values())
+        empty = sum(1 for d in by_id.values() for v in d.values() if not v)
+        print(f"{total} contexts ({client.live_calls} new, {empty} empty)")
+        return 0
+
+    from transformers import AutoTokenizer
+
+    from ragkit.modelsignals import CE_MODEL, CE_REVISION, CrossEncoderScorer
+    from ragkit.neural import (
+        BGE_MODEL,
+        BGE_REVISION,
+        DenseSide,
+        bge_small,
+        default_device,
+        embed_corpus,
+    )
+    from ragkit.vocabbench import Engine
+
+    device = args.device or default_device()
+    small = bge_small(device)
+    rerankers = {"minilm": CrossEncoderScorer(CE_MODEL, CE_REVISION, device=device)}
+
+    def engine(chunks: list[Chunk], articles: dict[str, str]) -> Engine:
+        vectors = embed_corpus(small, [c.text for c in chunks], Path(args.cache_dir))
+        return Engine(chunks, articles, {"bge-small": DenseSide(small, vectors)}, rerankers)
+
+    chunks = {
+        "B0": {k: build_chunks(list(d.items()), prefix=False) for k, d in documents.items()},
+        "S": large,
+        "SC": {k: with_contexts(c, by_id[k]) for k, c in large.items()},
+    }
+    engines = {
+        name: {"eu": engine(c["eu"], documents["eu"]), "legal": engine(c["legal"], {})}
+        for name, c in chunks.items()
+    }
+    eu_sets = {
+        name: questions_from_records(_read_jsonl(path))
+        for name, path in (
+            ("original", EU_QA_PATH),
+            ("hard", EU_HARD_QA_PATH),
+            ("keyword-free", EU_NOKW_QA_PATH),
+            ("confirm", EU_CONFIRM_QA_PATH),
+        )
+    }
+    tokenizer = AutoTokenizer.from_pretrained(BGE_MODEL, revision=BGE_REVISION)
+    sc_texts = [c.text for cs in chunks["SC"].values() for c in cs]
+    over = sum(1 for t in sc_texts if len(tokenizer(t)["input_ids"]) > 512)
+    words = [len(v.split()) for d in by_id.values() for v in d.values()]
+    notes = [
+        f"chunks, {name}: EU {len(c['eu'])}, LegalBench {len(c['legal'])}"
+        for name, c in chunks.items()
+    ]
+    notes += [
+        f"contexts: {len(words)}, mean {sum(words) / len(words):.1f} words, "
+        f"{sum(1 for w in words if w == 0)} empty",
+        f"SC chunk texts over 512 bge-small tokens (cut by the embedder): {over} / {len(sc_texts)}",
+    ]
+    text = render(run(engines, eu_sets, legal), notes)
+    print()
+    print(text)
+    if args.out:
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text + "\n", encoding="utf-8")
+    return 0
+
+
 def cmd_legalsplit(args: argparse.Namespace) -> int:
     """LegalBench-RAG-mini query split and document routing (docs/legalsplit_protocol.md)."""
     from ragkit.legalsplit import (
@@ -1917,6 +2018,22 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_confirm.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
     p_confirm.add_argument("--out", default=None, help="Write the report to this file as well.")
 
+    # Larger chunks and contextual retrieval, the industry recipe (docs/contextual_protocol.md)
+    p_ctx = subparsers.add_parser(
+        "contextual",
+        help="K-R7: 1600/400 chunks and Anthropic contextual retrieval (contextualize needs an "
+        "Ollama server; score replays the context cache offline).",
+    )
+    p_ctx.add_argument("action", choices=("contextualize", "score"), help="Study stage.")
+    p_ctx.add_argument("--contexts", default="docs/sota-runs/contextual_contexts.jsonl")
+    p_ctx.add_argument(
+        "--base-url", default="http://localhost:11434", help="Ollama server (contextualize only)."
+    )
+    p_ctx.add_argument("--data-zip", default=str(DEFAULT_LEGALBENCH_ZIP))
+    p_ctx.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
+    p_ctx.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
+    p_ctx.add_argument("--out", default=None, help="Write the report to this file as well.")
+
     # LegalBench-RAG-mini query-prefix removal and document routing (docs/legalsplit_protocol.md)
     p_ls = subparsers.add_parser(
         "legalsplit",
@@ -2137,6 +2254,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_vocab(parsed))
     elif parsed.subcommand == "confirm":
         sys.exit(cmd_confirm(parsed))
+    elif parsed.subcommand == "contextual":
+        sys.exit(cmd_contextual(parsed))
     elif parsed.subcommand == "legalsplit":
         sys.exit(cmd_legalsplit(parsed))
     elif parsed.subcommand == "legalsize":
