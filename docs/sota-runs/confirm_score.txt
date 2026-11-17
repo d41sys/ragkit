@@ -1,0 +1,61 @@
+### ragkit confirm score: K-R6 (docs/confirm_protocol.md)
+
+- B0: bge-small/minilm/exp=off/ce=original
+- R: bge-small/bge-reranker/exp=off/ce=original
+- C: bge-small/bge-reranker/exp=on/ce=original
+
+#### scifact test (300 queries)
+
+| system | nDCG@10 | difference vs B0 (better/worse/tied) | Recall@100 |
+|---|---|---|---|
+| B0 | 0.689 [0.643, 0.734] |  | 0.962 [0.940, 0.980] |
+| R | 0.710 [0.667, 0.751] | +0.021 [-0.006, +0.051] (65/50/185) | 0.962 [0.940, 0.980] |
+| C | 0.714 [0.670, 0.754] | +0.025 [-0.003, +0.054] (66/50/184) | 0.973 [0.953, 0.990] |
+
+#### nfcorpus test (323 queries)
+
+| system | nDCG@10 | difference vs B0 (better/worse/tied) | Recall@100 |
+|---|---|---|---|
+| B0 | 0.353 [0.317, 0.388] |  | 0.313 [0.284, 0.344] |
+| R | 0.316 [0.282, 0.350] | -0.037 [-0.055, -0.022] (66/119/138) | 0.313 [0.284, 0.344] |
+| C | 0.320 [0.286, 0.354] | -0.033 [-0.050, -0.018] (71/121/131) | 0.346 [0.314, 0.377] |
+
+#### pooled SciFact + NFCorpus (623 queries)
+
+| system | nDCG@10 | difference vs B0 (better/worse/tied) |
+|---|---|---|
+| B0 | 0.515 [0.483, 0.544] |  |
+| R | 0.506 [0.475, 0.536] | -0.009 [-0.026, +0.007] (131/169/323) |
+| C | 0.509 [0.478, 0.539] | -0.005 [-0.022, +0.011] (137/171/315) |
+
+#### EU-new (60 questions, consolidated corpus)
+
+| system | MRR | Recall@5 | G@3 (prod) | G@5 (prod) | pack recall | wrong-act | MRR difference vs B0 |
+|---|---|---|---|---|---|---|---|
+| B0 | 0.713 [0.606, 0.815] | 0.800 [0.700, 0.900] | 0.767 [0.650, 0.867] | 0.800 [0.700, 0.900] | 0.833 [0.733, 0.917] | 15 |  |
+| R | 0.794 [0.702, 0.877] | 0.883 [0.800, 0.950] | 0.850 [0.750, 0.933] | 0.867 [0.767, 0.950] | 0.933 [0.867, 0.983] | 12 | +0.081 [+0.013, +0.151] (13/5/42) |
+| C | 0.810 [0.718, 0.888] | 0.900 [0.817, 0.967] | 0.883 [0.800, 0.950] | 0.883 [0.800, 0.950] | 0.933 [0.867, 0.983] | 12 | +0.097 [+0.027, +0.172] (14/4/42) |
+
+#### Verdicts
+
+- R: **not adopted (no evidence)**. Pooled BEIR -0.009 [-0.026, +0.007]; scifact +0.021, nfcorpus -0.037, EU-new +0.081; EU-new wrong-act 12 vs 15, pack recall +0.100.
+  - failed 1: pooled BEIR nDCG@10 CI lower bound -0.026 <= 0
+  - failed 2: nfcorpus difference -0.037 < 0
+- C: **not adopted (no evidence)**. Pooled BEIR -0.005 [-0.022, +0.011]; scifact +0.025, nfcorpus -0.033, EU-new +0.097; EU-new wrong-act 12 vs 15, pack recall +0.100.
+  - failed 1: pooled BEIR nDCG@10 CI lower bound -0.022 <= 0
+  - failed 2: nfcorpus difference -0.033 < 0
+
+#### Not gating
+
+- synthetic 40 MRR, B0: 0.988 [0.963, 1.000]
+- synthetic 40 MRR, R: 0.956 [0.906, 1.000], -0.031 [-0.087, +0.025] (1/3/36)
+- synthetic 40 MRR, C: 0.958 [0.908, 1.000], -0.029 [-0.083, +0.025] (1/3/36)
+- expansion fallbacks (empty passage), eu: 0 / 60
+- expansion fallbacks (empty passage), scifact: 0 / 300
+- expansion fallbacks (empty passage), nfcorpus: 0 / 323
+- expansion fallbacks (empty passage), synthetic: 0 / 40
+- cross-encoder time on BEIR, B0: 405 ms / query
+- cross-encoder time on BEIR, R: 2506 ms / query
+- cross-encoder time on BEIR, C: 965 ms / query (shares R's cross-encoder cache, so understated)
+- cross-encoder time on CPU, minilm: 215 ms / question
+- cross-encoder time on CPU, bge-reranker: 1305 ms / question
