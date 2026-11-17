@@ -1,0 +1,79 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+G main done 2026-11-16T23:44:38Z
+G redo done 2026-11-16T23:44:39Z
+D a01: a01 115 s 
+D main done 2026-11-17T01:13:07Z
+D redo done 2026-11-17T01:13:07Z
+| metric (mean [95 % CI]) | A | D | E | G |
+|---|---|---|---|---|
+| correct (answerable) | 0.930 [0.860, 1.000] | 0.953 [0.884, 1.000] | 0.884 [0.791, 0.977] | 0.930 [0.837, 1.000] |
+| partial (answerable) | 0.047 [0.000, 0.116] | 0.023 [0.000, 0.070] | 0.047 [0.000, 0.116] | 0.047 [0.000, 0.116] |
+| wrongly refused (answerable) | 0.000 [0.000, 0.000] | 0.023 [0.000, 0.070] | 0.047 [0.000, 0.116] | 0.023 [0.000, 0.070] |
+| refused (unanswerable) | 0.523 [0.364, 0.659] | 0.977 [0.932, 1.000] | 0.909 [0.818, 0.977] | 0.909 [0.818, 0.977] |
+| cited articles judged `yes` (answerable, answered) | 0.919 [0.837, 0.977] | 1.000 [1.000, 1.000] | 0.976 [0.939, 1.000] | 0.988 [0.964, 1.000] |
+| articles cited per answer | 1.42 [1.21, 1.65] | 1.36 [1.19, 1.57] | 1.41 [1.22, 1.66] | 1.33 [1.17, 1.55] |
+| answers without citation | 0.047 [0.000, 0.116] | 0.000 [0.000, 0.000] | 0.000 [0.000, 0.000] | 0.000 [0.000, 0.000] |
+| agent called the tool (all) | 0.885 [0.816, 0.943] | 0.000 [0.000, 0.000] | 0.920 [0.862, 0.977] | 0.920 [0.862, 0.977] |
+| prompt tokens of the last call (all) | 13939 [11521, 16704] | 67987 [67986, 67988] | 9832 [9122, 10559] | 9723 [9005, 10462] |
+| latency, s per question (all) | 400 [301, 515] | 61 [56, 67] | 110 [99, 124] | 49 [44, 53] |
+| failed runs | 9 | 0 | 0 | 0 |
+
+Paired differences against A (X - A; paired bootstrap over questions):
+
+| metric | D - A | E - A | G - A |
+|---|---|---|---|
+| correct (answerable) | +0.023 [-0.047, +0.093] (n=43) | -0.047 [-0.163, +0.047] (n=43) | +0.000 [-0.116, +0.116] (n=43) |
+| partial (answerable) | -0.023 [-0.070, +0.000] (n=43) | +0.000 [-0.093, +0.093] (n=43) | +0.000 [-0.093, +0.093] (n=43) |
+| wrongly refused (answerable) | +0.023 [+0.000, +0.070] (n=43) | +0.047 [+0.000, +0.116] (n=43) | +0.023 [+0.000, +0.070] (n=43) |
+| refused (unanswerable) | +0.455 [+0.318, +0.614] (n=44) | +0.386 [+0.227, +0.545] (n=44) | +0.386 [+0.227, +0.545] (n=44) |
+| cited articles judged `yes` (answerable, answered) | +0.071 [+0.012, +0.155] (n=42) | +0.049 [-0.024, +0.134] (n=41) | +0.060 [-0.012, +0.143] (n=42) |
+
+Paired differences G - E (descriptive; docs/agent_eval_gd_protocol.md):
+
+| metric | G - E |
+|---|---|
+| correct (answerable) | +0.047 [-0.047, +0.140] (n=43) |
+| partial (answerable) | +0.000 [-0.070, +0.070] (n=43) |
+| wrongly refused (answerable) | -0.023 [-0.070, +0.000] (n=43) |
+| refused (unanswerable) | +0.000 [+0.000, +0.000] (n=44) |
+| cited articles judged `yes` (answerable, answered) | +0.012 [+0.000, +0.037] (n=41) |
+
+Paired differences D - E (descriptive; docs/agent_eval_gd_protocol.md):
+
+| metric | D - E |
+|---|---|
+| correct (answerable) | +0.070 [-0.023, +0.163] (n=43) |
+| partial (answerable) | -0.023 [-0.094, +0.047] (n=43) |
+| wrongly refused (answerable) | -0.023 [-0.070, +0.000] (n=43) |
+| refused (unanswerable) | +0.068 [-0.023, +0.160] (n=44) |
+| cited articles judged `yes` (answerable, answered) | +0.024 [+0.000, +0.061] (n=41) |
+
+Coverage check of E (first search of each question; descriptive):
+
+| kind | questions flagged `answerable = false` | n |
+|---|---|---|
+| answerable | 40 | 43 |
+| unanswerable | 36 | 44 |
+
+Agent loop by question kind (mean / max per question; runaway = a call hit 8192 tokens):
+
+| setup | kind | searches | max prompt tokens | runaways | n |
+|---|---|---|---|---|---|
+| A | answerable | 1.07 / 2 | 9872 / 22069 | 0 | 43 |
+| A | unanswerable | 2.75 / 9 | 22400 / 64896 | 5 | 44 |
+| D | answerable | 0.00 / 0 | 67989 / 68006 | 0 | 43 |
+| D | unanswerable | 0.00 / 0 | 67985 / 67994 | 0 | 44 |
+| E | answerable | 1.00 / 1 | 9535 / 13703 | 0 | 43 |
+| E | unanswerable | 1.00 / 2 | 10122 / 22708 | 0 | 44 |
+| G | answerable | 1.00 / 1 | 9535 / 13703 | 0 | 43 |
+| G | unanswerable | 0.95 / 2 | 9908 / 22100 | 0 | 44 |
+
+Decision rule:
+
+- E: R1 refusal on unanswerable E - A +0.386 [+0.227, +0.545] lower bound > 0: True; R2 correct on answerable 0.884 vs 0.930 (margin 0.05): True; R3 failed runs 0 <= 9: True
+- E passes the rule against A: True
+- G: failed runs 0 <= 3: True; correct G - E lower bound -0.047 > 0 (new issue, nothing ships): False
+- D: failed runs 0 <= 3: True; correct D - E lower bound -0.023 > 0 (new issue, nothing ships): False
+report done 2026-11-17T01:37:59Z

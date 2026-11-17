@@ -84,3 +84,45 @@ load, so latency and timeouts are not a controlled comparison; the answers are.
 - **Transport.** D calls Ollama's native `/api/chat` with `temperature 0`, `seed 0` in the request;
   E and G go through `/v1` with the variant's `temperature 0`, `seed 0` and the runner's
   temperature 0. Same sampling settings, different API path; recorded, not tested.
+
+## Results (2026-11-17; raw: `docs/sota-runs/agent_eval_gd.txt`, verdicts `agent_eval_gd_verdicts.json`)
+
+Protocol `6f73969`, amendment `1dee20a`, code `149efd8`, script `7a305ea`; ezcross-ems
+`feat/eu-law-answerable` at `2ae4af62` for G. G main pass 2026-11-16 22:33Z to 23:44Z (one
+stream; the redo pass found nothing); D `a01` 115 s, then D to 01:13Z; judging (`gemma3:27b`, A and
+E replayed from the cache) to 01:37Z. An earlier start failed before its first question because
+the retrieval models were missing from the local cache (no row was written); they were downloaded
+with the user's approval at the pinned revisions and the pipeline restarted from the start.
+87 of 87 questions ran in G and in D, 0 failed, no GPU out-of-memory pass.
+
+| metric (mean [95 % CI]) | E (baseline) | G (E, reversed) | D (full corpus) | G - E (paired) | D - E (paired) |
+|---|---|---|---|---|---|
+| correct (answerable) | 0.884 | 0.930 | 0.953 | +0.047 [-0.047, +0.140] | +0.070 [-0.023, +0.163] |
+| wrongly refused (answerable) | 0.047 | 0.023 | 0.023 | -0.023 [-0.070, +0.000] | -0.023 [-0.070, +0.000] |
+| refused (unanswerable) | 0.909 | 0.909 | 0.977 | +0.000 [+0.000, +0.000] | +0.068 [-0.023, +0.160] |
+| cited articles judged `yes` | 0.976 | 0.988 | 1.000 | +0.012 [+0.000, +0.037] | +0.024 [+0.000, +0.061] |
+| prompt tokens of the last call | 9 832 | 9 723 | 67 987 | | |
+| latency, s per question | 110 | 49 | 61 | | |
+| failed runs | 0 | 0 | 0 | | |
+
+Misses by question: E not correct `a06` `a21` (partial), `a19` (no), `a24` `a43` (refused), not
+refused `u09` `u38` `u42` `u44`; G not correct `a21` `a32` (partial), `a43` (refused), not refused
+the same four as E; D not correct `a22` (partial), `a43` (refused), not refused `u25`.
+
+**Rule:** G and D are valid (0 failed runs <= 3). Neither beats E on `correct` (lower bounds
+-0.047 and -0.023), so no follow-up issue; nothing ships, as decided before the runs.
+
+**Predictions:** P1 holds (G - E on correct includes 0). P2 holds (G refuses exactly the same
+unanswerable questions as E). P3 holds (D within 0.10 of E: +0.070). P4 fails: D refuses more,
+not less (43 of 44, against E's 40 and F's 35), with the neutral instruction of the amendment, so
+the full corpus did not make the model answer from near-miss articles. P5 fails: D took 61 s per
+question against E's 110 s and G's 49 s. *[Inference, not measured]* Ollama reuses the cached
+68 k-token system prompt across questions (identical prefix; the first question, `a01`, took
+115 s); E's and G's latency is not a controlled comparison either (other days, other server load).
+
+**Read as:** for this model and this 94-article corpus, article order does not matter, and putting
+the whole corpus in the prompt is at least as good as retrieval on every metric, with point
+estimates higher on correct (+3 of 43) and refusal (+3 of 44), resolved on neither. It costs a
+68 k-token prompt per question, which a local server with prefix caching absorbs and a paid API
+would bill on every call; the corpus is small enough that this is possible at all. The judge is
+one local model; the author's read of 15 judged answers (original protocol) is not done yet.
