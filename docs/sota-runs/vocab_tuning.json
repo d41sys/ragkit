@@ -1,0 +1,166 @@
+{
+  "chosen": {
+    "M1": {
+      "ce_expanded": false,
+      "embedder": "bge-base",
+      "expansion": false,
+      "reranker": "minilm"
+    },
+    "M2": {
+      "ce_expanded": false,
+      "embedder": "bge-small",
+      "expansion": false,
+      "reranker": "bge-reranker"
+    },
+    "Q1": {
+      "ce_expanded": false,
+      "embedder": "bge-small",
+      "expansion": true,
+      "reranker": "minilm"
+    },
+    "S": {
+      "ce_expanded": false,
+      "embedder": "bge-small",
+      "expansion": false,
+      "reranker": "minilm"
+    }
+  },
+  "grid": [
+    {
+      "ce_expanded": false,
+      "embedder": "bge-small",
+      "expansion": false,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875,
+      "objective": 0.9765086206896552,
+      "pack_fresh": 1.0,
+      "pack_synthetic": 1.0,
+      "reranker": "minilm"
+    },
+    {
+      "ce_expanded": false,
+      "embedder": "bge-small",
+      "expansion": true,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875,
+      "objective": 0.9765086206896552,
+      "pack_fresh": 1.0,
+      "pack_synthetic": 1.0,
+      "reranker": "minilm"
+    },
+    {
+      "ce_expanded": true,
+      "embedder": "bge-small",
+      "expansion": true,
+      "mrr_fresh": 0.8612479474548439,
+      "mrr_synthetic": 0.9875,
+      "objective": 0.9243739737274219,
+      "pack_fresh": 0.9655172413793104,
+      "pack_synthetic": 1.0,
+      "reranker": "minilm"
+    },
+    {
+      "ce_expanded": false,
+      "embedder": "bge-small",
+      "expansion": false,
+      "mrr_fresh": 0.9310344827586207,
+      "mrr_synthetic": 0.95625,
+      "objective": 0.9436422413793104,
+      "pack_fresh": 0.9655172413793104,
+      "pack_synthetic": 1.0,
+      "reranker": "bge-reranker"
+    },
+    {
+      "ce_expanded": false,
+      "embedder": "bge-small",
+      "expansion": true,
+      "mrr_fresh": 0.9310344827586207,
+      "mrr_synthetic": 0.9583333333333334,
+      "objective": 0.944683908045977,
+      "pack_fresh": 0.9655172413793104,
+      "pack_synthetic": 1.0,
+      "reranker": "bge-reranker"
+    },
+    {
+      "ce_expanded": true,
+      "embedder": "bge-small",
+      "expansion": true,
+      "mrr_fresh": 0.6052134646962234,
+      "mrr_synthetic": 0.6031547619047619,
+      "objective": 0.6041841133004926,
+      "pack_fresh": 0.8275862068965517,
+      "pack_synthetic": 0.825,
+      "reranker": "bge-reranker"
+    },
+    {
+      "ce_expanded": false,
+      "embedder": "bge-base",
+      "expansion": false,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875,
+      "objective": 0.9765086206896552,
+      "pack_fresh": 1.0,
+      "pack_synthetic": 1.0,
+      "reranker": "minilm"
+    },
+    {
+      "ce_expanded": false,
+      "embedder": "bge-base",
+      "expansion": true,
+      "mrr_fresh": 0.9655172413793104,
+      "mrr_synthetic": 0.9875,
+      "objective": 0.9765086206896552,
+      "pack_fresh": 1.0,
+      "pack_synthetic": 1.0,
+      "reranker": "minilm"
+    },
+    {
+      "ce_expanded": true,
+      "embedder": "bge-base",
+      "expansion": true,
+      "mrr_fresh": 0.8612479474548439,
+      "mrr_synthetic": 0.9875,
+      "objective": 0.9243739737274219,
+      "pack_fresh": 0.9655172413793104,
+      "pack_synthetic": 1.0,
+      "reranker": "minilm"
+    },
+    {
+      "ce_expanded": false,
+      "embedder": "bge-base",
+      "expansion": false,
+      "mrr_fresh": 0.9310344827586207,
+      "mrr_synthetic": 0.9583333333333334,
+      "objective": 0.944683908045977,
+      "pack_fresh": 0.9655172413793104,
+      "pack_synthetic": 1.0,
+      "reranker": "bge-reranker"
+    },
+    {
+      "ce_expanded": false,
+      "embedder": "bge-base",
+      "expansion": true,
+      "mrr_fresh": 0.9310344827586207,
+      "mrr_synthetic": 0.9583333333333334,
+      "objective": 0.944683908045977,
+      "pack_fresh": 0.9655172413793104,
+      "pack_synthetic": 1.0,
+      "reranker": "bge-reranker"
+    },
+    {
+      "ce_expanded": true,
+      "embedder": "bge-base",
+      "expansion": true,
+      "mrr_fresh": 0.632649151614669,
+      "mrr_synthetic": 0.6044047619047619,
+      "objective": 0.6185269567597154,
+      "pack_fresh": 0.8620689655172413,
+      "pack_synthetic": 0.825,
+      "reranker": "bge-reranker"
+    }
+  ],
+  "sizes": {
+    "fresh": 29,
+    "synthetic": 40
+  }
+}

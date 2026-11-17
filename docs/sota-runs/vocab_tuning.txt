@@ -1,0 +1,25 @@
+### ragkit vocab tune (docs/vocab_protocol.md): 12 cells on the tuning sets
+
+Tuning sets: fresh 29 (EU), synthetic 40.
+Objective: mean of the two set-level MRR values.
+
+| cell | objective | MRR fresh | MRR synthetic | pack fresh | pack synthetic |
+|---|---|---|---|---|---|
+| `bge-small/minilm/exp=off/ce=original` | 0.9765 | 0.966 | 0.988 | 1.000 | 1.000 |
+| `bge-small/minilm/exp=on/ce=original` | 0.9765 | 0.966 | 0.988 | 1.000 | 1.000 |
+| `bge-base/minilm/exp=off/ce=original` | 0.9765 | 0.966 | 0.988 | 1.000 | 1.000 |
+| `bge-base/minilm/exp=on/ce=original` | 0.9765 | 0.966 | 0.988 | 1.000 | 1.000 |
+| `bge-small/bge-reranker/exp=on/ce=original` | 0.9447 | 0.931 | 0.958 | 0.966 | 1.000 |
+| `bge-base/bge-reranker/exp=off/ce=original` | 0.9447 | 0.931 | 0.958 | 0.966 | 1.000 |
+| `bge-base/bge-reranker/exp=on/ce=original` | 0.9447 | 0.931 | 0.958 | 0.966 | 1.000 |
+| `bge-small/bge-reranker/exp=off/ce=original` | 0.9436 | 0.931 | 0.956 | 0.966 | 1.000 |
+| `bge-small/minilm/exp=on/ce=expanded` | 0.9244 | 0.861 | 0.988 | 0.966 | 1.000 |
+| `bge-base/minilm/exp=on/ce=expanded` | 0.9244 | 0.861 | 0.988 | 0.966 | 1.000 |
+| `bge-base/bge-reranker/exp=on/ce=expanded` | 0.6185 | 0.633 | 0.604 | 0.862 | 0.825 |
+| `bge-small/bge-reranker/exp=on/ce=expanded` | 0.6042 | 0.605 | 0.603 | 0.828 | 0.825 |
+
+Chosen:
+- M1: `bge-base/minilm/exp=off/ce=original`
+- M2: `bge-small/bge-reranker/exp=off/ce=original`
+- Q1: `bge-small/minilm/exp=on/ce=original`
+- S: `bge-small/minilm/exp=off/ce=original` (= B0: not scored as a candidate)
