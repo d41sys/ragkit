@@ -1185,7 +1185,7 @@ K-R7 left one question open: does Anthropic's context help on the shipped 500-ch
 | C8 (Qwen context) | +0.025 [-0.014, +0.071] | 45 | 0.826 |
 | P0 (heading prefix) | +0.006 [-0.025, +0.036] | 46 | 0.832 |
 
-**Verdict**: nothing ships. C8's gain is not separable from noise and pack recall drops by two questions; wrong-act errors are unchanged (the context does not fix the wrong-act failures). The heading prefix adds nothing on top of `hybrid+ce`. With K-R5 to K-R8, the published retrieval upgrades (stronger reranker, query expansion, larger chunks, contextual retrieval) have all been measured on this EU corpus. Only the stronger reranker gave a clear EU gain (K-R6), and it lost on NFCorpus, so it is opt-in (`hybrid+bge-ce`). Contextual retrieval helped on long documents (K-R7, LegalBench), not on short EU articles.
+**Verdict**: nothing ships. C8's gain is not separable from noise and pack recall drops by two questions; wrong-act errors are unchanged (the context does not fix the wrong-act failures). The heading prefix gives no MRR gain on top of `hybrid+ce`. With K-R5 to K-R8, the published retrieval upgrades (stronger reranker, query expansion, larger chunks, contextual retrieval) have all been measured on this EU corpus. Only the stronger reranker gave a clear EU gain (K-R6), and it lost on NFCorpus, so it is opt-in (`hybrid+bge-ce`). Contextual retrieval helped on long documents (K-R7, LegalBench), not on short EU articles.
 
 ### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
 

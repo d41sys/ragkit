@@ -93,10 +93,11 @@ Scored once (`ragkit contextual score-small`), raw report
 fails (pack recall -0.011, two questions). Nothing ships.
 
 - P1 partly held: the point estimate (+0.025) is inside the predicted +0.01 to +0.05 and the CI
-  includes 0, but the gain is not on wrong-act (45 vs 46); it is on ranking inside the right act
-  (Recall@5 +0.031).
+  includes 0, but the gain is not on wrong-act (45 vs 46); the Recall@5 gain (+0.031) is consistent
+  with better ranking inside the right act.
 - P2 failed: the largest gain is on the original set (+0.063); on keyword-free C8 gains +0.025 MRR
   but wrong-act gets worse (24 vs 21).
-- P0 is close to B0 (+0.006): the act and heading names that the heading prefix adds give nothing on
-  top of `hybrid+ce`. If C8's +0.025 is real, it comes from the model-written text, not the names.
+- P0 gives no MRR gain on top of `hybrid+ce` (+0.006 pooled; on the original set Recall@5 and G@5
+  rise but MRR +0.015 includes 0). P0's point estimate is smaller than C8's, and neither is
+  distinguishable from B0; C8 vs P0 was not tested as a paired comparison.
 - P-cost: 90 minutes, at the upper end of the prediction.
