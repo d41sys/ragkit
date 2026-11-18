@@ -357,6 +357,14 @@ def test_parent_articles_budget_drops_later_articles_and_cuts_only_the_first() -
     assert estimate_tokens("abcde") == 2
 
 
+def test_parent_articles_keeps_the_matched_part_of_a_document_over_the_budget() -> None:
+    answer = "Battery storage reduced the peak grid connection by 31 percent."
+    paper = "filler sentence. " * 2000 + answer + " more filler." * 500
+    got = parent_articles([Passage("paper", answer)], {"paper": paper}, budget_tokens=500)
+    assert answer in got[0].text
+    assert len(got[0].text) == 500 * CHARS_PER_TOKEN
+
+
 def test_context_gap_phrases() -> None:
     assert says_context_gap("The passages cut off after point (a).")
     assert says_context_gap("The text of that paragraph is not provided.")

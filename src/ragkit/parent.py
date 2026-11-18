@@ -49,7 +49,8 @@ def parent_articles(
     are taken (``k=None``: no limit, budget packing) or the next one would exceed
     ``budget_tokens``. ``overflow`` is what happens to that article: ``stop`` drops it and all
     later ones, ``skip`` drops only it and keeps trying the later ones. The first article is
-    always kept, cut at the budget only if it alone exceeds it (packing then ends). The summed
+    always kept; if it alone exceeds the budget, the budget-sized window around its best chunk is
+    kept (from the start when that chunk is not found in it) and packing ends. The summed
     ``estimate_tokens`` of the result never exceeds ``budget_tokens``.
     """
     if (k is not None and k < 1) or budget_tokens < 1:
@@ -64,7 +65,14 @@ def parent_articles(
         text = articles[article_id].strip()
         cost = estimate_tokens(text)
         if not out and cost > budget_tokens:
-            out.append(Passage(article_id, text[: budget_tokens * CHARS_PER_TOKEN]))
+            # long documents (papers, reports): keep the part that matched, not the first pages
+            width = budget_tokens * CHARS_PER_TOKEN
+            best = next(c.text for c in chunks if c.article_id == article_id).strip()
+            hit = text.find(best)
+            start = 0
+            if hit > 0:
+                start = max(0, min(hit + len(best) // 2 - width // 2, len(text) - width))
+            out.append(Passage(article_id, text[start : start + width]))
             break
         if used + cost > budget_tokens:
             if overflow == "stop":
