@@ -1446,7 +1446,7 @@ def cmd_papers(args: argparse.Namespace) -> int:
         print("\n".join(errors) if errors else f"{len(questions)} questions valid")
         return 1 if errors else 0
 
-    from ragkit.contextualbench import CONTEXT_MODEL, CONTEXT_PROMPT, contexts, with_contexts
+    from ragkit.contextualbench import CONTEXT_PROMPT, contexts, with_contexts
     from ragkit.ctxprefix import build_chunks
 
     chunks = build_chunks(docs, prefix=False)
@@ -1456,7 +1456,7 @@ def cmd_papers(args: argparse.Namespace) -> int:
         client = CachedMessages(
             Path(args.cache),
             api_key="ollama",
-            model=CONTEXT_MODEL,
+            model=pb.CONTEXT_MODEL,
             temperature=0.0,
             max_calls=len(chunks),
             max_cost_usd=1000.0,  # Ollama is free; the assumed API prices only bound the cache size
@@ -1465,7 +1465,7 @@ def cmd_papers(args: argparse.Namespace) -> int:
         cut = {d: t[: pb.CONTEXT_DOC_CHARS] for d, t in documents.items()}
         by_id = contexts(client, cut, chunks)
         record = {
-            "model": CONTEXT_MODEL,
+            "model": pb.CONTEXT_MODEL,
             "num_ctx": pb.CONTEXT_NUM_CTX,
             "document_chars": pb.CONTEXT_DOC_CHARS,
             "prompt": CONTEXT_PROMPT,
