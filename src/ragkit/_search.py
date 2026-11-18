@@ -81,6 +81,8 @@ class Article:
     rank: int  # 1 = the article of the best-ranked chunk
     url: str | None
     version: str | None
+    pages: str | None = None  # "3" or "3-4" for a document with form-feed page breaks (PDFs)
+    citation: str | None = None  # SOURCES.json documents[].citation: "Nie et al., ICLR 2023"
 
 
 @dataclass(frozen=True)
@@ -99,40 +101,68 @@ class SearchResult:
         return asdict(self)
 
 
+def _pdf_text(path: Path) -> str:
+    """Text of a PDF, pages joined by a form feed (needs the ``[pdf]`` extra)."""
+    from pypdf import PdfReader
+
+    logging.getLogger("pypdf").setLevel(logging.ERROR)  # font-encoding warnings flood the log
+    return "\f".join(page.extract_text() or "" for page in PdfReader(path).pages)
+
+
 def load_documents(corpus_dir: Path) -> list[tuple[str, str]]:
-    """Load all markdown and text documents of a directory as ``(doc_id, text)``."""
+    """Load all markdown, text and PDF documents of a directory as ``(doc_id, text)``."""
     if not corpus_dir.is_dir():
         raise FileNotFoundError(f"Corpus directory not found: {corpus_dir}")
     docs: list[tuple[str, str]] = []
     for file_path in sorted(corpus_dir.glob("*")):
-        if file_path.suffix.lower() in {".md", ".txt"}:
+        suffix = file_path.suffix.lower()
+        if suffix in {".md", ".txt"}:
             text = strip_metadata_comment(file_path.read_text(encoding="utf-8"))
             docs.append((file_path.stem, text))
+        elif suffix == ".pdf":
+            docs.append((file_path.stem, _pdf_text(file_path)))
     return docs
 
 
 def _load_acts(corpus_dir: Path) -> dict[str, dict[str, Any]]:
-    """``acts[]`` of ``SOURCES.json`` by ``short`` (the doc-id prefix); empty if there is none."""
+    """``SOURCES.json``: ``acts[]`` by ``short`` (doc-id prefix), ``documents[]`` by ``id``."""
     path = corpus_dir / "SOURCES.json"
     if not path.is_file():
         return {}
-    return {a["short"]: a for a in json.loads(path.read_text(encoding="utf-8"))["acts"]}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {a["short"]: a for a in data.get("acts", [])} | {
+        d["id"]: d for d in data.get("documents", [])
+    }
 
 
-def _version(act: dict[str, Any]) -> str:
+def _version(act: dict[str, Any]) -> str | None:
     if act.get("consolidated_date"):
         return f"consolidated version of {act['consolidated_date']}"
-    return f"original Official Journal text (retrieved {act['retrieved_on']})"
+    if act.get("retrieved_on"):
+        return f"original Official Journal text (retrieved {act['retrieved_on']})"
+    return None
 
 
-def _article(rank: int, passage: Passage, acts: dict[str, dict[str, Any]]) -> Article:
+def _pages(passage: Passage, document: str) -> str | None:
+    """Pages a passage spans in a document with form-feed page breaks; ``None`` without them."""
+    if "\f" not in document:
+        return None
+    start = max(document.find(passage.text), 0)
+    first = document.count("\f", 0, start) + 1
+    last = document.count("\f", 0, start + len(passage.text)) + 1
+    return str(first) if first == last else f"{first}-{last}"
+
+
+def _article(
+    rank: int, passage: Passage, acts: dict[str, dict[str, Any]], document: str
+) -> Article:
     first = passage.text.lstrip().split("\n", 1)[0]
     match = _HEADING.match(first)
     by_id = _ARTICLE_ID.search(passage.article_id)
     number = match["num"] if match else (by_id["num"] if by_id else "")
     heading = match["title"].strip() if match else first.lstrip("# ").strip()
     short = max((s for s in acts if passage.article_id.startswith(s + "_")), key=len, default=None)
-    act = acts[short] if short is not None else None
+    act = acts.get(passage.article_id) or (acts[short] if short is not None else None)
     return Article(
         id=passage.article_id,
         act=act["title"] if act else passage.article_id,
@@ -143,6 +173,8 @@ def _article(rank: int, passage: Passage, acts: dict[str, dict[str, Any]]) -> Ar
         rank=rank,
         url=act.get("url") if act else None,
         version=_version(act) if act else None,
+        pages=_pages(passage, document.strip()),
+        citation=act.get("citation") if act else None,
     )
 
 
@@ -177,7 +209,7 @@ _entries_lock = threading.Lock()
 def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
     documents = load_documents(corpus_dir)
     if not documents:
-        raise ValueError(f"no .md or .txt documents in {corpus_dir}")
+        raise ValueError(f"no .md, .txt or .pdf documents in {corpus_dir}")
     try:
         pipeline = _make_pipeline(retriever, serving=True)
         pipeline.index_documents(documents)
@@ -252,6 +284,7 @@ def search(
     pack_chunks: int = PACK_CHUNKS,
     answerable: bool = False,
     overflow: str = PACK_OVERFLOW,
+    window_tokens: int | None = None,
 ) -> SearchResult:
     """Distinct parent articles of the top ``pack_chunks`` chunks, packed into ``budget_tokens``.
 
@@ -260,8 +293,10 @@ def search(
     ``answerable=True`` also fills ``answerable_score`` (the SQuAD2 reader signal on the top
     ``READER_CHUNKS`` chunks, needs the ``[st]`` extra) and ``answerable_threshold``
     (``ANSWERABLE_THRESHOLDS``; ``None`` where none was measured): refuse when the score is below
-    it. Raises ``ValueError`` for an empty or over-long query, an unknown retriever or a
-    non-positive ``pack_chunks`` / ``budget_tokens``.
+    it. ``window_tokens`` packs a document longer than it as the window of that size around its
+    best chunk (long papers; ``docs/papers_protocol.md``). Raises ``ValueError`` for an empty or
+    over-long query, an unknown retriever or a non-positive ``pack_chunks`` / ``budget_tokens``
+    / ``window_tokens``.
     """
     query = _validated(query, retriever)
     if pack_chunks < 1:
@@ -269,13 +304,22 @@ def search(
     entry = _entry(Path(corpus_dir or DEFAULT_CORPUS_DIR), retriever)
     with entry.lock:
         pool = [Passage(c.doc_id, c.text) for c in entry.pipeline.retrieve(query, pack_chunks)]
-        packed = pack_articles(pool, entry.articles, budget_tokens=budget_tokens, overflow=overflow)
+        packed = pack_articles(
+            pool,
+            entry.articles,
+            budget_tokens=budget_tokens,
+            overflow=overflow,
+            window_tokens=window_tokens,
+        )
         top = entry.pipeline.retrieve(query, READER_CHUNKS) if answerable else []
     score = _reader_score(query, [Passage(c.doc_id, c.text) for c in top]) if answerable else None
     return SearchResult(
         query=query,
         retriever=entry.retriever,
-        articles=[_article(i, p, entry.acts) for i, p in enumerate(packed, 1)],
+        articles=[
+            _article(i, p, entry.acts, entry.articles[p.article_id])
+            for i, p in enumerate(packed, 1)
+        ],
         estimated_tokens=sum(estimate_tokens(p.text) for p in packed),
         answerable_score=score,
         answerable_threshold=ANSWERABLE_THRESHOLDS.get(entry.retriever) if answerable else None,

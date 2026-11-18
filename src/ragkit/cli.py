@@ -1422,6 +1422,133 @@ def _contextual_small(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_papers(args: argparse.Namespace) -> int:
+    """Research papers as a corpus: PDFs, windows and contexts (docs/papers_protocol.md)."""
+    from ragkit import papersbench as pb
+
+    if args.action == "fetch":
+        print(f"{pb.fetch()} new PDFs in {pb.CORPUS_DIR}")
+        return 0
+    docs = _load_documents(pb.CORPUS_DIR)
+    documents = dict(docs)
+    if args.action == "dump":  # page-marked text for the question writers
+        out = pb.CORPUS_DIR.parent / "forecasting_text"
+        out.mkdir(parents=True, exist_ok=True)
+        for doc_id, text in docs:
+            pages = text.split("\f")
+            marked = "".join(f"\n\n=== page {i} ===\n\n{p}" for i, p in enumerate(pages, 1))
+            (out / f"{doc_id}.txt").write_text(marked.lstrip(), encoding="utf-8")
+        print(f"{len(docs)} texts in {out}")
+        return 0
+    if args.action == "validate":
+        questions = pb.load_questions()
+        errors = pb.validate(questions, documents)
+        print("\n".join(errors) if errors else f"{len(questions)} questions valid")
+        return 1 if errors else 0
+
+    from ragkit.contextualbench import CONTEXT_MODEL, CONTEXT_PROMPT, contexts, with_contexts
+    from ragkit.ctxprefix import build_chunks
+
+    chunks = build_chunks(docs, prefix=False)
+    if args.action == "contextualize":
+        from ragkit.llm import ollama_transport
+
+        client = CachedMessages(
+            Path(args.cache),
+            api_key="ollama",
+            model=CONTEXT_MODEL,
+            temperature=0.0,
+            max_calls=len(chunks),
+            max_cost_usd=1000.0,  # Ollama is free; the assumed API prices only bound the cache size
+            transport=ollama_transport(args.base_url, num_ctx=pb.CONTEXT_NUM_CTX, think=False),
+        )
+        cut = {d: t[: pb.CONTEXT_DOC_CHARS] for d, t in documents.items()}
+        by_id = contexts(client, cut, chunks)
+        record = {
+            "model": CONTEXT_MODEL,
+            "num_ctx": pb.CONTEXT_NUM_CTX,
+            "document_chars": pb.CONTEXT_DOC_CHARS,
+            "prompt": CONTEXT_PROMPT,
+            "contexts": by_id,
+        }
+        pb.CONTEXTS_PATH.write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
+        empty = sum(1 for v in by_id.values() if not v)
+        print(f"{len(by_id)} contexts ({client.live_calls} new, {empty} empty)")
+        return 0
+
+    questions = pb.load_questions()
+    errors = pb.validate(questions, documents)
+    if errors:
+        print("\n".join(errors))
+        return 1
+    from ragkit.modelsignals import CE_MODEL, CE_REVISION, CrossEncoderScorer
+    from ragkit.neural import DenseSide, bge_small, default_device, embed_corpus
+    from ragkit.parent import Passage
+    from ragkit.vocabbench import BASELINE, Engine
+
+    device = args.device or default_device()
+    small = bge_small(device)
+    rerankers = {"minilm": CrossEncoderScorer(CE_MODEL, CE_REVISION, device=device)}
+
+    def engine(units: list[Chunk], articles: dict[str, str]) -> Engine:
+        vectors = embed_corpus(small, [c.text for c in units], Path(args.cache_dir))
+        return Engine(units, articles, {"bge-small": DenseSide(small, vectors)}, rerankers)
+
+    def pool(eng: Engine, text: str, units: list[Chunk]) -> tuple[list[str], list[Passage]]:
+        """Paper order of the chunk ranking and the ranked chunks with their plain text."""
+        hits = eng.rank(BASELINE, text, "")
+        ranked = [units[i].doc_id for i, _ in hits]
+        # windows are located with the chunk text, never with its context
+        return ranked, [Passage(units[i].doc_id, units[i].text) for i, _ in hits]
+
+    by_id = pb.load_contexts()
+    plain, ctx = engine(chunks, documents), engine(with_contexts(chunks, by_id), documents)
+    rows: dict[str, dict[str, list[float]]] = {
+        s: {m: [] for m in pb.METRICS} for s in ("B0", "W", "WC")
+    }
+    for q in questions:
+        ranked, passages = pool(plain, q.text, chunks)
+        ranked_c, passages_c = pool(ctx, q.text, chunks)  # with_contexts keeps chunk order
+        for name, rk, ps, window in (
+            ("B0", ranked, passages, None),
+            ("W", ranked, passages, pb.WINDOW_TOKENS),
+            ("WC", ranked_c, passages_c, pb.WINDOW_TOKENS),
+        ):
+            for m, v in pb.measure(q, rk, pb.pack(ps, documents, window)).items():
+                rows[name][m].append(v)
+
+    eu_docs = _load_documents(EU_CONSOLIDATED_CORPUS_DIR)
+    eu_chunks = build_chunks(eu_docs, prefix=False)
+    eu_articles = dict(eu_docs)
+    eu_engine = engine(eu_chunks, eu_articles)
+    eu_questions = [
+        q
+        for path in (EU_QA_PATH, EU_HARD_QA_PATH, EU_NOKW_QA_PATH, EU_CONFIRM_QA_PATH)
+        for q in questions_from_records(_read_jsonl(path))
+    ]
+    eu_identical = True
+    for eq in eu_questions:
+        _, eu_pool = pool(eu_engine, eq.text, eu_chunks)
+        windowed = pb.pack(eu_pool, eu_articles, pb.WINDOW_TOKENS)
+        eu_identical &= pb.pack(eu_pool, eu_articles, None) == windowed
+    words = [len(v.split()) for v in by_id.values()]
+    notes = [
+        f"{len(documents)} papers, {len(chunks)} chunks; {len(eu_questions)} EU guard questions",
+        f"contexts: mean {sum(words) / max(len(words), 1):.1f} words, "
+        f"{sum(1 for w in words if w == 0)} empty",
+        f"cross-encoder seconds: plain {plain.ce_seconds['minilm']:.0f}, "
+        f"context {ctx.ce_seconds['minilm']:.0f}",
+    ]
+    text = pb.render(rows, [q.type for q in questions], eu_identical, notes)
+    print()
+    print(text)
+    if args.out:
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(text + "\n", encoding="utf-8")
+    return 0
+
+
 def cmd_legalsplit(args: argparse.Namespace) -> int:
     """LegalBench-RAG-mini query split and document routing (docs/legalsplit_protocol.md)."""
     from ragkit.legalsplit import (
@@ -2125,6 +2252,25 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_ctx.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
     p_ctx.add_argument("--out", default=None, help="Write the report to this file as well.")
 
+    # Research papers as a corpus (docs/papers_protocol.md)
+    p_pap = subparsers.add_parser(
+        "papers",
+        help="P-1: PDF papers, windows and contextual retrieval (fetch downloads from arXiv; "
+        "contextualize needs an Ollama server; score is offline).",
+    )
+    p_pap.add_argument(
+        "action", choices=("fetch", "dump", "validate", "contextualize", "score"), help="Stage."
+    )
+    p_pap.add_argument(
+        "--cache", default="data/raw/papers/contexts_cache.jsonl", help="Raw LLM call cache."
+    )
+    p_pap.add_argument(
+        "--base-url", default="http://localhost:11434", help="Ollama server (contextualize only)."
+    )
+    p_pap.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
+    p_pap.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
+    p_pap.add_argument("--out", default=None, help="Write the report to this file as well.")
+
     # LegalBench-RAG-mini query-prefix removal and document routing (docs/legalsplit_protocol.md)
     p_ls = subparsers.add_parser(
         "legalsplit",
@@ -2347,6 +2493,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_confirm(parsed))
     elif parsed.subcommand == "contextual":
         sys.exit(cmd_contextual(parsed))
+    elif parsed.subcommand == "papers":
+        sys.exit(cmd_papers(parsed))
     elif parsed.subcommand == "legalsplit":
         sys.exit(cmd_legalsplit(parsed))
     elif parsed.subcommand == "legalsize":

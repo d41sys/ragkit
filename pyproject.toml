@@ -15,6 +15,7 @@ dependencies = [
 [project.optional-dependencies]
 st = ["sentence-transformers>=3.0"]
 llm = ["anthropic>=0.30"]
+pdf = ["pypdf>=5.0"]
 
 [project.scripts]
 ragkit = "ragkit.cli:main"

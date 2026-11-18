@@ -35,6 +35,15 @@ def estimate_tokens(text: str) -> int:
 OVERFLOW_POLICIES = ("stop", "skip")
 
 
+def _window(text: str, best: str, width: int) -> str:
+    """The ``width`` characters of ``text`` centred on ``best`` (from the start if not found)."""
+    hit = text.find(best)
+    start = 0
+    if hit > 0:
+        start = max(0, min(hit + len(best) // 2 - width // 2, len(text) - width))
+    return text[start : start + width]
+
+
 def parent_articles(
     chunks: Sequence[Passage],
     articles: Mapping[str, str],
@@ -42,19 +51,24 @@ def parent_articles(
     k: int | None = ARTICLE_K,
     budget_tokens: int = ARTICLE_BUDGET_TOKENS,
     overflow: str = "stop",
+    window_tokens: int | None = None,
 ) -> list[Passage]:
     """The full text of the top-``k`` distinct parent articles of ranked ``chunks``.
 
     Articles keep the rank of their best chunk and appear once. They are added whole until ``k``
     are taken (``k=None``: no limit, budget packing) or the next one would exceed
     ``budget_tokens``. ``overflow`` is what happens to that article: ``stop`` drops it and all
-    later ones, ``skip`` drops only it and keeps trying the later ones. The first article is
-    always kept; if it alone exceeds the budget, the budget-sized window around its best chunk is
-    kept (from the start when that chunk is not found in it) and packing ends. The summed
+    later ones, ``skip`` drops only it and keeps trying the later ones. ``window_tokens`` (long
+    documents such as papers) replaces an article longer than it by the window of that size
+    around its best chunk before packing. The first article is always kept; if it alone exceeds
+    the budget, the budget-sized window around its best chunk is kept and packing ends. A window
+    starts at the beginning when the chunk is not found in the text. The summed
     ``estimate_tokens`` of the result never exceeds ``budget_tokens``.
     """
     if (k is not None and k < 1) or budget_tokens < 1:
         raise ValueError("k and budget_tokens must be positive")
+    if window_tokens is not None and window_tokens < 1:
+        raise ValueError("window_tokens must be positive")
     if overflow not in OVERFLOW_POLICIES:
         raise ValueError(f"overflow must be one of {OVERFLOW_POLICIES}, got {overflow!r}")
     out: list[Passage] = []
@@ -63,16 +77,13 @@ def parent_articles(
         if len(out) == k:
             break
         text = articles[article_id].strip()
+        best = next(c.text for c in chunks if c.article_id == article_id).strip()
+        if window_tokens is not None and estimate_tokens(text) > window_tokens:
+            text = _window(text, best, window_tokens * CHARS_PER_TOKEN)
         cost = estimate_tokens(text)
         if not out and cost > budget_tokens:
             # long documents (papers, reports): keep the part that matched, not the first pages
-            width = budget_tokens * CHARS_PER_TOKEN
-            best = next(c.text for c in chunks if c.article_id == article_id).strip()
-            hit = text.find(best)
-            start = 0
-            if hit > 0:
-                start = max(0, min(hit + len(best) // 2 - width // 2, len(text) - width))
-            out.append(Passage(article_id, text[start : start + width]))
+            out.append(Passage(article_id, _window(text, best, budget_tokens * CHARS_PER_TOKEN)))
             break
         if used + cost > budget_tokens:
             if overflow == "stop":
@@ -89,6 +100,14 @@ def pack_articles(
     *,
     budget_tokens: int = ARTICLE_BUDGET_TOKENS,
     overflow: str = "stop",
+    window_tokens: int | None = None,
 ) -> list[Passage]:
     """Budget packing: distinct parent articles in rank order until the budget is full."""
-    return parent_articles(chunks, articles, k=None, budget_tokens=budget_tokens, overflow=overflow)
+    return parent_articles(
+        chunks,
+        articles,
+        k=None,
+        budget_tokens=budget_tokens,
+        overflow=overflow,
+        window_tokens=window_tokens,
+    )

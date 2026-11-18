@@ -1,0 +1,25 @@
+{
+  "description": "P-1 stand-in corpus (docs/papers_protocol.md): 20 open-access time-series forecasting papers from top AI venues. ragkit papers fetch downloads the PDFs from arXiv and writes this file as SOURCES.json next to them.",
+  "documents": [
+    {"id": "1905.10437", "title": "N-BEATS: Neural basis expansion analysis for interpretable time series forecasting", "citation": "Oreshkin et al., ICLR 2020", "url": "https://arxiv.org/abs/1905.10437"},
+    {"id": "2012.07436", "title": "Informer: Beyond Efficient Transformer for Long Sequence Time-Series Forecasting", "citation": "Zhou et al., AAAI 2021", "url": "https://arxiv.org/abs/2012.07436"},
+    {"id": "2106.13008", "title": "Autoformer: Decomposition Transformers with Auto-Correlation for Long-Term Series Forecasting", "citation": "Wu et al., NeurIPS 2021", "url": "https://arxiv.org/abs/2106.13008"},
+    {"id": "2201.12740", "title": "FEDformer: Frequency Enhanced Decomposed Transformer for Long-term Series Forecasting", "citation": "Zhou et al., ICML 2022", "url": "https://arxiv.org/abs/2201.12740"},
+    {"id": "2205.14415", "title": "Non-stationary Transformers: Exploring the Stationarity in Time Series Forecasting", "citation": "Liu et al., NeurIPS 2022", "url": "https://arxiv.org/abs/2205.14415"},
+    {"id": "2205.13504", "title": "Are Transformers Effective for Time Series Forecasting?", "citation": "Zeng et al., AAAI 2023", "url": "https://arxiv.org/abs/2205.13504"},
+    {"id": "2211.14730", "title": "A Time Series is Worth 64 Words: Long-term Forecasting with Transformers", "citation": "Nie et al., ICLR 2023", "url": "https://arxiv.org/abs/2211.14730"},
+    {"id": "2210.02186", "title": "TimesNet: Temporal 2D-Variation Modeling for General Time Series Analysis", "citation": "Wu et al., ICLR 2023", "url": "https://arxiv.org/abs/2210.02186"},
+    {"id": "2201.12886", "title": "N-HiTS: Neural Hierarchical Interpolation for Time Series Forecasting", "citation": "Challu et al., AAAI 2023", "url": "https://arxiv.org/abs/2201.12886"},
+    {"id": "2302.11939", "title": "One Fits All: Power General Time Series Analysis by Pretrained LM", "citation": "Zhou et al., NeurIPS 2023", "url": "https://arxiv.org/abs/2302.11939"},
+    {"id": "2310.06625", "title": "iTransformer: Inverted Transformers Are Effective for Time Series Forecasting", "citation": "Liu et al., ICLR 2024", "url": "https://arxiv.org/abs/2310.06625"},
+    {"id": "2405.14616", "title": "TimeMixer: Decomposable Multiscale Mixing for Time Series Forecasting", "citation": "Wang et al., ICLR 2024", "url": "https://arxiv.org/abs/2405.14616"},
+    {"id": "2310.01728", "title": "Time-LLM: Time Series Forecasting by Reprogramming Large Language Models", "citation": "Jin et al., ICLR 2024", "url": "https://arxiv.org/abs/2310.01728"},
+    {"id": "2307.03756", "title": "FITS: Modeling Time Series with 10k Parameters", "citation": "Xu et al., ICLR 2024", "url": "https://arxiv.org/abs/2307.03756"},
+    {"id": "2310.10688", "title": "A decoder-only foundation model for time-series forecasting", "citation": "Das et al., ICML 2024", "url": "https://arxiv.org/abs/2310.10688"},
+    {"id": "2402.02592", "title": "Unified Training of Universal Time Series Forecasting Transformers", "citation": "Woo et al., ICML 2024", "url": "https://arxiv.org/abs/2402.02592"},
+    {"id": "2402.02368", "title": "Timer: Generative Pre-trained Transformers Are Large Time Series Models", "citation": "Liu et al., ICML 2024", "url": "https://arxiv.org/abs/2402.02368"},
+    {"id": "2402.03885", "title": "MOMENT: A Family of Open Time-series Foundation Models", "citation": "Goswami et al., ICML 2024", "url": "https://arxiv.org/abs/2402.03885"},
+    {"id": "2405.00946", "title": "SparseTSF: Modeling Long-term Time Series Forecasting with 1k Parameters", "citation": "Lin et al., ICML 2024", "url": "https://arxiv.org/abs/2405.00946"},
+    {"id": "2402.19072", "title": "TimeXer: Empowering Transformers for Time Series Forecasting with Exogenous Variables", "citation": "Wang et al., NeurIPS 2024", "url": "https://arxiv.org/abs/2402.19072"}
+  ]
+}
