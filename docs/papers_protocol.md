@@ -132,3 +132,13 @@ the paper and no prompt prefix could be reused. The document cut becomes **80 00
 Since amendment 2 the contexts run on a separate Ollama server limited to one GPU
 (`CUDA_VISIBLE_DEVICES=1`, own port), because the shared server fails on the full GPU 3; the shared
 server was not restarted.
+
+## Amendment 4 (after 69 context calls at 80 000, before any retrieval run or score)
+
+Amendment 3 measured characters per token on the first paper only. A probe (each paper's text
+cut, plus its longest chunk, sent once with one output token; Ollama's `prompt_eval_count`) found
+that at 80 000 characters four papers (2205.14415, 2211.14730, 2302.11939, 2405.14616) exceed 32 768
+tokens (up to 37 903, about 2.1 characters per token) and are cut from the start again. The same
+probe at **60 000 characters** gives at most 24 491 tokens (2307.03756) over all 20 papers, which
+leaves room for the 200-token reply. The cut becomes 60 000 characters for every paper; the 69 calls
+at 80 000 are discarded (gitignored raw cache, other keys) and generation restarts.
