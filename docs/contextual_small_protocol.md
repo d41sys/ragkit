@@ -76,3 +76,27 @@ LLM to ship.
 ## Not claimed
 
 Answer quality through the agent; corpora other than EU; other prompts or LLMs.
+
+## Outcome
+
+Scored once (`ragkit contextual score-small`), raw report
+[`sota-runs/contextual_small_score.txt`](sota-runs/contextual_small_score.txt). Contexts: 982 calls,
+90 minutes, mean 23 words, 0 empty; no C8 chunk text exceeds 512 bge-small tokens.
+
+| System | EU 190 MRR | MRR difference vs B0 | wrong-act | pack recall |
+|---|---|---|---|---|
+| B0 (shipped `hybrid+ce`) | 0.681 | | 46 | 0.837 |
+| C8 (Qwen context) | 0.706 | +0.025 [-0.014, +0.071] | 45 | 0.826 |
+| P0 (heading prefix, control) | 0.686 | +0.006 [-0.025, +0.036] | 46 | 0.832 |
+
+**Verdict: C8 not adopted (no evidence).** Condition 1 fails (CI lower bound -0.014) and condition 2
+fails (pack recall -0.011, two questions). Nothing ships.
+
+- P1 partly held: the point estimate (+0.025) is inside the predicted +0.01 to +0.05 and the CI
+  includes 0, but the gain is not on wrong-act (45 vs 46); it is on ranking inside the right act
+  (Recall@5 +0.031).
+- P2 failed: the largest gain is on the original set (+0.063); on keyword-free C8 gains +0.025 MRR
+  but wrong-act gets worse (24 vs 21).
+- P0 is close to B0 (+0.006): the act and heading names that the heading prefix adds give nothing on
+  top of `hybrid+ce`. If C8's +0.025 is real, it comes from the model-written text, not the names.
+- P-cost: 90 minutes, at the upper end of the prediction.

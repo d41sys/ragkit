@@ -1173,7 +1173,19 @@ ragkit already had the core of the pipeline OpenAI, Azure, Google and Anthropic 
 | S (1600 / 400) | -0.039 [-0.079, -0.001] | 53 | 150/190 | +0.034 [-0.010, +0.076] |
 | SC (S + Qwen context) | -0.033 [-0.075, +0.010] | 50 | 153/190 | +0.145 [+0.103, +0.191] |
 
-**Verdict**: nothing ships (the rule needed an EU gain). The recipe pays off on long documents: on privacy policies and NDAs the context raises the share of gold text retrieved from 0.415 to 0.560 (+35 % relative; SC beats S by +0.112, so it is the context, not the size). On EU articles, which are short and start with a heading naming the act and article, larger chunks lose, and the context recovers only part of that. Context on the shipped 500-character chunks was not tested. Whether SC helps on the group's own long reports is not measured (no labelled questions exist).
+**Verdict**: nothing ships (the rule needed an EU gain). The recipe pays off on long documents: on privacy policies and NDAs the context raises the share of gold text retrieved from 0.415 to 0.560 (+35 % relative; SC beats S by +0.112, so it is the context, not the size). On EU articles, which are short and start with a heading naming the act and article, larger chunks lose, and the context recovers only part of that. Context on the shipped 500-character chunks is K-R8, below. Whether SC helps on the group's own long reports is not measured (no labelled questions exist).
+
+### Context on the shipped chunks, Phase K-R8 ([`docs/contextual_small_protocol.md`](docs/contextual_small_protocol.md))
+
+K-R7 left one question open: does Anthropic's context help on the shipped 500-character chunks, without the larger chunks that hurt EU? Tested once (issue #17): C8 = the shipped `hybrid+ce` on the same 982 EU chunks, with a Qwen3.6 27B context (Anthropic's prompt, mean 23 words) prepended before BM25, embedding and reranking. Control P0 (added before any score, not gating) = the model-free heading prefix (act title and article heading) on the same pipeline.
+
+| | EU 190 MRR d | EU wrong-act | EU pack recall |
+|---|---|---|---|
+| B0 (shipped; absolute values) | 0.681 | 46 | 0.837 |
+| C8 (Qwen context) | +0.025 [-0.014, +0.071] | 45 | 0.826 |
+| P0 (heading prefix) | +0.006 [-0.025, +0.036] | 46 | 0.832 |
+
+**Verdict**: nothing ships. C8's gain is not separable from noise and pack recall drops by two questions; wrong-act errors are unchanged (the context does not fix the wrong-act failures). The heading prefix adds nothing on top of `hybrid+ce`. With K-R5 to K-R8, the published retrieval upgrades (stronger reranker, query expansion, larger chunks, contextual retrieval) have all been measured on this EU corpus. Only the stronger reranker gave a clear EU gain (K-R6), and it lost on NFCorpus, so it is opt-in (`hybrid+bge-ce`). Contextual retrieval helped on long documents (K-R7, LegalBench), not on short EU articles.
 
 ### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
 
