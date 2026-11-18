@@ -120,3 +120,15 @@ shared GPUs had 17 to 22 GB free across four cards, and the first load returned 
 context generated. A small model matches Anthropic's published setup (Claude Haiku writes the
 contexts). Everything else is unchanged: prompt, temperature 0, at most 200 output tokens, thinking
 off, document cut at 96 000 characters, `num_ctx` 32 768. P-cost becomes about 2 hours.
+
+## Amendment 3 (after 14 context calls, before any retrieval run or score)
+
+The 96 000-character cut assumed 4 characters per token; the paper text has about 2.7 (math,
+tables, numbers). The first 14 calls sent prompts of 35 000 tokens, which Ollama silently cut from
+the start to `num_ctx` 32 768 (log: "truncating input prompt"), so the model lost the beginning of
+the paper and no prompt prefix could be reused. The document cut becomes **80 000 characters**
+(about 29 000 tokens), so document, chunk, instructions and the 200-token reply fit in 32 768. The
+14 calls are discarded (they stay in the gitignored raw cache under other keys); generation restarts.
+Since amendment 2 the contexts run on a separate Ollama server limited to one GPU
+(`CUDA_VISIBLE_DEVICES=1`, own port), because the shared server fails on the full GPU 3; the shared
+server was not restarted.
