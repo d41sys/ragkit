@@ -101,3 +101,13 @@ Paired bootstrap over questions (10 000 resamples, seed 0, 95 % CI) of evidence 
 
 The group's own papers (not available yet); answer quality through the agent; other prompts or
 LLMs; PDFs with scanned pages (no OCR).
+
+## Amendment 1 (before any question or context exists)
+
+The raw call cache stores the whole request, so for papers it would be about 370 MB (4 100 calls
+times up to 96 000 characters), above GitHub's file limit. It is kept in
+`data/raw/papers/contexts_cache.jsonl` (gitignored); `ragkit papers contextualize` writes the
+generated contexts with the model, `num_ctx`, document cut and prompt to
+`docs/sota-runs/papers_contexts.json` (committed), and `ragkit papers score` reads that file. The
+paper list lives in `src/ragkit/data/papers_forecasting.json`; `fetch` copies it as `SOURCES.json`
+next to the PDFs, which gives search results their citation (`Article.citation`, `Article.pages`).
