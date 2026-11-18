@@ -111,3 +111,12 @@ generated contexts with the model, `num_ctx`, document cut and prompt to
 `docs/sota-runs/papers_contexts.json` (committed), and `ragkit papers score` reads that file. The
 paper list lives in `src/ragkit/data/papers_forecasting.json`; `fetch` copies it as `SOURCES.json`
 next to the PDFs, which gives search results their citation (`Article.citation`, `Article.pages`).
+
+## Amendment 2 (before any context exists; the questions exist, no retrieval run has happened)
+
+Contexts are generated with **`qwen3:8b`** (already on the Korea server, about 5 GB), not
+`qwen3.6:27b-ctx4k`. Reason: the 27B model at `num_ctx` 32 768 needs about 27 GB of GPU memory, the
+shared GPUs had 17 to 22 GB free across four cards, and the first load returned HTTP 500 with no
+context generated. A small model matches Anthropic's published setup (Claude Haiku writes the
+contexts). Everything else is unchanged: prompt, temperature 0, at most 200 output tokens, thinking
+off, document cut at 96 000 characters, `num_ctx` 32 768. P-cost becomes about 2 hours.
