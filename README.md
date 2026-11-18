@@ -81,7 +81,7 @@ result = ragkit.search(
 )
 result.retriever  # the retriever that actually ran ("bm25" after a fallback)
 result.estimated_tokens  # parent.estimate_tokens of all article texts
-for a in result.articles:  # Article(id, act, celex, article, heading, text, rank, url, version, ...)
+for a in result.articles:  # Article(id, act, celex, article, heading, text, rank, url, ...)
     print(a.rank, a.act, "Article", a.article, a.url, a.version)
 json.dumps(result.to_dict())
 ```
