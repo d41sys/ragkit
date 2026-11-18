@@ -77,17 +77,19 @@ result = ragkit.search(
     budget_tokens=12_000,  # articles are packed whole, in rank order, until this is full
     pack_chunks=10,  # chunks whose parent articles are candidates
     answerable=False,  # True: also return the reader score and its threshold
+    window_tokens=None,  # long documents (papers): pack the window of this size around each best chunk
 )
 result.retriever  # the retriever that actually ran ("bm25" after a fallback)
 result.estimated_tokens  # parent.estimate_tokens of all article texts
-for a in result.articles:  # Article(id, act, celex, article, heading, text, rank, url, version)
+for a in result.articles:  # Article(id, act, celex, article, heading, text, rank, url, version, pages, citation)
     print(a.rank, a.act, "Article", a.article, a.url, a.version)
 json.dumps(result.to_dict())
 ```
 `ragkit.search`, `ragkit.SearchResult` and `ragkit.Article` are the public names; the implementation lives in the private module `ragkit._search` (patch there in tests, e.g. `mock.patch("ragkit._search.INDEX_DIR", ...)`).
 
-- **Input checks.** An empty or whitespace query, a query over 2000 characters, an unknown retriever and a non-positive `pack_chunks` or `budget_tokens` raise `ValueError`.
+- **Input checks.** An empty or whitespace query, a query over 2000 characters, an unknown retriever and a non-positive `pack_chunks`, `budget_tokens` or `window_tokens` raise `ValueError`.
 - **Citation fields** come from `SOURCES.json` of the corpus directory (`acts[]`, matched to the document id by `short`): `act` is the act title, `url` the EUR-Lex URL, `version` is "consolidated version of <consolidated_date>" when the act has one and "original Official Journal text (retrieved <retrieved_on>)" otherwise. A corpus without `SOURCES.json` gets `None` for `celex`, `url` and `version`.
+- **Papers and PDFs.** A corpus directory may hold `.pdf` files (needs the `[pdf]` extra, `pypdf`); pages are joined by a form feed, so each returned text has `pages` ("3" or "3-4"). `SOURCES.json` may list `documents[]` (`id`, `title`, `citation`, `url`), matched to the file name: `act` is then the paper title and `citation` e.g. "Nie et al., ICLR 2023". A document longer than the budget returns the window around its best chunk, not its first pages; `window_tokens` does that for every document longer than it, so several papers share the budget (measured in `docs/papers_protocol.md`, Phase P-1).
 - **Serving.** The pipeline of each `(corpus_dir, retriever)` is built once and reused; one lock per pipeline serialises calls, so threads are safe (8 threads return what a sequential run returns: `tests/test_ragkit_search.py`). The query-vector and cross-encoder caches, which the experiments rely on, are off on this path: `ce_cache` and `DenseSide.queries` stay empty however many distinct questions arrive.
 - **Memory, measured.** 10 000 distinct queries through `search()` with `hybrid+ce` (random 6 to 12 word windows of corpus sentences, so distinct strings, not human questions; 1 292 s): `ce_cache` and `DenseSide.queries` held 0 entries at all 20 samples, and the process RSS (macOS `ps`) went 271 MB at 500 queries to 98 MB at 10 000 with no upward trend (macOS compresses idle pages, so the drop after the first 1 500 is not a leak fix; Linux not measured). Python heap (`tracemalloc`) grew 1.1 to 1.6 MB over 1 000 queries; a separate run of 30 000 distinct BM25 queries shows why: 1.04 MB at 1 000, 1.42 MB at 30 000, the lazily cached posting arrays of the BM25 index, bounded by the vocabulary (2 261 of 2 644 terms at the end).
 - **Retriever.** `hybrid+ce` is the default because it is the measured best (`docs/packing_protocol.md`). With `retriever` left at `None`, if `sentence-transformers` is missing or the models cannot be loaded, `search()` logs a warning and falls back to plain BM25; `result.retriever` is then `"bm25"`. A retriever named explicitly (including every `--retriever` of the CLI) never falls back: it raises `RuntimeError` with the load error, so a run cannot record BM25 numbers under another name. The first call runs a warm-up query that loads every model, so a load failure is caught there and the choice is made once per process.
