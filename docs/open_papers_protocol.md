@@ -96,3 +96,20 @@ Paired bootstrap over questions (10 000 resamples, seed 0, 95 % CI).
 
 Answer quality through the agent; QASPER questions without the paper title ("described" questions);
 evidence inside MDA-QA support papers; the group's own papers.
+
+## Amendment 1 (a dev run and a probe were started and stopped; no output exists)
+
+1. **Equal MDA-QA splits.** Each MDA-QA corpus is the union of its own questions' support papers,
+   so its size sets how crowded the ranking is: dev 200 questions (410 papers) against test 100
+   (206) would tune on a pool twice as crowded as the one scored. Dev becomes the first 100
+   shuffled ids (201 papers), test the next 100 (209 papers). No unrelated distractor papers are
+   added: they would double the context calls, and every corpus paper already is a distractor for
+   the other questions.
+2. **QASPER's role.** Measured paper lengths (estimated tokens): of 416 test papers, 282 exceed
+   4 000, 52 exceed 8 000 and 8 exceed 12 000. B0 almost always packs the whole gold paper, so
+   QASPER cannot show a budget gain; it is the guard against windows and slices losing evidence
+   (P-1's described-question loss), which is how rule 1 uses it (non-inferiority, -0.02).
+3. **Token units.** Budgets are ragkit's estimated tokens (characters / 4). P-1 measured paper text
+   at 2.1 to 3.1 characters per Qwen token, so 12 000 / 24 000 / 36 000 estimated tokens are
+   about 15 000 to 23 000 / 31 000 to 46 000 / 46 000 to 69 000 real tokens; costs are reported
+   with that range.
