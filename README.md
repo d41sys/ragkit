@@ -1199,7 +1199,7 @@ ragkit is mainly for an agent reading a research group's papers. Stand-in corpus
 | W - B0 (4 000-token window per paper, so 2 to 3 papers fit) | -0.105 [-0.228, +0.008] | -0.350 [-0.600, -0.100] | +0.175 [+0.017, +0.317] |
 | WC - B0 (W plus Qwen3 8B contexts for retrieval; reported, not judged) | +0.017 [-0.130, +0.162] | -0.200 | +0.183 |
 
-**Verdict**: nothing ships. Short windows help questions that need several papers but lose quotes on single-paper questions, and single-paper questions are the majority. Contexts make the right paper rank first more often (paper MRR 0.971 vs 0.911 for W) but were not judged, since W was not adopted. Opt-in remains: `search(..., window_tokens=4000)` for questions that compare papers.
+**Verdict**: nothing ships. Short windows help questions that need several papers, change nothing on questions that name the paper, and lose quotes on questions that describe a paper without its name: in all 8 losses the right paper ranks first, but the quote sits outside the 4 000-token window around its best chunk. Contexts make the right paper rank first more often (paper MRR 0.971 vs 0.911 for W) but were not judged, since W was not adopted. Opt-in remains: `search(..., window_tokens=4000)` for questions that compare papers.
 
 ### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
 

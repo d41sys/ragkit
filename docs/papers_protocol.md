@@ -166,9 +166,12 @@ Scored once (`ragkit papers score`), raw report
 Nothing ships; `search()` keeps whole-paper packing.
 
 - P1 held in direction: W gains on cross questions (+0.175, 6 better, 1 worse), but single-paper
-  questions do not "change little": on described questions W loses 0.350. W still packs the right
-  paper (paper recall 0.950 vs 0.900), so the quote B0's 12 000 tokens hold falls outside W's
-  4 000-token window around the best chunk.
+  questions do not "change little": named questions are identical (0/0/20), while described
+  questions lose 0.350 (8 worse, 1 better). Measured after scoring on the 8 losses (throwaway
+  script, same pool and packing): in all 8 the gold paper's chunk ranks first and the paper is packed
+  under W, but the quote lies outside W's 16 000-character window around that chunk and inside B0's
+  48 000-character one. The best-matching chunk of a described question is not the quote's passage.
+  Why named questions escape this was not measured.
 - P2 held as a point estimate (+0.122, inside +0.05 to +0.15), not judged. The contexts mainly find
   the right paper: paper recall 0.922 vs 0.875, MRR 0.971 vs 0.911.
 - P3 failed: under B0, described and named questions score the same (0.800 each).
