@@ -2398,9 +2398,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="P-2: packing budget, windows, slices and contexts on QASPER and MDA-QA (files in "
         "data/raw/open_papers; probe and contextualize need an Ollama server).",
     )
-    p_op.add_argument(
-        "action", choices=("probe", "contextualize", "dev", "score"), help="Stage."
-    )
+    p_op.add_argument("action", choices=("probe", "contextualize", "dev", "score"), help="Stage.")
     p_op.add_argument(
         "--cache", default="data/raw/open_papers/contexts_cache.jsonl", help="Raw LLM call cache."
     )
