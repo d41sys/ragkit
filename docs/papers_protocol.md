@@ -142,3 +142,34 @@ tokens (up to 37 903, about 2.1 characters per token) and are cut from the start
 probe at **60 000 characters** gives at most 24 491 tokens (2307.03756) over all 20 papers, which
 leaves room for the 200-token reply. The cut becomes 60 000 characters for every paper; the 69 calls
 at 80 000 are discarded (gitignored raw cache, other keys) and generation restarts.
+
+## Outcome
+
+Scored once (`ragkit papers score`), raw report
+[`sota-runs/papers_score.txt`](sota-runs/papers_score.txt). Contexts:
+[`sota-runs/papers_contexts.json`](sota-runs/papers_contexts.json), 4 581 chunks (not the estimated
+4 100), mean 26.7 words, 0 empty, no prompt cut by Ollama after amendment 4.
+
+| System (50 questions) | evidence recall | paper recall | MRR (paper) | papers packed |
+|---|---|---|---|---|
+| B0 (shipped, whole paper up to 12 000 tokens) | 0.692 | 0.792 | 0.911 | 1.00 |
+| W (4 000-token window per paper) | 0.587 | 0.875 | 0.911 | 2.54 |
+| WC (W plus Qwen contexts for retrieval) | 0.708 | 0.922 | 0.971 | 2.40 |
+
+| Evidence recall difference | all 50 | named 20 | described 20 | cross 10 |
+|---|---|---|---|---|
+| W - B0 | -0.105 [-0.228, +0.008] | +0.000 | -0.350 [-0.600, -0.100] | +0.175 [+0.017, +0.317] |
+| WC - W (not judged) | +0.122 [+0.015, +0.237] | +0.150 | +0.150 | +0.008 |
+| WC - B0 (reported) | +0.017 [-0.130, +0.162] | +0.150 | -0.200 | +0.183 |
+
+**Verdict: W not adopted** (CI lower bound -0.228; the EU guard held). WC is not judged (rule 2).
+Nothing ships; `search()` keeps whole-paper packing.
+
+- P1 held in direction: W gains on cross questions (+0.175, 6 better, 1 worse), but single-paper
+  questions do not "change little": on described questions W loses 0.350. W still packs the right
+  paper (paper recall 0.950 vs 0.900), so the quote B0's 12 000 tokens hold falls outside W's
+  4 000-token window around the best chunk.
+- P2 held as a point estimate (+0.122, inside +0.05 to +0.15), not judged. The contexts mainly find
+  the right paper: paper recall 0.922 vs 0.875, MRR 0.971 vs 0.911.
+- P3 failed: under B0, described and named questions score the same (0.800 each).
+- P-cost: 4 581 calls, 3.4 hours on one shared GPU, after the two discarded starts.

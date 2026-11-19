@@ -1189,6 +1189,18 @@ K-R7 left one question open: does Anthropic's context help on the shipped 500-ch
 
 **Verdict**: nothing ships. C8's gain is not separable from noise and pack recall drops by two questions; wrong-act errors are unchanged (the context does not fix the wrong-act failures). The heading prefix gives no MRR gain on top of `hybrid+ce`. With K-R5 to K-R8, the published retrieval upgrades (stronger reranker, query expansion, larger chunks, contextual retrieval) have all been measured on this EU corpus. Only the stronger reranker gave a clear EU gain (K-R6), and it lost on NFCorpus, so it is opt-in (`hybrid+bge-ce`). Contextual retrieval helped on long documents (K-R7, LegalBench), not on short EU articles.
 
+### Research papers as a corpus, Phase P-1 ([`docs/papers_protocol.md`](docs/papers_protocol.md))
+
+ragkit is mainly for an agent reading a research group's papers. Stand-in corpus until the group's own papers are available: 20 open-access forecasting papers (N-BEATS to TimeXer, PDFs read with the `[pdf]` extra), 50 questions with verbatim gold quotes (20 name the paper, 20 describe it without its name, 10 need two papers). Primary metric: evidence recall, the share of gold quotes inside the packed context (issue #18).
+
+| Evidence recall | all 50 | described 20 | cross 10 |
+|---|---|---|---|
+| B0 (shipped: whole paper, window around the best chunk when over 12 000 tokens; absolute) | 0.692 | 0.800 | 0.258 |
+| W - B0 (4 000-token window per paper, so 2 to 3 papers fit) | -0.105 [-0.228, +0.008] | -0.350 [-0.600, -0.100] | +0.175 [+0.017, +0.317] |
+| WC - B0 (W plus Qwen3 8B contexts for retrieval; reported, not judged) | +0.017 [-0.130, +0.162] | -0.200 | +0.183 |
+
+**Verdict**: nothing ships. Short windows help questions that need several papers but lose quotes on single-paper questions, and single-paper questions are the majority. Contexts make the right paper rank first more often (paper MRR 0.971 vs 0.911 for W) but were not judged, since W was not adopted. Opt-in remains: `search(..., window_tokens=4000)` for questions that compare papers.
+
 ### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
 
 `ragkit answer` passed the first 3 distinct parent articles of the top-5 chunks under a 12 000-token budget the contexts never filled (mean 3 229 to 3 526 estimated tokens on the 130 pooled held-out questions). Budget packing adds distinct articles in rank order until the budget is full, never exceeds it, and drops the first article that does not fit and all later ones (`stop`; `skip` is the alternative). Pre-registered (`13aa661`), retrieval only: **no generation, no API call, answer quality not re-measured**. Overflow policy and pool depth were chosen on the dev sets (fresh 29 + synthetic 40, at the ceiling, so by tie-break: `stop`, 10 chunks) before one held-out run (`ragkit packing score`).
