@@ -285,6 +285,7 @@ def search(
     answerable: bool = False,
     overflow: str = PACK_OVERFLOW,
     window_tokens: int | None = None,
+    slices: int = 1,
 ) -> SearchResult:
     """Distinct parent articles of the top ``pack_chunks`` chunks, packed into ``budget_tokens``.
 
@@ -294,9 +295,10 @@ def search(
     ``READER_CHUNKS`` chunks, needs the ``[st]`` extra) and ``answerable_threshold``
     (``ANSWERABLE_THRESHOLDS``; ``None`` where none was measured): refuse when the score is below
     it. ``window_tokens`` packs a document longer than it as the window of that size around its
-    best chunk (long papers; ``docs/papers_protocol.md``). Raises ``ValueError`` for an empty or
-    over-long query, an unknown retriever or a non-positive ``pack_chunks`` / ``budget_tokens``
-    / ``window_tokens``.
+    best chunk (long papers; ``docs/papers_protocol.md``); ``slices`` splits each window into up to
+    that many around the document's best chunks (``docs/open_papers_protocol.md``). Raises
+    ``ValueError`` for an empty or over-long query, an unknown retriever or a non-positive
+    ``pack_chunks`` / ``budget_tokens`` / ``window_tokens`` / ``slices``.
     """
     query = _validated(query, retriever)
     if pack_chunks < 1:
@@ -310,6 +312,7 @@ def search(
             budget_tokens=budget_tokens,
             overflow=overflow,
             window_tokens=window_tokens,
+            slices=slices,
         )
         top = entry.pipeline.retrieve(query, READER_CHUNKS) if answerable else []
     score = _reader_score(query, [Passage(c.doc_id, c.text) for c in top]) if answerable else None
