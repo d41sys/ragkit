@@ -1458,7 +1458,7 @@ def cmd_papers(args: argparse.Namespace) -> int:
             api_key="ollama",
             model=pb.CONTEXT_MODEL,
             temperature=0.0,
-            max_calls=len(chunks),
+            max_calls=2 * len(chunks),  # the cache also keeps calls discarded by amendments 3-4
             max_cost_usd=1000.0,  # Ollama is free; the assumed API prices only bound the cache size
             transport=ollama_transport(args.base_url, num_ctx=pb.CONTEXT_NUM_CTX, think=False),
         )
