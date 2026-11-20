@@ -1567,12 +1567,88 @@ def cmd_papers(args: argparse.Namespace) -> int:
     return 0
 
 
+def _paper_answers(args: argparse.Namespace) -> int:
+    """P-3: answers from contexts packed at 12 000 and 36 000 tokens (paper_answers_protocol)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from ragkit import openpapers as op
+    from ragkit.ctxprefix import build_chunks
+    from ragkit.llm import codex_transport
+
+    if args.action == "answers":
+        client = CachedMessages(
+            op.DATA_DIR / "answers_cache.jsonl",
+            api_key="codex" if args.live else "",
+            model=op.READER_MODEL,
+            max_calls=4000,  # 800 answers and at most 800 verdicts, plus JSON retries
+            max_cost_usd=1e6,  # a subscription; the assumed API prices only bound the cache size
+            transport=codex_transport(),
+        )
+        answerer = LLMAnswerer(client)
+        engine = _paper_engine(args)
+        jobs: list[tuple[str, Any, str, list[Passage]]] = []
+        for bench, (docs, questions) in op.answer_sets().items():
+            chunks, documents = build_chunks(docs, prefix=False), dict(docs)
+            eng = engine(chunks, documents)
+            for q in questions:
+                passages = _paper_pool(eng, q.text, chunks)[1]
+                for arm, budget in op.ARMS.items():
+                    jobs.append((bench, q, arm, op.pack(passages, documents, (budget, None, 1))))
+
+        def run(job: tuple[str, Any, str, list[Passage]]) -> dict[str, Any]:
+            bench, q, arm, packed = job
+            gen = answerer.generate(q.text, packed, op.PAPER_INSTRUCTIONS)
+            verdict = answerer.judge_correct(q.text, q.answer, gen.answer)
+            usage = answerer.gen_usage(q.text, packed, op.PAPER_INSTRUCTIONS) or {}
+            return {
+                "bench": bench,
+                "id": q.id,
+                "arm": arm,
+                "question": q.text,
+                "reference": q.answer,
+                "papers": list(q.papers),
+                "packed": [p.article_id for p in packed],
+                "answer": gen.answer,
+                "citations": list(gen.citations),
+                "supports": gen.supports,
+                "verdict": verdict.verdict,
+                "reason": verdict.reason,
+                "input_tokens": usage.get("input_tokens", 0),
+            }
+
+        with ThreadPoolExecutor(args.workers) as pool:
+            records = list(pool.map(run, jobs))
+        op.ANSWERS_PATH.write_text(json.dumps(records, indent=1) + "\n", encoding="utf-8")
+        print(f"{len(records)} answers in {op.ANSWERS_PATH} ({client.live_calls} new calls)")
+        return 0
+
+    records = json.loads(op.ANSWERS_PATH.read_text(encoding="utf-8"))
+    packed_n = {
+        arm: [len(r["packed"]) for r in records if r["arm"] == arm and r["bench"] == "mdaqa"]
+        for arm in op.ARMS
+    }
+    notes = [
+        f"reader and judge: {op.READER_MODEL} through the Codex CLI, reasoning effort low",
+        "MDA-QA papers packed per question: "
+        + ", ".join(f"{a} {sum(n) / len(n):.2f}" for a, n in packed_n.items()),
+        "Codex input tokens include about 15 700 of Codex's own instructions per call",
+    ]
+    text = op.render_answers(records, notes)
+    print(text)
+    if args.out:
+        Path(args.out).write_text(text + "\n", encoding="utf-8")
+    return 0
+
+
 def cmd_openpapers(args: argparse.Namespace) -> int:
-    """P-2: paper packing on QASPER and MDA-QA (docs/open_papers_protocol.md)."""
+    """P-2 and P-3: paper packing on QASPER and MDA-QA (docs/open_papers_protocol.md)."""
     from ragkit import openpapers as op
     from ragkit import papersbench as pb
     from ragkit.contextualbench import CONTEXT_PROMPT, contexts, with_contexts
     from ragkit.ctxprefix import build_chunks
+
+    if args.action in ("answers", "answers-score"):
+        return _paper_answers(args)
 
     loaders = {"qasper": op.qasper, "mdaqa": op.mdaqa}
     if args.action in ("probe", "contextualize"):
@@ -2398,10 +2474,17 @@ def main(argv: Sequence[str] | None = None) -> None:
     # Paper packing on open benchmarks (docs/open_papers_protocol.md)
     p_op = subparsers.add_parser(
         "openpapers",
-        help="P-2: packing budget, windows, slices and contexts on QASPER and MDA-QA (files in "
-        "data/raw/open_papers; probe and contextualize need an Ollama server).",
+        help="P-2: packing budget, windows, slices and contexts on QASPER and MDA-QA; P-3: "
+        "answers at 12 000 and 36 000 tokens (files in data/raw/open_papers; probe and "
+        "contextualize need an Ollama server, `answers --live` the Codex CLI).",
     )
-    p_op.add_argument("action", choices=("probe", "contextualize", "dev", "score"), help="Stage.")
+    p_op.add_argument(
+        "action",
+        choices=("probe", "contextualize", "dev", "score", "answers", "answers-score"),
+        help="Stage.",
+    )
+    p_op.add_argument("--live", action="store_true", help="answers: call Codex on cache misses.")
+    p_op.add_argument("--workers", type=int, default=4, help="answers: concurrent Codex calls.")
     p_op.add_argument(
         "--cache", default="data/raw/open_papers/contexts_cache.jsonl", help="Raw LLM call cache."
     )

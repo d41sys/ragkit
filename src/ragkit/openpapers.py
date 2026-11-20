@@ -2,7 +2,8 @@
 
 A packing configuration is (budget, window, slices). The dev splits run every configuration and
 choose S_b per budget; the test splits are scored once for B0 and the chosen S_b, and on MDA-QA
-also with Qwen contexts (WC_b).
+also with Qwen contexts (WC_b). P-3 (docs/paper_answers_protocol.md) answers fresh questions from
+the contexts packed at 12 000 and 36 000 tokens and has the answers judged.
 """
 
 from __future__ import annotations
@@ -22,10 +23,14 @@ from ragkit.papersbench import normalize
 from ragkit.parent import PACK_CHUNKS, PACK_OVERFLOW, Passage, estimate_tokens, pack_articles
 
 DATA_DIR = Path("data/raw/open_papers")  # gitignored downloads (CC BY 4.0)
-QASPER_FILES = {"dev": "qasper-dev-v0.3.json", "test": "qasper-test-v0.3.json"}
+QASPER_FILES = {
+    "dev": "qasper-dev-v0.3.json",
+    "test": "qasper-test-v0.3.json",
+    "train": "qasper-train-v0.3.json",  # P-3 only
+}
 MDA_FILE = "MDA-QA.json"
 SPIQA_ZIP = "spiqa_paragraphs.zip"
-MDA_SPLITS = {"dev": (0, 100), "test": (100, 200)}  # amendment 1: equal pools
+MDA_SPLITS = {"dev": (0, 100), "test": (100, 200), "answers": (200, 300)}  # equal pools
 BENCHMARKS = ("qasper", "mdaqa")
 BUDGETS = (12_000, 24_000, 36_000)
 WINDOWS = (None, 4000, 8000)
@@ -56,6 +61,7 @@ class OpenQuestion:
     text: str
     papers: tuple[str, ...]
     evidence: tuple[tuple[str, ...], ...]  # QASPER: text evidence per qualifying annotator
+    answer: str = ""  # reference answer (P-3)
 
 
 def label(config: Config) -> str:
@@ -76,15 +82,23 @@ def qasper(split: str, data_dir: Path = DATA_DIR) -> tuple[Docs, list[OpenQuesti
         ]
         docs.append((pid, "\n\n".join(sections)))
         for qa in paper["qas"]:
-            evidence = tuple(
-                ev
+            qualifying = [
+                (a["answer"], ev)
                 for a in qa["answers"]
                 if not a["answer"]["unanswerable"]
                 and (ev := tuple(e for e in a["answer"]["evidence"] if not _float(e)))
-            )
-            if evidence:
+            ]
+            if qualifying:
+                first = qualifying[0][0]
+                reference = (
+                    first["free_form_answer"]
+                    or "; ".join(first["extractive_spans"])
+                    or ("Yes" if first["yes_no"] else "No")
+                )
                 text = f'In the paper "{paper["title"]}": {qa["question"].strip()}'
-                questions.append(OpenQuestion(qa["question_id"], text, (pid,), evidence))
+                evidence = tuple(ev for _, ev in qualifying)
+                question = OpenQuestion(qa["question_id"], text, (pid,), evidence, reference)
+                questions.append(question)
     return docs, questions
 
 
@@ -100,7 +114,7 @@ def mdaqa(split: str, data_dir: Path = DATA_DIR) -> tuple[Docs, list[OpenQuestio
     lo, hi = MDA_SPLITS[split]
     keep = set(ids[lo:hi])
     questions = [
-        OpenQuestion(str(q["id"]), q["question"], tuple(q["support"]), ())
+        OpenQuestion(str(q["id"]), q["question"], tuple(q["support"]), (), q["answer"])
         for q in raw
         if q["id"] in keep
     ]
@@ -269,3 +283,102 @@ def prompt_tokens(base_url: str, model: str, prompt: str, num_ctx: int) -> int:
     )
     with urllib.request.urlopen(request, timeout=600) as response:
         return int(json.load(response)["prompt_eval_count"])
+
+
+# P-3: answers from the packed contexts (docs/paper_answers_protocol.md)
+
+ANSWERS_PATH = Path("docs/sota-runs/paper_answers.json")
+READER_MODEL = "gpt-6-sol"  # through the Codex CLI, reasoning effort low
+ARMS = {"A12": 12_000, "A36": 36_000}
+ANSWER_PAPERS = 416  # QASPER corpus size, as P-2's test pool
+ANSWER_QASPER = 300
+NO_HARM_MARGIN = -0.05
+PAPER_INSTRUCTIONS = """You answer questions about research papers using ONLY the context \
+passages provided. Each passage is headed by the id of the paper it comes from, in square \
+brackets.
+
+Reply with one JSON object and nothing else:
+{"answer": "<answer>", "citations": ["<paper id>", ...], "context_supports": true | false}
+
+Rules:
+- "answer": your best answer to the question as asked, in at most 120 words, using only the \
+passages. Do not use outside knowledge. If the passages do not contain what is needed, say what \
+they do state and that they do not answer the question.
+- "citations": the ids of the papers whose passages you used. Use only ids that appear in the \
+context.
+- "context_supports": true only if the passages contain what is needed to answer the question \
+definitively, false otherwise (also false if you could only guess, or if the passages merely \
+concern the same topic)."""
+ANSWER_METRICS = {
+    "correct": "correct",
+    "partial": "yes or partial",
+    "supports": "context_supports",
+    "cited": "gold papers cited",
+    "input_tokens": "Codex input tokens",
+}
+
+
+def answer_sets(data_dir: Path = DATA_DIR) -> dict[str, tuple[Docs, list[OpenQuestion]]]:
+    """The fresh P-3 corpora and questions: 416 QASPER train papers (300 questions), MDA-QA 100."""
+    docs, questions = qasper("train", data_dir)
+    ids = sorted(pid for pid, _ in docs)
+    random.Random(0).shuffle(ids)
+    keep = set(ids[:ANSWER_PAPERS])
+    pool = [q for q in questions if q.papers[0] in keep]
+    random.Random(0).shuffle(pool)
+    kept_docs = [d for d in docs if d[0] in keep]
+    return {"qasper": (kept_docs, pool[:ANSWER_QASPER]), "mdaqa": mdaqa("answers", data_dir)}
+
+
+AnswerScores = dict[str, dict[str, dict[str, list[float]]]]  # bench -> arm -> metric
+
+
+def answer_scores(records: Sequence[Mapping[str, Any]]) -> AnswerScores:
+    """Per-question values; both arms of a benchmark list its questions in the same order."""
+    out: AnswerScores = {}
+    for r in records:
+        row = out.setdefault(r["bench"], {}).setdefault(r["arm"], {m: [] for m in ANSWER_METRICS})
+        row["correct"].append(float(r["verdict"] == "yes"))
+        row["partial"].append(float(r["verdict"] in ("yes", "partial")))
+        row["supports"].append(float(r["supports"]))
+        row["cited"].append(len(set(r["citations"]) & set(r["papers"])) / len(r["papers"]))
+        row["input_tokens"].append(float(r["input_tokens"]))
+    return out
+
+
+def answer_verdicts(scores: Rows) -> dict[str, str]:
+    """Rule 1 (harm on either benchmark), 2 (MDA-QA gain), 3 (no harm on QASPER)."""
+    ci = {
+        b: paired_bootstrap_ci(
+            scores[b]["A36"]["correct"], scores[b]["A12"]["correct"], n_resamples=N_RESAMPLES
+        )
+        for b in BENCHMARKS
+    }
+    harm = any(hi < 0 for _, _, hi in ci.values())
+    return {
+        "36 000 default for paged corpora": "reverted to 12 000" if harm else "kept",
+        "answer gain on MDA-QA": "confirmed" if ci["mdaqa"][1] > 0 else "not confirmed",
+        "no harm on QASPER": "shown" if ci["qasper"][1] > NO_HARM_MARGIN else "not shown",
+    }
+
+
+def render_answers(records: Sequence[Mapping[str, Any]], notes: Sequence[str]) -> str:
+    scores = answer_scores(records)
+    lines = ["### ragkit openpapers answers-score: P-3 (docs/paper_answers_protocol.md)"]
+    for bench, arms in scores.items():
+        n = len(arms["A12"]["correct"])
+        lines += ["", f"#### {bench} ({n} questions)", ""]
+        lines.append("| arm | " + " | ".join(ANSWER_METRICS.values()) + " |")
+        lines.append("|---|" + "---|" * len(ANSWER_METRICS))
+        for arm, row in arms.items():
+            cells = " | ".join(_fmt_mean(row[m]) for m in ANSWER_METRICS)
+            lines.append(f"| {arm} | {cells} |")
+        lines.append("")
+        for m in ("correct", "partial", "supports"):
+            diff = _fmt_diff(arms["A36"][m], arms["A12"][m])
+            lines.append(f"- {ANSWER_METRICS[m]}, A36 - A12: {diff}")
+    lines += ["", "#### Verdicts", ""]
+    lines += [f"- {k}: **{v}**" for k, v in answer_verdicts(scores).items()]
+    lines += ["", "#### Not gating", ""]
+    lines += [f"- {n}" for n in notes]
+    return "\n".join(lines)

@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
+import tempfile
 import threading
 import time
 import urllib.error
@@ -126,6 +128,65 @@ def ollama_transport(
                 "stop_reason": decoded.get("done_reason"),
             }
         raise RuntimeError("unreachable")
+
+    return send
+
+
+def codex_transport(*, effort: str = "low", timeout: int = 900, retries: int = 2) -> Transport:
+    """A ``transport`` that asks the Codex CLI (``codex exec``), replying in Messages shape.
+
+    One fresh session per request, in an empty directory with a read-only sandbox; the user's
+    Codex config, hooks, ``AGENTS.md`` and web search are off, so the model sees only the system
+    text and the user message. Codex has no temperature or output-length setting: ``max_tokens``
+    and ``temperature`` are ignored, and ``effort`` is not part of the cache key.
+    """
+
+    def send(payload: dict[str, Any], api_key: str) -> dict[str, Any]:
+        system = "\n\n".join(str(b.get("text", "")) for b in payload.get("system", []))
+        user = str(payload["messages"][-1]["content"])
+        with tempfile.TemporaryDirectory() as work:
+            last = Path(work) / "last.txt"
+            command = [
+                "codex",
+                "exec",
+                "--ignore-user-config",
+                *("--disable", "hooks"),
+                "--ephemeral",
+                "--skip-git-repo-check",
+                *("-s", "read-only"),
+                *("-C", work),
+                *("-m", str(payload["model"])),
+                *("-c", f'model_reasoning_effort="{effort}"'),
+                *("-c", "project_doc_max_bytes=0"),
+                *("-c", 'web_search="disabled"'),
+                "--json",
+                *("-o", str(last)),
+                "-",
+            ]
+            for attempt in range(retries + 1):
+                done = subprocess.run(
+                    command,
+                    input=f"{system}\n\n{user}" if system else user,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    check=False,
+                )
+                if done.returncode == 0 and last.is_file():
+                    break
+                if attempt == retries:
+                    detail = (done.stderr or done.stdout)[-300:]
+                    raise RuntimeError(f"Codex error (exit {done.returncode}): {detail}")
+                time.sleep(5 * (attempt + 1))
+            usage: dict[str, Any] = {}
+            for line in done.stdout.splitlines():
+                if line.startswith("{") and '"turn.completed"' in line:
+                    usage = json.loads(line).get("usage", {})
+            return {
+                "content": [{"type": "text", "text": last.read_text(encoding="utf-8")}],
+                "usage": usage,
+                "stop_reason": "end_turn",
+            }
 
     return send
 

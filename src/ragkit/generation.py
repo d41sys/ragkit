@@ -204,22 +204,26 @@ class LLMAnswerer:
 
     @staticmethod
     def _gen_request(
-        question: str, passages: Sequence[Passage]
+        question: str, passages: Sequence[Passage], instructions: str = GEN_INSTRUCTIONS
     ) -> tuple[list[dict[str, Any]], str]:
         user = f"Context passages:\n\n{context_block(passages)}\n\nQuestion: {question}"
-        return [{"type": "text", "text": GEN_INSTRUCTIONS}], user
+        return [{"type": "text", "text": instructions}], user
 
-    def generate(self, question: str, passages: Sequence[Passage]) -> GenAnswer:
+    def generate(
+        self, question: str, passages: Sequence[Passage], instructions: str = GEN_INSTRUCTIONS
+    ) -> GenAnswer:
         """``GEN``: best-effort answer from the retrieved chunks."""
-        system, user = self._gen_request(question, passages)
+        system, user = self._gen_request(question, passages, instructions)
         parsed = self._json(
             "GEN", system, user, GEN_MAX_TOKENS, ("answer", "citations", "context_supports")
         )
         return self._gen(parsed)
 
-    def gen_usage(self, question: str, passages: Sequence[Passage]) -> dict[str, int] | None:
+    def gen_usage(
+        self, question: str, passages: Sequence[Passage], instructions: str = GEN_INSTRUCTIONS
+    ) -> dict[str, int] | None:
         """Token usage recorded for the first-attempt ``GEN`` request (``None`` if not cached)."""
-        system, user = self._gen_request(question, passages)
+        system, user = self._gen_request(question, passages, instructions)
         key = request_key(self.client.payload(system, user, GEN_MAX_TOKENS))
         record = self.client.records.get(key)
         return dict(record.get("usage", {})) if record is not None else None

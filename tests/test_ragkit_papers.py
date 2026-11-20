@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 import ragkit
-from ragkit.openpapers import CONFIGS, OpenQuestion, choose
+from ragkit.llm import codex_transport
+from ragkit.openpapers import CONFIGS, OpenQuestion, answer_scores, answer_verdicts, choose
 from ragkit.openpapers import measure as open_measure
 from ragkit.papersbench import Gold, PaperQuestion, measure
 from ragkit.parent import CHARS_PER_TOKEN, Passage, pack_articles
@@ -96,3 +101,56 @@ def test_evidence_recall_counts_each_gold_quote() -> None:
     got = measure(q, ["p3", "p1", "p2"], packed)
     assert got["evidence"] == 0.5 and got["papers"] == 0.5
     assert got["mrr"] == 0.5  # first gold paper is second in the ranking
+
+
+def test_codex_transport_returns_the_last_message_and_the_turn_usage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, Any] = {}
+
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        seen["command"], seen["prompt"] = command, kwargs["input"]
+        Path(command[command.index("-o") + 1]).write_text('{"answer": "42"}', encoding="utf-8")
+        events = [
+            {"type": "thread.started", "thread_id": "t"},
+            {"type": "turn.completed", "usage": {"input_tokens": 900, "output_tokens": 7}},
+        ]
+        return subprocess.CompletedProcess(command, 0, "\n".join(map(json.dumps, events)), "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    payload = {
+        "model": "m",
+        "system": [{"type": "text", "text": "RULES"}],
+        "messages": [{"role": "user", "content": "QUESTION"}],
+    }
+    reply = codex_transport()(payload, "codex")
+    assert reply["content"][0]["text"] == '{"answer": "42"}'
+    assert reply["usage"] == {"input_tokens": 900, "output_tokens": 7}
+    assert seen["prompt"] == "RULES\n\nQUESTION"
+    assert seen["command"][seen["command"].index("-m") + 1] == "m"
+
+
+def _answers(bench: str, a12: list[str], a36: list[str]) -> list[dict[str, Any]]:
+    return [
+        {
+            "bench": bench,
+            "arm": arm,
+            "verdict": verdict,
+            "supports": True,
+            "citations": ["p"],
+            "papers": ["p"],
+            "input_tokens": 1,
+        }
+        for a12_verdict, a36_verdict in zip(a12, a36, strict=True)
+        for arm, verdict in (("A12", a12_verdict), ("A36", a36_verdict))
+    ]
+
+
+def test_answer_rule_reverts_only_on_shown_harm_and_counts_partial_as_not_correct() -> None:
+    same = _answers("qasper", ["yes", "no"] * 20, ["yes", "no"] * 20)
+    gain = _answers("mdaqa", ["partial"] * 30 + ["yes"] * 10, ["yes"] * 40)
+    kept = answer_verdicts(answer_scores(same + gain))
+    assert list(kept.values()) == ["kept", "confirmed", "shown"]
+    harm = _answers("qasper", ["yes"] * 40, ["partial"] * 30 + ["yes"] * 10)
+    reverted = answer_verdicts(answer_scores(harm + gain))
+    assert list(reverted.values()) == ["reverted to 12 000", "confirmed", "not shown"]
