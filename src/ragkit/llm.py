@@ -163,23 +163,29 @@ def codex_transport(*, effort: str = "low", timeout: int = 900, retries: int = 2
                 *("-o", str(last)),
                 "-",
             ]
+            stdout = ""
             for attempt in range(retries + 1):
-                done = subprocess.run(
-                    command,
-                    input=f"{system}\n\n{user}" if system else user,
-                    capture_output=True,
-                    text=True,
-                    timeout=timeout,
-                    check=False,
-                )
-                if done.returncode == 0 and last.is_file():
-                    break
+                try:
+                    done = subprocess.run(
+                        command,
+                        input=f"{system}\n\n{user}" if system else user,
+                        capture_output=True,
+                        text=True,
+                        timeout=timeout,
+                        check=False,
+                    )
+                except subprocess.TimeoutExpired:
+                    detail = f"no reply in {timeout} s"
+                else:
+                    if done.returncode == 0 and last.is_file():
+                        stdout = done.stdout
+                        break
+                    detail = f"exit {done.returncode}: {(done.stderr or done.stdout)[-300:]}"
                 if attempt == retries:
-                    detail = (done.stderr or done.stdout)[-300:]
-                    raise RuntimeError(f"Codex error (exit {done.returncode}): {detail}")
+                    raise RuntimeError(f"Codex error ({detail})")
                 time.sleep(5 * (attempt + 1))
             usage: dict[str, Any] = {}
-            for line in done.stdout.splitlines():
+            for line in stdout.splitlines():
                 if line.startswith("{") and '"turn.completed"' in line:
                     usage = json.loads(line).get("usage", {})
             return {
