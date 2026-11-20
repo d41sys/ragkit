@@ -113,3 +113,38 @@ evidence inside MDA-QA support papers; the group's own papers.
    at 2.1 to 3.1 characters per Qwen token, so 12 000 / 24 000 / 36 000 estimated tokens are
    about 15 000 to 23 000 / 31 000 to 46 000 / 46 000 to 69 000 real tokens; costs are reported
    with that range.
+
+## Outcome
+
+Dev grid [`sota-runs/open_papers_dev.txt`](sota-runs/open_papers_dev.txt) chose S_12000 =
+12000/4000/1, S_24000 = 24000/8000/1, S_36000 = 36000/none/1. Test scored once:
+[`sota-runs/open_papers_score.txt`](sota-runs/open_papers_score.txt). Contexts: 19 272 chunks (not
+the estimated 16 400), mean 30.9 words, 0 empty, no prompt cut (probe: at most 23 666 tokens).
+
+| Test | QASPER evidence recall (1 310) | MDA-QA support recall (100) | QASPER tokens | MDA-QA tokens |
+|---|---|---|---|---|
+| B0 | 0.921 | 0.468 | 7 881 | 8 800 |
+| S_12000 - B0 | -0.125 [-0.148, -0.104] | +0.255 [+0.203, +0.308] | 8 734 | 9 583 |
+| S_24000 - B0 | +0.043 [+0.031, +0.056] | +0.255 [+0.203, +0.308] | 14 732 | 18 027 |
+| S_36000 - B0 | +0.061 [+0.048, +0.074] | +0.267 [+0.213, +0.322] | 18 555 | 22 265 |
+| WC_12000 - S_12000 | | -0.007 [-0.045, +0.032] | | 8 653 |
+
+Tokens are mean estimated tokens per search (characters / 4); real tokens are about 1.3 to 1.9
+times more (amendment 1).
+
+**Verdicts.** Rule 1: S_12000 not adopted (QASPER lower bound -0.148 < -0.02; EU guard held).
+Rule 3: contexts not recommended. Rule 2: S_36000 gains on both benchmarks (81 better, 0 worse on
+QASPER) at about 2.4 times the tokens of B0; the default budget stays the user's call.
+
+- P1 held: B0 support recall 0.468, S_36000 - B0 +0.267.
+- P2 failed: QASPER B0 is 0.921, but S_12000 loses 0.125 and the larger budgets gain 0.043 and
+  0.061. The budget matters on QASPER too: B0 packs the gold paper for 0.924 of the questions,
+  S_36000 for 0.982 (gold paper MRR 0.930 for all systems).
+- P3 held: S_12000 uses the 4 000-token window.
+- P4 failed: contexts raise paper MRR (0.971 vs 0.939) but not support recall (-0.007).
+- P-cost: dev grid and test scoring took about 12 minutes; contexts about 14 hours (shared GPU,
+  six tunnel drops resumed from the cache).
+- Measured after scoring, not gating (throwaway script, B0 ranking on MDA-QA test): the share of
+  support papers with a chunk in the top 10 / 20 / 50 / 100 chunks is 0.773 / 0.875 / 0.950 /
+  0.977. S_36000 (0.735) is close to the top-10 ceiling, so on multi-paper questions the pool of 10
+  chunks, not the budget, now limits recall. Three slices per window were chosen at no budget.

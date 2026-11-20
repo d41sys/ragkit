@@ -1201,6 +1201,20 @@ ragkit is mainly for an agent reading a research group's papers. Stand-in corpus
 
 **Verdict**: nothing ships. Short windows help questions that need several papers, change nothing on questions that name the paper, and lose quotes on questions that describe a paper without its name: in all 8 losses the right paper ranks first, but the quote sits outside the 4 000-token window around its best chunk. Contexts make the right paper rank first more often (paper MRR 0.971 vs 0.911 for W) but were not judged, since W was not adopted. Opt-in remains: `search(..., window_tokens=4000)` for questions that compare papers.
 
+### Paper packing on open benchmarks, Phase P-2 ([`docs/open_papers_protocol.md`](docs/open_papers_protocol.md))
+
+P-1's fixes (more budget, windows, several slices per paper, Qwen contexts) were chosen from P-1's own misses, so P-2 measured them on two open benchmarks instead: QASPER (researcher-written questions about one NLP paper, evidence paragraphs; 1 310 test questions) and MDA-QA (GPT-4o questions that need 2+ papers; 100 test questions, primary metric = share of needed papers packed, not evidence). 18 packing settings were compared on dev splits, the best per budget scored once on test (issue #19).
+
+| Test | QASPER evidence recall | MDA-QA needed papers packed | estimated tokens per search |
+|---|---|---|---|
+| B0 (shipped: 12 000 budget, whole papers; absolute) | 0.921 | 0.468 | 7 900 to 8 800 |
+| 12 000 budget, 4 000-token window per paper | -0.125 [-0.148, -0.104] | +0.255 [+0.203, +0.308] | 8 700 to 9 600 |
+| 24 000 budget, 8 000-token windows | +0.043 [+0.031, +0.056] | +0.255 [+0.203, +0.308] | 14 700 to 18 000 |
+| 36 000 budget, whole papers | +0.061 [+0.048, +0.074] | +0.267 [+0.213, +0.322] | 18 600 to 22 300 |
+| Qwen contexts on top of the 12 000 setting | | -0.007 [-0.045, +0.032] | |
+
+**Verdict**: the default does not change. Windows at the shipped budget lose evidence on single-paper questions (rule 1 fails); contexts do not help (not recommended); three slices per window were never the best setting. A 36 000-token budget (`search(..., budget_tokens=36_000)`) gains on both benchmarks (81 better, 0 worse on QASPER) at about 2.4 times the tokens (real tokens are about 1.3 to 1.9 times the estimate); whether the agent should pay that is a cost decision, so it stays opt-in. On multi-paper questions the next limit is the 10-chunk pool: only 0.773 of the needed papers have a chunk in it (0.875 in the top 20, measured after scoring).
+
 ### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
 
 `ragkit answer` passed the first 3 distinct parent articles of the top-5 chunks under a 12 000-token budget the contexts never filled (mean 3 229 to 3 526 estimated tokens on the 130 pooled held-out questions). Budget packing adds distinct articles in rank order until the budget is full, never exceeds it, and drops the first article that does not fit and all later ones (`stop`; `skip` is the alternative). Pre-registered (`13aa661`), retrieval only: **no generation, no API call, answer quality not re-measured**. Overflow policy and pool depth were chosen on the dev sets (fresh 29 + synthetic 40, at the ceiling, so by tie-break: `stop`, 10 chunks) before one held-out run (`ragkit packing score`).
