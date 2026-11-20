@@ -148,3 +148,13 @@ QASPER) at about 2.4 times the tokens of B0; the default budget stays the user's
   support papers with a chunk in the top 10 / 20 / 50 / 100 chunks is 0.773 / 0.875 / 0.950 /
   0.977. S_36000 (0.735) is close to the top-10 ceiling, so on multi-paper questions the pool of 10
   chunks, not the budget, now limits recall. Three slices per window were chosen at no budget.
+
+## Decision after the outcome (rule 2, the user's call)
+
+The user chose the 36 000-token budget for paper corpora. `search()` with `budget_tokens=None` packs
+a corpus directory that holds at least one PDF into `PAPER_BUDGET_TOKENS` = 36 000 and any other
+into 12 000, so the EU corpus (Markdown, no PDFs) and the ezcross `search_eu_law` call are
+unchanged. "Holds a PDF" is the rule because the group's papers are expected as PDF files (not
+verified against the ezcross uploads); a paper corpus converted to text needs
+`budget_tokens=36_000` passed explicitly. Not measured: the agent's answer quality or latency at
+the larger budget.

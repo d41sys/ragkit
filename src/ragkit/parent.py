@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 ARTICLE_K = 3
 ARTICLE_BUDGET_TOKENS = 12_000
+PAPER_BUDGET_TOKENS = 36_000  # search() default for a corpus with PDFs (open_papers_protocol.md)
 PACK_CHUNKS = 10  # chunks read by budget packing (dev-chosen, docs/packing_protocol.md)
 PACK_OVERFLOW = "stop"  # dev-chosen overflow policy of budget packing
 CHARS_PER_TOKEN = 4  # 337 kB of corpus = about 85 k tokens, the K-R2 full-context figure

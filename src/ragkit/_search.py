@@ -38,6 +38,7 @@ from ragkit.parent import (
     ARTICLE_BUDGET_TOKENS,
     PACK_CHUNKS,
     PACK_OVERFLOW,
+    PAPER_BUDGET_TOKENS,
     Passage,
     estimate_tokens,
     pack_articles,
@@ -200,6 +201,7 @@ class _Entry:
     retriever: str
     load_error: str | None = None  # why the requested retriever fell back to bm25
     lock: threading.Lock = field(default_factory=threading.Lock)
+    budget_tokens: int = ARTICLE_BUDGET_TOKENS  # the default budget of ``search`` on this corpus
 
 
 _entries: dict[tuple[Path, str], _Entry] = {}
@@ -210,6 +212,10 @@ def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
     documents = load_documents(corpus_dir)
     if not documents:
         raise ValueError(f"no .md, .txt or .pdf documents in {corpus_dir}")
+    # a paper fills the 12 000 budget alone; 36 000 fits about three (docs/open_papers_protocol.md)
+    pdfs = any(p.suffix.lower() == ".pdf" for p in corpus_dir.glob("*"))
+    budget = PAPER_BUDGET_TOKENS if pdfs else ARTICLE_BUDGET_TOKENS
+    acts = _load_acts(corpus_dir)
     try:
         pipeline = _make_pipeline(retriever, serving=True)
         pipeline.index_documents(documents)
@@ -219,8 +225,8 @@ def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
         log.warning("retriever %r unavailable, falling back to bm25", retriever, exc_info=True)
         pipeline = _make_pipeline("bm25", serving=True)
         pipeline.index_documents(documents)
-        return _Entry(pipeline, dict(documents), _load_acts(corpus_dir), "bm25", repr(exc))
-    return _Entry(pipeline, dict(documents), _load_acts(corpus_dir), retriever)
+        return _Entry(pipeline, dict(documents), acts, "bm25", repr(exc), budget_tokens=budget)
+    return _Entry(pipeline, dict(documents), acts, retriever, budget_tokens=budget)
 
 
 def _entry(corpus_dir: Path, retriever: str | None) -> _Entry:
@@ -280,7 +286,7 @@ def search(
     *,
     corpus_dir: Path | str | None = None,
     retriever: str | None = None,
-    budget_tokens: int = ARTICLE_BUDGET_TOKENS,
+    budget_tokens: int | None = None,
     pack_chunks: int = PACK_CHUNKS,
     answerable: bool = False,
     overflow: str = PACK_OVERFLOW,
@@ -288,6 +294,8 @@ def search(
 ) -> SearchResult:
     """Distinct parent articles of the top ``pack_chunks`` chunks, packed into ``budget_tokens``.
 
+    ``budget_tokens=None`` is ``PAPER_BUDGET_TOKENS`` when the corpus directory holds a PDF and
+    ``ARTICLE_BUDGET_TOKENS`` otherwise (``docs/open_papers_protocol.md``).
     ``retriever=None`` uses ``DEFAULT_RETRIEVER`` and falls back to bm25 if its models cannot
     load; a retriever named explicitly raises ``RuntimeError`` instead.
     ``answerable=True`` also fills ``answerable_score`` (the SQuAD2 reader signal on the top
@@ -307,7 +315,7 @@ def search(
         packed = pack_articles(
             pool,
             entry.articles,
-            budget_tokens=budget_tokens,
+            budget_tokens=entry.budget_tokens if budget_tokens is None else budget_tokens,
             overflow=overflow,
             window_tokens=window_tokens,
         )
