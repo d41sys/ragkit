@@ -212,9 +212,10 @@ def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
     documents = load_documents(corpus_dir)
     if not documents:
         raise ValueError(f"no .md, .txt or .pdf documents in {corpus_dir}")
-    # a paper fills the 12 000 budget alone; 36 000 fits about three (docs/open_papers_protocol.md)
-    pdfs = any(p.suffix.lower() == ".pdf" for p in corpus_dir.glob("*"))
-    budget = PAPER_BUDGET_TOKENS if pdfs else ARTICLE_BUDGET_TOKENS
+    # paged text (a PDF, or form-feed page breaks) means papers: one fills the 12 000 budget
+    # alone, 36 000 fits one to three (docs/open_papers_protocol.md)
+    paged = any("\f" in text for _, text in documents)
+    budget = PAPER_BUDGET_TOKENS if paged else ARTICLE_BUDGET_TOKENS
     acts = _load_acts(corpus_dir)
     try:
         pipeline = _make_pipeline(retriever, serving=True)
@@ -294,8 +295,9 @@ def search(
 ) -> SearchResult:
     """Distinct parent articles of the top ``pack_chunks`` chunks, packed into ``budget_tokens``.
 
-    ``budget_tokens=None`` is ``PAPER_BUDGET_TOKENS`` when the corpus directory holds a PDF and
-    ``ARTICLE_BUDGET_TOKENS`` otherwise (``docs/open_papers_protocol.md``).
+    ``budget_tokens=None`` is ``PAPER_BUDGET_TOKENS`` when a document of the corpus has page
+    breaks (a PDF of two or more pages, or text with form feeds) and ``ARTICLE_BUDGET_TOKENS``
+    otherwise (``docs/open_papers_protocol.md``).
     ``retriever=None`` uses ``DEFAULT_RETRIEVER`` and falls back to bm25 if its models cannot
     load; a retriever named explicitly raises ``RuntimeError`` instead.
     ``answerable=True`` also fills ``answerable_score`` (the SQuAD2 reader signal on the top

@@ -1901,8 +1901,9 @@ def _add_context_args(parser: argparse.ArgumentParser, default: str) -> None:
     parser.add_argument(
         "--budget",
         type=int,
-        default=ARTICLE_BUDGET_TOKENS,
-        help="--context article: token budget of the articles, chars/4 (frozen: 12000).",
+        default=None,
+        help="--context article: token budget of the articles, chars/4 (default: 12000, frozen; "
+        "`answer --pack` on a corpus with paged documents such as PDFs: 36000).",
     )
 
 
@@ -1935,7 +1936,8 @@ def cmd_answer(args: argparse.Namespace) -> int:
         context = [Passage(a.id, a.text) for a in found.articles]
     else:
         articles = dict(_load_documents(ds.corpus_dir))
-        context = parent_articles(passages, articles, k=args.articles, budget_tokens=args.budget)
+        budget = args.budget or ARTICLE_BUDGET_TOKENS
+        context = parent_articles(passages, articles, k=args.articles, budget_tokens=budget)
     answerer = LLMAnswerer(_llm_client(args.llm, args.cache))
     print(f"Question: {args.query}\n")
     # The sufficiency check keeps seeing the retrieved chunks, as in the K-R2 experiment.
@@ -1970,6 +1972,7 @@ def cmd_generation(args: argparse.Namespace) -> int:
     ``--context article`` is Phase L: the same questions, answered from whole parent articles.
     """
     ds = BUNDLED_DATASETS["eu"]
+    args.budget = args.budget or ARTICLE_BUDGET_TOKENS  # the frozen Phase L budget
     documents = _load_documents(ds.corpus_dir)
     items = items_from_records(_read_jsonl(ds.qa_path), _read_jsonl(ds.unanswerable_path))
     pipeline = _make_pipeline(args.retriever, 0.0)

@@ -152,9 +152,17 @@ QASPER) at about 2.4 times the tokens of B0; the default budget stays the user's
 ## Decision after the outcome (rule 2, the user's call)
 
 The user chose the 36 000-token budget for paper corpora. `search()` with `budget_tokens=None` packs
-a corpus directory that holds at least one PDF into `PAPER_BUDGET_TOKENS` = 36 000 and any other
-into 12 000, so the EU corpus (Markdown, no PDFs) and the ezcross `search_eu_law` call are
-unchanged. "Holds a PDF" is the rule because the group's papers are expected as PDF files (not
-verified against the ezcross uploads); a paper corpus converted to text needs
-`budget_tokens=36_000` passed explicitly. Not measured: the agent's answer quality or latency at
-the larger budget.
+a corpus in which any document has page breaks (a PDF of two or more pages, or text with form
+feeds) into `PAPER_BUDGET_TOKENS` = 36 000 and any other into 12 000, so the EU corpus (Markdown,
+no page breaks) and the ezcross `search_eu_law` call are unchanged; `ragkit answer` follows the
+same default. The benchmark corpora behind the 36 000 result were plain text without page breaks,
+so the rule is a product choice, not something P-2 measured; a paper corpus converted to unpaged
+text needs `budget_tokens=36_000` passed explicitly. Not measured: the agent's answer quality or
+latency at the larger budget.
+
+Post-hoc check on the P-1 corpus (20 forecasting PDFs, about 23 000 estimated tokens each; its 50
+questions are development data since P-1's diagnosis, so this is not a test): at 36 000 whole
+papers, evidence recall is 0.812 against 0.692 at 12 000 (named 0.950 vs 0.800, described 0.900 vs
+0.800, cross 0.358 vs 0.258), with 1.10 papers packed and 24 638 tokens per search. Long papers
+still fill the budget alone, so questions that compare such papers stay weak; 36 000 with
+12 000-token windows gives cross 0.575 but named 0.800 (all 0.775).

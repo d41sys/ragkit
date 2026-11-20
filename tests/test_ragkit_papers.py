@@ -5,10 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 import ragkit
-from ragkit import _search
 from ragkit.openpapers import CONFIGS, OpenQuestion, choose
 from ragkit.openpapers import measure as open_measure
 from ragkit.papersbench import Gold, PaperQuestion, measure
@@ -60,16 +57,12 @@ def test_search_cites_pages_and_the_sources_citation(tmp_path: Path) -> None:
     assert (note.id, note.pages, note.citation) == ("note", None, None)
 
 
-def test_a_folder_with_pdfs_packs_into_the_paper_budget_by_default(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # CI has no pypdf: the stub reads the file as text
-    monkeypatch.setattr(_search, "_pdf_text", lambda path: path.read_text(encoding="utf-8"))
-    for suffix in ("pdf", "txt"):
-        (tmp_path / suffix).mkdir()
+def test_paged_documents_pack_into_the_paper_budget_by_default(tmp_path: Path) -> None:
+    for folder, page_break in (("paged", "\f"), ("plain", " ")):
+        (tmp_path / folder).mkdir()
         for name in ("a", "b"):  # about 8 200 estimated tokens each: one fits 12 000, two 36 000
-            text = f"Paper {name} measures battery peak shaving. " + FILLER * 700
-            (tmp_path / suffix / f"{name}.{suffix}").write_text(text, encoding="utf-8")
+            text = f"Paper {name} measures battery peak shaving.{page_break}" + FILLER * 700
+            (tmp_path / folder / f"{name}.txt").write_text(text, encoding="utf-8")
 
     def packed(folder: str, budget_tokens: int | None = None) -> int:
         found = ragkit.search(
@@ -80,9 +73,9 @@ def test_a_folder_with_pdfs_packs_into_the_paper_budget_by_default(
         )
         return len(found.articles)
 
-    assert packed("pdf") == 2
-    assert packed("pdf", budget_tokens=12_000) == 1  # an explicit budget still wins
-    assert packed("txt") == 1  # no PDF: the article budget, as for the EU corpus
+    assert packed("paged") == 2
+    assert packed("paged", budget_tokens=12_000) == 1  # an explicit budget still wins
+    assert packed("plain") == 1  # no page breaks: the article budget, as for the EU corpus
 
 
 def test_open_benchmarks_take_the_best_annotator_and_break_ties_to_shipped_packing() -> None:
