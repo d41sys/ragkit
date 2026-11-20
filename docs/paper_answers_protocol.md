@@ -92,3 +92,18 @@ The ezcross agent's own model (`claude-sonnet-4-5`) or an agent that searches se
 PDFs with appendices (P-1's corpus has no reference answers); a judge from another model family
 (reader and judge are the same model, the same for both arms); MDA-QA reference answers are
 machine-written.
+
+## Amendment 1 (before any QASPER answer exists; no answer scored or read)
+
+The cost guard stopped the first run after 340 calls (171 reader, 169 judge, all MDA-QA; 8.7
+million input tokens): five-hour usage 90 %, weekly 30 %. One five-hour window of the user's plan
+holds about 10 million tokens, not the 40 million the plan needs, and the full plan would end near
+78 % of the week. The user decided to cut the sample, against "The sample is not changed" above:
+
+- **QASPER: the first 60 of the 300 shuffled questions** (same corpus of 416 papers). MDA-QA stays
+  at 100; its cached calls are kept and the 60 missing ones are made.
+- Rules 1 to 3 stay as written. With 60 questions the QASPER interval is about ±0.10 wide, so rule
+  3 (lower bound above -0.05) will probably not be met; that outcome is reported as "not shown",
+  not as harm. P2 keeps its wording.
+- The run resumes when the five-hour window resets; the guard thresholds stay (85 %, 45 %).
+- P-cost was wrong (quota, not time, is the limit).
