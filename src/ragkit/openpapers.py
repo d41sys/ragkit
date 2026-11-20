@@ -327,7 +327,8 @@ def answer_sets(data_dir: Path = DATA_DIR) -> dict[str, tuple[Docs, list[OpenQue
     pool = [q for q in questions if q.papers[0] in keep]
     random.Random(0).shuffle(pool)
     kept_docs = [d for d in docs if d[0] in keep]
-    return {"qasper": (kept_docs, pool[:ANSWER_QASPER]), "mdaqa": mdaqa("answers", data_dir)}
+    # MDA-QA first: a run stopped by the cost guard has finished the benchmark of rule 2
+    return {"mdaqa": mdaqa("answers", data_dir), "qasper": (kept_docs, pool[:ANSWER_QASPER])}
 
 
 AnswerScores = dict[str, dict[str, dict[str, list[float]]]]  # bench -> arm -> metric
