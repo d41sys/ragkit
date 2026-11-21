@@ -291,7 +291,7 @@ ANSWERS_PATH = Path("docs/sota-runs/paper_answers.json")
 READER_MODEL = "gpt-6-sol"  # through the Codex CLI, reasoning effort low
 ARMS = {"A12": 12_000, "A36": 36_000}
 ANSWER_PAPERS = 416  # QASPER corpus size, as P-2's test pool
-ANSWER_QASPER = 60  # amendment 1 (300 planned; the Codex quota)
+ANSWER_QASPER = 300  # amendment 1 cut it to 60 (the interim look), amendment 2 restored it
 NO_HARM_MARGIN = -0.05
 PAPER_INSTRUCTIONS = """You answer questions about research papers using ONLY the context \
 passages provided. Each passage is headed by the id of the paper it comes from, in square \
@@ -319,7 +319,7 @@ ANSWER_METRICS = {
 
 
 def answer_sets(data_dir: Path = DATA_DIR) -> dict[str, tuple[Docs, list[OpenQuestion]]]:
-    """The fresh P-3 corpora and questions: 416 QASPER train papers (60 questions), MDA-QA 100."""
+    """The fresh P-3 corpora and questions: 416 QASPER train papers (300 questions), MDA-QA 100."""
     docs, questions = qasper("train", data_dir)
     ids = sorted(pid for pid, _ in docs)
     random.Random(0).shuffle(ids)

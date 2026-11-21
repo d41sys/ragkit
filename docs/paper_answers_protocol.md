@@ -108,7 +108,7 @@ holds about 10 million tokens, not the 40 million the plan needs, and the full p
 - The run resumes when the five-hour window resets; the guard thresholds stay (85 %, 45 %).
 - P-cost was wrong (quota, not time, is the limit).
 
-## Outcome (scored once, `docs/sota-runs/paper_answers_score.txt`)
+## Outcome (scored once, `docs/sota-runs/paper_answers_interim_60.txt`)
 
 | A36 - A12 | MDA-QA (100) | QASPER (60) |
 |---|---|---|
