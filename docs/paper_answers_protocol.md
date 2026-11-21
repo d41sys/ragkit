@@ -124,6 +124,9 @@ holds about 10 million tokens, not the 40 million the plan needs, and the full p
 - Predictions: P1 wrong (+0.080, predicted +0.10 to +0.25); P2 wrong as a point estimate (+0.050,
   predicted within 0.03; the interval includes it); P3 met (+0.160); P-cost wrong.
 - MDA-QA papers packed per question: 1.09 at 12 000, 2.59 at 36 000.
+- Counted after scoring: on 17 MDA-QA and 18 QASPER questions both budgets packed the same
+  context, so the same answer and verdict serve both arms (a difference of exactly 0). The
+  differences rest on the other 83 and 42 questions (correct: 13 better / 5 worse, 6 / 3).
 - Cost: 569 Codex calls (285 reader, 284 judge; equal requests of the two arms are made once), 13.8
   million input tokens (8.1 million cached), two five-hour windows (90 % and 46 % used), weekly
   usage 17 % to 38 % including the usage probes.
