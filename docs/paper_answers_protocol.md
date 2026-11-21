@@ -130,3 +130,19 @@ holds about 10 million tokens, not the 40 million the plan needs, and the full p
 - Cost: 569 Codex calls (285 reader, 284 judge; equal requests of the two arms are made once), 13.8
   million input tokens (8.1 million cached), two five-hour windows (90 % and 46 % used), weekly
   usage 17 % to 38 % including the usage probes.
+
+## Amendment 2 (before any further answer exists): QASPER back to the planned 300
+
+After the outcome above the user decided to run the sample as first frozen: the remaining 240 of
+the 300 shuffled QASPER questions, same corpus, reader, judge and prompts; the 60 cached
+questions are its first 60. MDA-QA is complete and is not run again.
+
+- The outcome above becomes an **interim look at 60 questions**
+  (`docs/sota-runs/paper_answers_interim_60.txt`); the QASPER verdicts of rules 1 and 3 are taken
+  from the full 300. The extension was decided knowing the interim result (+0.050 [-0.050,
+  +0.150]), so QASPER has had two looks at an unadjusted 95 % interval; the 300 are the sample
+  fixed before any run, not one chosen for its result.
+- The MDA-QA verdict (rule 2, not confirmed) is final and does not change.
+- Cost guard: five-hour limit 85 % as before; the run waits for the reset and resumes by itself.
+  The weekly limit is raised from 45 % to 65 % on the user's word (38 % before this run; about 20
+  points expected).
