@@ -1215,6 +1215,21 @@ P-1's fixes (more budget, windows, several slices per paper, Qwen contexts) were
 
 **Verdict**: windows at the shipped budget lose evidence on single-paper questions (rule 1 fails); contexts do not help (not recommended); three slices per window were never the best setting. A 36 000-token budget gains on both benchmarks (81 better, 0 worse on QASPER) at about 2.4 times the tokens (real tokens are about 1.3 to 1.9 times the estimate). The protocol left the budget to the user, who chose it after the outcome: `search()` now packs a corpus with paged documents (PDFs) into 36 000 tokens by default; the EU corpus (no page breaks) keeps 12 000. On multi-paper questions the next limit is the 10-chunk pool: only 0.773 of the needed papers have a chunk in it (0.875 in the top 20, measured after scoring).
 
+### Answers at 12 000 and 36 000 tokens, Phase P-3 ([`docs/paper_answers_protocol.md`](docs/paper_answers_protocol.md))
+
+P-2 counted what reaches the reader; P-3 asked whether the reader's answers get better. Fresh questions (100 MDA-QA, ids 200 to 300; 60 QASPER train questions over 416 papers, cut from 300 by amendment 1 because of the Codex quota) were answered from the context packed at 12 000 (A12) and at 36 000 tokens (A36) by `gpt-6-sol` through the Codex CLI (reasoning effort low), and judged against the reference answer by the same model, blind to the arm (issue #20). Scored once.
+
+| | MDA-QA (100, needs 2+ papers) | QASPER (60, one paper) |
+|---|---|---|
+| correct, A12 | 0.290 | 0.650 |
+| correct, A36 | 0.370 | 0.700 |
+| correct, A36 - A12 (primary) | +0.080 [+0.000, +0.160] (13 better, 5 worse) | +0.050 [-0.050, +0.150] (6 / 3) |
+| correct or partly correct, A36 - A12 | +0.160 [+0.090, +0.240] (17 / 1) | +0.100 [+0.000, +0.200] (8 / 2) |
+| reader says the context is enough, A36 - A12 | +0.160 [+0.090, +0.240] | +0.117 [+0.050, +0.200] |
+| reader input tokens per call (about 15 700 are Codex's own) | 26 200 to 41 700 | 22 400 to 33 000 |
+
+**Verdict** by the frozen rules: no harm found, so the 36 000 default for paged corpora **stays**; the gain in fully correct answers on multi-paper questions is **not confirmed** (the interval's lower bound is +0.000, the rule needs above 0); "no harm on single-paper questions" is **not shown** at 60 questions (lower bound -0.050, the rule needs above -0.05). Both point estimates are positive, and fewer answers are wrong at 36 000 (correct or partly correct: +0.160 on MDA-QA), but only 0.37 of the multi-paper answers are fully correct, in line with P-2's finding that the 10-chunk pool misses needed papers. Not claimed: the ezcross agent's own model, an agent that searches several times, long PDFs with appendices. Raw output: `docs/sota-runs/paper_answers_score.txt`, answers and verdicts in `docs/sota-runs/paper_answers.json`.
+
 ### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
 
 `ragkit answer` passed the first 3 distinct parent articles of the top-5 chunks under a 12 000-token budget the contexts never filled (mean 3 229 to 3 526 estimated tokens on the 130 pooled held-out questions). Budget packing adds distinct articles in rank order until the budget is full, never exceeds it, and drops the first article that does not fit and all later ones (`stop`; `skip` is the alternative). Pre-registered (`13aa661`), retrieval only: **no generation, no API call, answer quality not re-measured**. Overflow policy and pool depth were chosen on the dev sets (fresh 29 + synthetic 40, at the ceiling, so by tie-break: `stop`, 10 chunks) before one held-out run (`ragkit packing score`).

@@ -107,3 +107,23 @@ holds about 10 million tokens, not the 40 million the plan needs, and the full p
   not as harm. P2 keeps its wording.
 - The run resumes when the five-hour window resets; the guard thresholds stay (85 %, 45 %).
 - P-cost was wrong (quota, not time, is the limit).
+
+## Outcome (scored once, `docs/sota-runs/paper_answers_score.txt`)
+
+| A36 - A12 | MDA-QA (100) | QASPER (60) |
+|---|---|---|
+| correct (primary) | +0.080 [+0.000, +0.160], 0.290 to 0.370, 13 better / 5 worse | +0.050 [-0.050, +0.150], 0.650 to 0.700, 6 / 3 |
+| yes or partial | +0.160 [+0.090, +0.240] | +0.100 [+0.000, +0.200] |
+| `context_supports` | +0.160 [+0.090, +0.240] | +0.117 [+0.050, +0.200] |
+| gold papers cited | 0.422 to 0.656 | 0.833 to 0.950 |
+
+- Rule 1 (harm): no CI upper bound below 0. **The 36 000 default stays.**
+- Rule 2 (benefit): the MDA-QA lower bound is +0.000, not above 0. **Not confirmed.**
+- Rule 3 (no harm on QASPER): the lower bound is -0.050, not above -0.05. **Not shown**, as
+  amendment 1 expected at 60 questions.
+- Predictions: P1 wrong (+0.080, predicted +0.10 to +0.25); P2 wrong as a point estimate (+0.050,
+  predicted within 0.03; the interval includes it); P3 met (+0.160); P-cost wrong.
+- MDA-QA papers packed per question: 1.09 at 12 000, 2.59 at 36 000.
+- Cost: 569 Codex calls (285 reader, 284 judge; equal requests of the two arms are made once), 13.8
+  million input tokens (8.1 million cached), two five-hour windows (90 % and 46 % used), weekly
+  usage 17 % to 38 % including the usage probes.
