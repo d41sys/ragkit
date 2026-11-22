@@ -1217,20 +1217,20 @@ P-1's fixes (more budget, windows, several slices per paper, Qwen contexts) were
 
 ### Answers at 12 000 and 36 000 tokens, Phase P-3 ([`docs/paper_answers_protocol.md`](docs/paper_answers_protocol.md))
 
-P-2 counted what reaches the reader; P-3 asked whether the reader's answers get better. Fresh questions (100 MDA-QA, ids 200 to 300; 60 QASPER train questions over 416 papers, cut from 300 by amendment 1 because of the Codex quota) were answered from the context packed at 12 000 (A12) and at 36 000 tokens (A36) by `gpt-6-sol` through the Codex CLI (reasoning effort low), and judged against the reference answer by the same model, blind to the arm (issue #20). Scored once.
+P-2 counted what reaches the reader; P-3 asked whether the reader's answers get better. Fresh questions (100 MDA-QA, ids 200 to 300; 300 QASPER train questions over 416 papers) were answered from the context packed at 12 000 (A12) and at 36 000 tokens (A36) by `gpt-6-sol` through the Codex CLI (reasoning effort low), and judged against the reference answer by the same model, blind to the arm (issue #20). Because of the Codex quota QASPER was first cut to 60 questions and scored (interim: +0.050 [-0.050, +0.150]), then run in full as planned, so its comparison was looked at twice (amendments 1 and 2).
 
-| | MDA-QA (100, needs 2+ papers) | QASPER (60, one paper) |
+| | MDA-QA (100, needs 2+ papers) | QASPER (300, one paper) |
 |---|---|---|
-| correct, A12 | 0.290 | 0.650 |
-| correct, A36 | 0.370 | 0.700 |
-| correct, A36 - A12 (primary) | +0.080 [+0.000, +0.160] (13 better, 5 worse) | +0.050 [-0.050, +0.150] (6 / 3) |
-| correct or partly correct, A36 - A12 | +0.160 [+0.090, +0.240] (17 / 1) | +0.100 [+0.000, +0.200] (8 / 2) |
-| reader says the context is enough, A36 - A12 | +0.160 [+0.090, +0.240] | +0.117 [+0.050, +0.200] |
-| reader input tokens per call (about 15 700 are Codex's own) | 26 200 to 41 700 | 22 400 to 33 000 |
+| correct, A12 | 0.290 | 0.627 |
+| correct, A36 | 0.370 | 0.670 |
+| correct, A36 - A12 (primary) | +0.080 [+0.000, +0.160] (13 better, 5 worse) | +0.043 [+0.010, +0.077] (20 / 7) |
+| correct or partly correct, A36 - A12 | +0.160 [+0.090, +0.240] (17 / 1) | +0.053 [+0.023, +0.087] (20 / 4) |
+| reader says the context is enough, A36 - A12 | +0.160 [+0.090, +0.240] | +0.070 [+0.037, +0.103] |
+| reader input tokens per call (about 15 700 are Codex's own) | 26 200 to 41 700 | 22 600 to 31 200 |
 
-**Verdict** by the frozen rules: no harm found, so the 36 000 default for paged corpora **stays**; the gain in fully correct answers on multi-paper questions is **not confirmed** (the interval's lower bound is +0.000, the rule needs above 0); "no harm on single-paper questions" is **not shown** at 60 questions (lower bound -0.050, the rule needs above -0.05). Both point estimates are positive, and fewer answers are wrong at 36 000 (correct or partly correct: +0.160 on MDA-QA), but only 0.37 of the multi-paper answers are fully correct, in line with P-2's finding that the 10-chunk pool misses needed papers. Not claimed: the ezcross agent's own model, an agent that searches several times, long PDFs with appendices. Raw output: `docs/sota-runs/paper_answers_score.txt`, answers and verdicts in `docs/sota-runs/paper_answers.json`.
+**Verdict** by the frozen rules: no harm found, so the 36 000 default for paged corpora **stays**; "no harm on single-paper questions" is **shown** (QASPER lower bound +0.010, the rule needs above -0.05); the gain in fully correct answers on multi-paper questions is **not confirmed** (the MDA-QA lower bound is +0.000, the rule needs above 0). On QASPER the interval lies above 0, but no rule was set for a gain there. Fewer answers are wrong at 36 000 on both sets, yet only 0.37 of the multi-paper answers are fully correct, in line with P-2's finding that the 10-chunk pool misses needed papers. Not claimed: the ezcross agent's own model, an agent that searches several times, long PDFs with appendices. Raw output: `docs/sota-runs/paper_answers_score.txt` (interim: `paper_answers_interim_60.txt`), answers and verdicts in `docs/sota-runs/paper_answers.json`.
 
-On 17 of the 100 MDA-QA and 18 of the 60 QASPER questions both budgets packed the same context (everything retrieved already fit in 12 000 tokens), so the differences above rest on 83 and 42 questions.
+On 17 of the 100 MDA-QA and 110 of the 300 QASPER questions both budgets packed the same context (everything retrieved already fit in 12 000 tokens), so the differences above rest on 83 and 190 questions.
 
 ### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
 

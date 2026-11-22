@@ -108,7 +108,7 @@ holds about 10 million tokens, not the 40 million the plan needs, and the full p
 - The run resumes when the five-hour window resets; the guard thresholds stay (85 %, 45 %).
 - P-cost was wrong (quota, not time, is the limit).
 
-## Outcome (scored once, `docs/sota-runs/paper_answers_interim_60.txt`)
+## Interim outcome at 60 QASPER questions (`docs/sota-runs/paper_answers_interim_60.txt`)
 
 | A36 - A12 | MDA-QA (100) | QASPER (60) |
 |---|---|---|
@@ -146,3 +146,26 @@ questions are its first 60. MDA-QA is complete and is not run again.
 - Cost guard: five-hour limit 85 % as before; the run waits for the reset and resumes by itself.
   The weekly limit is raised from 45 % to 65 % on the user's word (38 % before this run; about 20
   points expected).
+
+## Final outcome (`docs/sota-runs/paper_answers_score.txt`)
+
+The 320 records of the interim look are unchanged in the full run (compared record by record
+with `ce852d0`), so the MDA-QA column is the one above.
+
+| A36 - A12 | MDA-QA (100) | QASPER (300) |
+|---|---|---|
+| correct (primary) | +0.080 [+0.000, +0.160], 0.290 to 0.370, 13 better / 5 worse | +0.043 [+0.010, +0.077], 0.627 to 0.670, 20 / 7 |
+| yes or partial | +0.160 [+0.090, +0.240] | +0.053 [+0.023, +0.087] |
+| `context_supports` | +0.160 [+0.090, +0.240] | +0.070 [+0.037, +0.103] |
+| gold papers cited | 0.422 to 0.656 | 0.907 to 0.970 |
+
+- Rule 1 (harm): no CI upper bound below 0. **The 36 000 default stays.**
+- Rule 2 (benefit): the MDA-QA lower bound is +0.000, not above 0. **Not confirmed.**
+- Rule 3 (no harm on QASPER): the lower bound is +0.010, above -0.05. **Shown.** The interval is
+  above 0 as well; the protocol set no rule for a QASPER gain, and the comparison had two looks.
+- Predictions: P1 wrong (+0.080, predicted +0.10 to +0.25); P2 wrong (+0.043, predicted within
+  0.03); P3 met (+0.160); P-cost wrong.
+- Both budgets packed the same context on 17 MDA-QA and 110 QASPER questions (a difference of
+  exactly 0); the differences rest on the other 83 and 190.
+- Cost of the whole study: 1 335 Codex calls (673 reader, 662 judge), 30.7 million input tokens
+  (18.9 million cached), four five-hour windows, weekly usage 17 % to 62 % including the probes.
