@@ -1,0 +1,35 @@
+### ragkit openpapers answers-score: P-3 (docs/paper_answers_protocol.md)
+
+#### mdaqa (100 questions)
+
+| arm | correct | yes or partial | context_supports | gold papers cited | Codex input tokens |
+|---|---|---|---|---|---|
+| A12 | 0.290 [0.200, 0.380] | 0.700 [0.610, 0.790] | 0.540 [0.440, 0.640] | 0.422 [0.384, 0.459] | 26171.730 [25472.992, 26899.055] |
+| A36 | 0.370 [0.280, 0.470] | 0.860 [0.790, 0.930] | 0.700 [0.610, 0.790] | 0.656 [0.608, 0.707] | 41698.430 [39210.760, 44147.426] |
+
+- correct, A36 - A12: +0.080 [+0.000, +0.160] (13/5/82)
+- yes or partial, A36 - A12: +0.160 [+0.090, +0.240] (17/1/82)
+- context_supports, A36 - A12: +0.160 [+0.090, +0.240] (17/1/82)
+
+#### qasper (300 questions)
+
+| arm | correct | yes or partial | context_supports | gold papers cited | Codex input tokens |
+|---|---|---|---|---|---|
+| A12 | 0.627 [0.570, 0.680] | 0.793 [0.747, 0.840] | 0.733 [0.683, 0.783] | 0.907 [0.873, 0.937] | 22577.120 [22344.799, 22807.162] |
+| A36 | 0.670 [0.617, 0.723] | 0.847 [0.803, 0.887] | 0.803 [0.757, 0.850] | 0.970 [0.950, 0.987] | 31239.090 [30270.310, 32227.924] |
+
+- correct, A36 - A12: +0.043 [+0.010, +0.077] (20/7/273)
+- yes or partial, A36 - A12: +0.053 [+0.023, +0.087] (20/4/276)
+- context_supports, A36 - A12: +0.070 [+0.037, +0.103] (24/3/273)
+
+#### Verdicts
+
+- 36 000 default for paged corpora: **kept**
+- answer gain on MDA-QA: **not confirmed**
+- no harm on QASPER: **shown**
+
+#### Not gating
+
+- reader and judge: gpt-6-sol through the Codex CLI, reasoning effort low
+- MDA-QA papers packed per question: A12 1.09, A36 2.59
+- Codex input tokens include about 15 700 of Codex's own instructions per call
