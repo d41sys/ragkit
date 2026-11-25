@@ -202,6 +202,7 @@ class _Entry:
     load_error: str | None = None  # why the requested retriever fell back to bm25
     lock: threading.Lock = field(default_factory=threading.Lock)
     budget_tokens: int = ARTICLE_BUDGET_TOKENS  # the default budget of ``search`` on this corpus
+    stamp: tuple[tuple[str, int, int], ...] = ()  # the corpus files this entry was built from
 
 
 _entries: dict[tuple[Path, str], _Entry] = {}
@@ -230,12 +231,23 @@ def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
     return _Entry(pipeline, dict(documents), acts, retriever, budget_tokens=budget)
 
 
+def _stamp(corpus_dir: Path) -> tuple[tuple[str, int, int], ...]:
+    """Name, size and modification time of every corpus file."""
+    files = sorted(p for p in corpus_dir.glob("*") if p.is_file())
+    return tuple((p.name, s.st_size, s.st_mtime_ns) for p in files for s in (p.stat(),))
+
+
 def _entry(corpus_dir: Path, retriever: str | None) -> _Entry:
-    """The pipeline for ``retriever``; ``None`` means the default, which may fall back to bm25."""
+    """The pipeline for ``retriever``; ``None`` means the default, which may fall back to bm25.
+
+    It is rebuilt when a file of the corpus was added, removed or changed (uploaded papers).
+    """
     key = (corpus_dir.resolve(), retriever or DEFAULT_RETRIEVER)
+    stamp = _stamp(key[0])
     with _entries_lock:
-        if key not in _entries:
+        if key not in _entries or _entries[key].stamp != stamp:
             _entries[key] = _build_entry(*key)
+            _entries[key].stamp = stamp
         entry = _entries[key]
     if retriever is not None and entry.load_error is not None:
         raise RuntimeError(f"retriever {retriever!r} is unavailable: {entry.load_error}")

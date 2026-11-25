@@ -84,6 +84,18 @@ def test_paged_documents_pack_into_the_paper_budget_by_default(tmp_path: Path) -
     assert packed("plain") == 1  # no page breaks: the article budget, as for the EU corpus
 
 
+def test_search_sees_a_document_added_after_the_first_search(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("Batteries shave the evening peak.", encoding="utf-8")
+    first = ragkit.search("heat pump defrost peak", corpus_dir=tmp_path, retriever="bm25")
+    assert [a.id for a in first.articles] == ["a"]
+    (tmp_path / "b.txt").write_text("The heat pump runs a defrost cycle.", encoding="utf-8")
+    second = ragkit.search("heat pump defrost peak", corpus_dir=tmp_path, retriever="bm25")
+    assert second.articles[0].id == "b"
+    (tmp_path / "b.txt").unlink()
+    third = ragkit.search("heat pump defrost peak", corpus_dir=tmp_path, retriever="bm25")
+    assert [a.id for a in third.articles] == ["a"]
+
+
 def test_open_benchmarks_take_the_best_annotator_and_break_ties_to_shipped_packing() -> None:
     q = OpenQuestion("q1", "q", ("p1",), (("alpha beta", "gamma"), ("delta",)))
     packed = [Passage("p1", "Alpha beta and gamma."), Passage("p2", "other")]
