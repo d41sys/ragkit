@@ -36,6 +36,8 @@ TIE = 0.005
 N_RESAMPLES = 10_000
 DEV_PATH = Path("docs/sota-runs/paper_pool_dev.json")
 FRESH_QA_PATH = pb.DATA_DIR / "qa_papers_forecasting_fresh.jsonl"
+FRESH2_QA_PATH = pb.DATA_DIR / "qa_papers_forecasting_fresh2.jsonl"
+CAP_SYSTEMS: dict[str, Config] = {"S30": (30, None, 1), "W18": (30, 18_000, 1)}  # P-5
 METRICS = {
     "primary": "primary",
     "all": "all gold papers packed",
@@ -59,10 +61,11 @@ def datasets(stage: str) -> dict[str, list[tuple[op.Docs, list[Any]]]]:
             "mdaqa": [op.mdaqa("test")],
             "long": [(long_docs, pb.load_questions())],
         }
+    fresh = FRESH2_QA_PATH if stage == "cap" else FRESH_QA_PATH
     return {
         "qasper": [op.qasper_train(op.ANSWER_PAPERS, 2 * op.ANSWER_PAPERS)],
         "mdaqa": [op.mdaqa("pool_a"), op.mdaqa("pool_b")],
-        "long": [(long_docs, pb.load_questions(FRESH_QA_PATH))],
+        "long": [(long_docs, pb.load_questions(fresh))],
     }
 
 
@@ -134,6 +137,24 @@ def verdict(rows: Rows) -> str:
     return "default for paged corpora" if gain and no_loss else "not adopted"
 
 
+def cap_verdict(rows: Rows, types: Sequence[str]) -> str:
+    """P-5 (docs/paper_cap_protocol.md): rule 1 on cross questions, rule 2 adds the guards."""
+
+    def low(bench: str, keep: Sequence[bool] | None = None) -> float:
+        w, s = (rows[bench][name]["primary"] for name in ("W18", "S30"))
+        if keep is not None:
+            w, s = ([v for v, k in zip(side, keep, strict=True) if k] for side in (w, s))
+        return paired_bootstrap_ci(w, s, n_resamples=N_RESAMPLES)[1]
+
+    cross = [t == "cross" for t in types]
+    if low("long", cross) <= 0:
+        return "not adopted"
+    guards = low("long", [not c for c in cross]) > MARGINS["long"] and all(
+        low(b) > MARGINS[b] for b in ("qasper", "mdaqa")
+    )
+    return "default for paged corpora" if guards else "recommended for comparison questions"
+
+
 def save_chosen(chosen: Config, scores: Mapping[Config, float], path: Path = DEV_PATH) -> None:
     data = {"chosen": list(chosen), "scores": [[*c, round(s, 6)] for c, s in scores.items()]}
     path.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")
@@ -172,14 +193,21 @@ def _fmt_diff(a: Sequence[float], b: Sequence[float]) -> str:
 
 
 def render_test(
-    rows: Rows, configs: Mapping[str, Config], types: Sequence[str], notes: Sequence[str]
+    rows: Rows,
+    configs: Mapping[str, Config],
+    types: Sequence[str],
+    notes: Sequence[str],
+    *,
+    title: str = "### ragkit paperpool score: P-4 (docs/paper_pool_protocol.md)",
+    base: str = "B36",
+    new: str = "C",
 ) -> str:
-    lines = ["### ragkit paperpool score: P-4 (docs/paper_pool_protocol.md)", ""]
+    lines = [title, ""]
     lines += [f"- {name} = {label(c)}" for name, c in configs.items()]
     primaries = {"qasper": "evidence recall", "mdaqa": "needed papers packed"}
     for bench in BENCHMARKS:
         by_system = rows[bench]
-        n = len(by_system["B36"]["primary"])
+        n = len(by_system[base]["primary"])
         primary = primaries.get(bench, "evidence recall")
         lines += ["", f"#### {bench} test ({n} questions; primary = {primary})", ""]
         lines.append("| system | " + " | ".join(METRICS.values()) + " |")
@@ -189,14 +217,17 @@ def render_test(
             lines.append(f"| {name} | {cells} |")
         lines.append("")
         for name in configs:
-            if name != "B36":
-                diff = _fmt_diff(by_system[name]["primary"], by_system["B36"]["primary"])
-                lines.append(f"- {name} - B36: {diff}")
-    for kind in pb.TYPES:
-        keep = [i for i, t in enumerate(types) if t == kind]
-        c = [rows["long"]["C"]["primary"][i] for i in keep]
-        b = [rows["long"]["B36"]["primary"][i] for i in keep]
-        lines.append(f"- long PDFs, {kind}: B36 {_mean(b):.3f}, C - B36 {_fmt_diff(c, b)}")
-    lines += ["", "#### Verdict", "", f"- C: **{verdict(rows)}**", "", "#### Not gating", ""]
+            if name != base:
+                diff = _fmt_diff(by_system[name]["primary"], by_system[base]["primary"])
+                lines.append(f"- {name} - {base}: {diff}")
+    groups = {**{t: (t,) for t in pb.TYPES}, "single": ("named", "described")}
+    for kind, members in groups.items():
+        keep = [i for i, t in enumerate(types) if t in members]
+        c = [rows["long"][new]["primary"][i] for i in keep]
+        b = [rows["long"][base]["primary"][i] for i in keep]
+        diff = _fmt_diff(c, b)
+        lines.append(f"- long PDFs, {kind}: {base} {_mean(b):.3f}, {new} - {base} {diff}")
+    outcome = verdict(rows) if new == "C" else cap_verdict(rows, types)
+    lines += ["", "#### Verdict", "", f"- {new}: **{outcome}**", "", "#### Not gating", ""]
     lines += [f"- {n}" for n in notes]
     return "\n".join(lines)

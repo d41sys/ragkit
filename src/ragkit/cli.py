@@ -1486,10 +1486,10 @@ def cmd_papers(args: argparse.Namespace) -> int:
         print(f"{len(docs)} texts in {out}")
         return 0
     if args.action == "validate":
-        if args.fresh:  # P-4's test questions (docs/paper_pool_protocol.md)
-            from ragkit.paperpool import FRESH_QA_PATH
+        if args.fresh:  # test questions of P-4 (paper_pool_protocol) and P-5 (paper_cap_protocol)
+            from ragkit.paperpool import FRESH2_QA_PATH, FRESH_QA_PATH
 
-            questions = pb.load_questions(FRESH_QA_PATH)
+            questions = pb.load_questions({1: FRESH_QA_PATH, 2: FRESH2_QA_PATH}[args.fresh])
             errors = pb.validate(questions, documents, singles=1, cross=20)
         else:
             questions = pb.load_questions()
@@ -1580,9 +1580,11 @@ def cmd_paperpool(args: argparse.Namespace) -> int:
 
     engine = _paper_engine(args)
     dev = args.action == "dev"
-    configs: dict[Any, pp.Config] = (
-        {c: c for c in pp.CONFIGS} if dev else dict(pp.systems(pp.load_chosen()))
-    )
+    configs: dict[Any, pp.Config]
+    if dev:
+        configs = {c: c for c in pp.CONFIGS}
+    else:
+        configs = dict(pp.CAP_SYSTEMS if args.action == "cap" else pp.systems(pp.load_chosen()))
     rows: dict[str, dict[Any, dict[str, list[float]]]] = {}
     types: list[str] = []
     notes = []
@@ -1605,6 +1607,9 @@ def cmd_paperpool(args: argparse.Namespace) -> int:
         chosen = pp.choose(scores)
         pp.save_chosen(chosen, scores)
         text = pp.render_dev(rows, chosen, notes)
+    elif args.action == "cap":
+        title = "### ragkit paperpool cap: P-5 (docs/paper_cap_protocol.md)"
+        text = pp.render_test(rows, configs, types, notes, title=title, base="S30", new="W18")
     else:
         text = pp.render_test(rows, configs, types, notes)
     print(text)
@@ -2507,7 +2512,15 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_pap.add_argument(
         "action", choices=("fetch", "dump", "validate", "contextualize", "score"), help="Stage."
     )
-    p_pap.add_argument("--fresh", action="store_true", help="validate: P-4's fresh questions.")
+    p_pap.add_argument(
+        "--fresh",
+        nargs="?",
+        type=int,
+        const=1,
+        default=0,
+        choices=(1, 2),
+        help="validate: the fresh questions of P-4 (default) or P-5 (2).",
+    )
     p_pap.add_argument(
         "--cache", default="data/raw/papers/contexts_cache.jsonl", help="Raw LLM call cache."
     )
@@ -2522,9 +2535,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_pp = subparsers.add_parser(
         "paperpool",
         help="P-4: chunk pool and per-paper cap at the 36 000 budget on QASPER, MDA-QA and the "
-        "forecasting PDFs (dev chooses a configuration, score tests it once).",
+        "forecasting PDFs (dev chooses a configuration, score tests it once). P-5: cap tests an "
+        "18 000 cap per paper once (docs/paper_cap_protocol.md).",
     )
-    p_pp.add_argument("action", choices=("dev", "score"), help="Stage.")
+    p_pp.add_argument("action", choices=("dev", "score", "cap"), help="Stage.")
     p_pp.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
     p_pp.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
     p_pp.add_argument("--out", default=None, help="Write the report to this file as well.")

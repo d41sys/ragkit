@@ -220,3 +220,25 @@ def test_pool_rule_needs_a_gain_on_a_target_and_no_loss_anywhere() -> None:
     assert pp.verdict(_pool_rows({"qasper": 0.25})) == "not adopted"  # QASPER is not a target
     assert pp.verdict(_pool_rows({"mdaqa": 0.25, "qasper": -0.25})) == "not adopted"
     assert pp.verdict(_pool_rows({})) == "not adopted"
+
+
+def test_cap_rule_needs_a_cross_gain_and_becomes_default_only_without_losses() -> None:
+    types = ["cross"] * 20 + ["named"] * 20
+
+    def rows(cross: int, single: int, qasper: int = 20) -> dict[str, Any]:
+        """Questions W18 gets right out of 20 cross, 20 single and 40 QASPER; S30 gets half."""
+        half = [1.0] * 10 + [0.0] * 10
+        w18 = [1.0] * cross + [0.0] * (20 - cross) + [1.0] * single + [0.0] * (20 - single)
+        return {
+            "long": {"S30": {"primary": half * 2}, "W18": {"primary": w18}},
+            "qasper": {
+                "S30": {"primary": half * 2},
+                "W18": {"primary": [1.0] * qasper + [0.0] * (40 - qasper)},
+            },
+            "mdaqa": {"S30": {"primary": half * 2}, "W18": {"primary": half * 2}},
+        }
+
+    assert pp.cap_verdict(rows(18, 10), types) == "default for paged corpora"
+    assert pp.cap_verdict(rows(18, 4), types) == "recommended for comparison questions"
+    assert pp.cap_verdict(rows(18, 10, qasper=8), types) == "recommended for comparison questions"
+    assert pp.cap_verdict(rows(10, 10), types) == "not adopted"
