@@ -1,0 +1,46 @@
+### ragkit paperpool cap: P-5 (docs/paper_cap_protocol.md)
+
+- S30 = pool 30, no cap
+- W18 = pool 30, cap 18000 x 1
+
+#### qasper test (1001 questions; primary = evidence recall)
+
+| system | primary | all gold papers packed | papers packed | tokens |
+|---|---|---|---|---|
+| S30 | 0.985 [0.977, 0.992] | 0.985 [0.977, 0.992] | 4.61 | 29252 |
+| W18 | 0.983 [0.975, 0.990] | 0.985 [0.977, 0.992] | 4.66 | 29614 |
+
+- W18 - S30: -0.002 [-0.005, +0.000] (0 better, 2 worse of 1001)
+
+#### mdaqa test (200 questions; primary = needed papers packed)
+
+| system | primary | all gold papers packed | papers packed | tokens |
+|---|---|---|---|---|
+| S30 | 0.832 [0.795, 0.867] | 0.680 [0.615, 0.745] | 3.67 | 29009 |
+| W18 | 0.834 [0.797, 0.869] | 0.685 [0.620, 0.750] | 3.69 | 29225 |
+
+- W18 - S30: +0.003 [+0.000, +0.007] (1 better, 0 worse of 200)
+
+#### long test (40 questions; primary = evidence recall)
+
+| system | primary | all gold papers packed | papers packed | tokens |
+|---|---|---|---|---|
+| S30 | 0.658 [0.535, 0.775] | 0.525 [0.375, 0.675] | 1.15 | 24699 |
+| W18 | 0.742 [0.629, 0.846] | 0.625 [0.475, 0.775] | 1.95 | 34612 |
+
+- W18 - S30: +0.083 [+0.000, +0.160] (10 better, 1 worse of 40)
+- long PDFs, named: S30 1.000, W18 - S30 +0.000 [+0.000, +0.000] (0 better, 0 worse of 10)
+- long PDFs, described: S30 1.000, W18 - S30 -0.100 [-0.300, +0.000] (0 better, 1 worse of 10)
+- long PDFs, cross: S30 0.317, W18 - S30 +0.217 [+0.117, +0.317] (10 better, 0 worse of 20)
+- long PDFs, single: S30 1.000, W18 - S30 -0.050 [-0.150, +0.000] (0 better, 1 worse of 20)
+
+#### Verdict
+
+- W18: **recommended for comparison questions**
+
+#### Not gating
+
+- qasper: 416 papers, 28112 chunks, 1001 q
+- mdaqa: 205 papers, 18677 chunks, 100 q
+- mdaqa: 204 papers, 18009 chunks, 100 q
+- long: 20 papers, 4581 chunks, 40 q
