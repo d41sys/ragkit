@@ -39,6 +39,7 @@ from ragkit.parent import (
     PACK_CHUNKS,
     PACK_OVERFLOW,
     PAPER_BUDGET_TOKENS,
+    PAPER_PACK_CHUNKS,
     Passage,
     estimate_tokens,
     pack_articles,
@@ -202,6 +203,7 @@ class _Entry:
     load_error: str | None = None  # why the requested retriever fell back to bm25
     lock: threading.Lock = field(default_factory=threading.Lock)
     budget_tokens: int = ARTICLE_BUDGET_TOKENS  # the default budget of ``search`` on this corpus
+    pack_chunks: int = PACK_CHUNKS  # the default chunk pool of ``search`` on this corpus
     stamp: tuple[tuple[str, int, int], ...] = ()  # the corpus files this entry was built from
 
 
@@ -214,9 +216,12 @@ def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
     if not documents:
         raise ValueError(f"no .md, .txt or .pdf documents in {corpus_dir}")
     # paged text (a PDF, or form-feed page breaks) means papers: one fills the 12 000 budget
-    # alone, 36 000 fits one to three (docs/open_papers_protocol.md)
+    # alone, 36 000 fits one to three (docs/open_papers_protocol.md), and the papers a question
+    # needs are more often among the top 30 chunks than the top 10 (docs/paper_pool_protocol.md)
     paged = any("\f" in text for _, text in documents)
-    budget = PAPER_BUDGET_TOKENS if paged else ARTICLE_BUDGET_TOKENS
+    defaults: dict[str, int] = (
+        {"budget_tokens": PAPER_BUDGET_TOKENS, "pack_chunks": PAPER_PACK_CHUNKS} if paged else {}
+    )
     acts = _load_acts(corpus_dir)
     try:
         pipeline = _make_pipeline(retriever, serving=True)
@@ -227,8 +232,8 @@ def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
         log.warning("retriever %r unavailable, falling back to bm25", retriever, exc_info=True)
         pipeline = _make_pipeline("bm25", serving=True)
         pipeline.index_documents(documents)
-        return _Entry(pipeline, dict(documents), acts, "bm25", repr(exc), budget_tokens=budget)
-    return _Entry(pipeline, dict(documents), acts, retriever, budget_tokens=budget)
+        return _Entry(pipeline, dict(documents), acts, "bm25", repr(exc), **defaults)
+    return _Entry(pipeline, dict(documents), acts, retriever, **defaults)
 
 
 def _stamp(corpus_dir: Path) -> tuple[tuple[str, int, int], ...]:
@@ -300,16 +305,17 @@ def search(
     corpus_dir: Path | str | None = None,
     retriever: str | None = None,
     budget_tokens: int | None = None,
-    pack_chunks: int = PACK_CHUNKS,
+    pack_chunks: int | None = None,
     answerable: bool = False,
     overflow: str = PACK_OVERFLOW,
     window_tokens: int | None = None,
 ) -> SearchResult:
     """Distinct parent articles of the top ``pack_chunks`` chunks, packed into ``budget_tokens``.
 
-    ``budget_tokens=None`` is ``PAPER_BUDGET_TOKENS`` when a document of the corpus has page
-    breaks (a PDF of two or more pages, or text with form feeds) and ``ARTICLE_BUDGET_TOKENS``
-    otherwise (``docs/open_papers_protocol.md``).
+    ``budget_tokens=None`` and ``pack_chunks=None`` are ``PAPER_BUDGET_TOKENS`` and
+    ``PAPER_PACK_CHUNKS`` when a document of the corpus has page breaks (a PDF of two or more
+    pages, or text with form feeds), ``ARTICLE_BUDGET_TOKENS`` and ``PACK_CHUNKS`` otherwise
+    (``docs/open_papers_protocol.md``, ``docs/paper_pool_protocol.md``).
     ``retriever=None`` uses ``DEFAULT_RETRIEVER`` and falls back to bm25 if its models cannot
     load; a retriever named explicitly raises ``RuntimeError`` instead.
     ``answerable=True`` also fills ``answerable_score`` (the SQuAD2 reader signal on the top
@@ -321,11 +327,12 @@ def search(
     / ``window_tokens``.
     """
     query = _validated(query, retriever)
-    if pack_chunks < 1:
+    if pack_chunks is not None and pack_chunks < 1:
         raise ValueError("pack_chunks must be positive")
     entry = _entry(Path(corpus_dir or DEFAULT_CORPUS_DIR), retriever)
     with entry.lock:
-        pool = [Passage(c.doc_id, c.text) for c in entry.pipeline.retrieve(query, pack_chunks)]
+        hits = entry.pipeline.retrieve(query, pack_chunks or entry.pack_chunks)
+        pool = [Passage(c.doc_id, c.text) for c in hits]
         packed = pack_articles(
             pool,
             entry.articles,

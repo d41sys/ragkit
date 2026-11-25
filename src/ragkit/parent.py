@@ -16,6 +16,7 @@ ARTICLE_K = 3
 ARTICLE_BUDGET_TOKENS = 12_000
 PAPER_BUDGET_TOKENS = 36_000  # search() default for paged corpora (open_papers_protocol.md)
 PACK_CHUNKS = 10  # chunks read by budget packing (dev-chosen, docs/packing_protocol.md)
+PAPER_PACK_CHUNKS = 30  # the same for paged corpora (docs/paper_pool_protocol.md)
 PACK_OVERFLOW = "stop"  # dev-chosen overflow policy of budget packing
 CHARS_PER_TOKEN = 4  # 337 kB of corpus = about 85 k tokens, the K-R2 full-context figure
 

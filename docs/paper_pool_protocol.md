@@ -81,3 +81,32 @@ long-PDF result by question type.
 Answer quality (P-3 found that fully correct answers follow packing gains only in part); the
 ezcross agent, which may search several times; papers of other fields or the group's own papers;
 overflow `skip` and budgets other than 36 000 are not in the grid.
+
+## Outcome (scored once, `docs/sota-runs/paper_pool_score.txt`)
+
+Dev (`paper_pool_dev.txt`): the best dev score, 0.8700, is pool 30 or 50 with a cap of 18 000; pool
+30 without a cap scores 0.8675, inside the 0.005 tie and simpler, so **C = pool 30, no cap, one
+window**. Pool 50 equals pool 30 on every dev metric.
+
+| Test, primary metric | B36 (pool 10) | C (pool 30) | C - B36 | est. tokens per search |
+|---|---|---|---|---|
+| QASPER, 1 001 questions, evidence recall | 0.985 | 0.985 | +0.000 [+0.000, +0.000] (0 better, 0 worse) | 18 374 to 29 252 |
+| MDA-QA, 200 questions, needed papers packed | 0.739 | 0.832 | +0.092 [+0.067, +0.120] (38 / 0) | 20 953 to 29 009 |
+| Long PDFs, 40 questions, evidence recall | 0.675 | 0.675 | +0.000 [+0.000, +0.000] (0 / 0) | 25 752 to 26 203 |
+
+**Verdict: C becomes the default for paged corpora** (rule 1 on MDA-QA, rule 2 on all three).
+`search()` now reads the top 30 chunks when a document of the corpus has page breaks
+(`PAPER_PACK_CHUNKS`); an unpaged corpus keeps the top 10
+(`test_paged_documents_read_a_wider_chunk_pool_by_default`). On MDA-QA every needed paper is packed
+for 0.680 of the questions, up from 0.495.
+
+- The cost: on QASPER the wider pool packs 4.61 papers instead of 2.85 and 59 % more tokens for
+  no gain in evidence recall; the reader gets more text on every single-paper question.
+- The long PDFs did not move at all: one paper still fills the budget (1.07 and 1.10 papers
+  packed), so cross questions stay at 0.350 for both systems. Problem 2 above is not solved.
+- P1 failed (pool above 10, but no cap). P2 held (+0.092). P3 held (+0.000). P4 failed: cross
+  questions gained nothing, because C has no cap.
+- Post hoc, not gating (run after scoring, pool 30 on P-1's 50 and the 40 new questions): a cap of
+  18 000 lifts cross questions 0.358 to 0.500 and 0.350 to 0.625 and costs named questions 0.950 to
+  0.850 and 1.000 to 0.900. The dev score averages this away because cross questions are 10 of the
+  50 dev questions. Tested on new questions in [`paper_cap_protocol.md`](paper_cap_protocol.md) (P-5).

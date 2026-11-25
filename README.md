@@ -75,7 +75,7 @@ result = ragkit.search(
     corpus_dir=None,  # default: the consolidated (in-force) EU corpus, src/ragkit/data/corpus_eu_consolidated
     retriever=None,  # None: hybrid+ce with bm25 fallback; or name one (no fallback): "default" | "bm25" | "dense" | "hybrid" | "hybrid+ce"
     budget_tokens=None,  # None: 12 000, or 36 000 for a corpus with paged documents (PDFs); articles are packed whole, in rank order, until it is full
-    pack_chunks=10,  # chunks whose parent articles are candidates
+    pack_chunks=None,  # chunks whose parent articles are candidates; None: 10, or 30 for a corpus with paged documents
     answerable=False,  # True: also return the reader score and its threshold
     window_tokens=None,  # long documents (papers): pack the window of this size around each best chunk
 )
@@ -1231,6 +1231,18 @@ P-2 counted what reaches the reader; P-3 asked whether the reader's answers get 
 **Verdict** by the frozen rules: no harm found, so the 36 000 default for paged corpora **stays**; "no harm on single-paper questions" is **shown** (QASPER lower bound +0.010, the rule needs above -0.05); the gain in fully correct answers on multi-paper questions is **not confirmed** (the MDA-QA lower bound is +0.000, the rule needs above 0). On QASPER the interval lies above 0, but no rule was set for a gain there. Fewer answers are wrong at 36 000 on both sets, yet only 0.37 of the multi-paper answers are fully correct, in line with P-2's finding that the 10-chunk pool misses needed papers. Not claimed: the ezcross agent's own model, an agent that searches several times, long PDFs with appendices. Raw output: `docs/sota-runs/paper_answers_score.txt` (interim: `paper_answers_interim_60.txt`), answers and verdicts in `docs/sota-runs/paper_answers.json`.
 
 On 17 of the 100 MDA-QA and 110 of the 300 QASPER questions both budgets packed the same context (everything retrieved already fit in 12 000 tokens), so the differences above rest on 83 and 190 questions.
+
+### A wider chunk pool for papers, Phase P-4 ([`docs/paper_pool_protocol.md`](docs/paper_pool_protocol.md))
+
+P-2 found the needed papers of a multi-paper question in the top 10 chunks for 0.773 of the cases and in the top 30 for more; P-1 found that one long PDF fills the budget alone. P-4 put both in one grid at the 36 000 budget: pool 10 / 20 / 30 / 50 chunks, and a cap per paper (none, 18 000, 12 000 estimated tokens, one or three windows). 20 configurations were scored on data already studied; the simplest one within 0.005 of the best, **pool 30 without a cap**, was scored once on fresh data against the shipped pool 10 (issue #21). Retrieval and packing only, no answers generated.
+
+| Fresh test set | pool 10 | pool 30 | difference [95 % CI] | est. tokens per search |
+|---|---|---|---|---|
+| QASPER, 1 001 single-paper questions, evidence recall | 0.985 | 0.985 | +0.000 [+0.000, +0.000] | 18 374 to 29 252 |
+| MDA-QA, 200 multi-paper questions, needed papers packed | 0.739 | 0.832 | +0.092 [+0.067, +0.120] (38 better, 0 worse) | 20 953 to 29 009 |
+| 20 long PDFs, 40 new questions, evidence recall | 0.675 | 0.675 | +0.000 [+0.000, +0.000] | 25 752 to 26 203 |
+
+**Verdict** by the frozen rule: pool 30 is the `search()` default for paged corpora (`pack_chunks=None`); unpaged corpora such as the EU corpus keep 10. All needed papers are packed for 0.680 of the MDA-QA questions (0.495 before). The price is 59 % more text on single-paper questions for no recall gain. The long PDFs did not change: one paper still fills the budget, and questions that compare papers stay at 0.350. Raw output: `docs/sota-runs/paper_pool_dev.txt`, `paper_pool_score.txt`.
 
 ### Budget packing of parent articles, Phase N-1 ([`docs/packing_protocol.md`](docs/packing_protocol.md))
 

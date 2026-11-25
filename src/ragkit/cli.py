@@ -2616,8 +2616,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_ans.add_argument(
         "--pack-chunks",
         type=int,
-        default=PACK_CHUNKS,
-        help=f"--pack: chunks whose articles are candidates (dev-chosen: {PACK_CHUNKS}).",
+        default=None,
+        help=f"--pack: chunks whose articles are candidates (dev-chosen: {PACK_CHUNKS}, "
+        "30 for a corpus with paged documents).",
     )
     p_ans.add_argument(
         "--overflow",

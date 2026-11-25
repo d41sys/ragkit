@@ -84,6 +84,28 @@ def test_paged_documents_pack_into_the_paper_budget_by_default(tmp_path: Path) -
     assert packed("plain") == 1  # no page breaks: the article budget, as for the EU corpus
 
 
+def test_paged_documents_read_a_wider_chunk_pool_by_default(tmp_path: Path) -> None:
+    for folder, page_break in (("paged", "\f"), ("plain", " ")):
+        (tmp_path / folder).mkdir()
+        # a: more than 10 chunks that match strongly; b: one weak match, ranked below them
+        strong = page_break.join(["battery peak shaving " * 20] * 16)
+        (tmp_path / folder / "a.txt").write_text(strong, encoding="utf-8")
+        (tmp_path / folder / "b.txt").write_text("One battery. " + FILLER * 20, encoding="utf-8")
+
+    def papers(folder: str, pack_chunks: int | None = None) -> set[str]:
+        found = ragkit.search(
+            "battery peak shaving",
+            corpus_dir=tmp_path / folder,
+            retriever="bm25",
+            pack_chunks=pack_chunks,
+        )
+        return {a.id for a in found.articles}
+
+    assert papers("paged") == {"a", "b"}
+    assert papers("paged", pack_chunks=10) == {"a"}  # an explicit pool still wins
+    assert papers("plain") == {"a"}  # no page breaks: the top 10 chunks, as for the EU corpus
+
+
 def test_search_sees_a_document_added_after_the_first_search(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("Batteries shave the evening peak.", encoding="utf-8")
     first = ragkit.search("heat pump defrost peak", corpus_dir=tmp_path, retriever="bm25")
