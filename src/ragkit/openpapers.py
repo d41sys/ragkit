@@ -30,7 +30,13 @@ QASPER_FILES = {
 }
 MDA_FILE = "MDA-QA.json"
 SPIQA_ZIP = "spiqa_paragraphs.zip"
-MDA_SPLITS = {"dev": (0, 100), "test": (100, 200), "answers": (200, 300)}  # equal pools
+MDA_SPLITS = {  # equal pools of shuffled ids
+    "dev": (0, 100),
+    "test": (100, 200),
+    "answers": (200, 300),  # P-3
+    "pool_a": (300, 400),  # P-4 test
+    "pool_b": (400, 500),  # P-4 test
+}
 BENCHMARKS = ("qasper", "mdaqa")
 BUDGETS = (12_000, 24_000, 36_000)
 WINDOWS = (None, 4000, 8000)
@@ -318,15 +324,19 @@ ANSWER_METRICS = {
 }
 
 
-def answer_sets(data_dir: Path = DATA_DIR) -> dict[str, tuple[Docs, list[OpenQuestion]]]:
-    """The fresh P-3 corpora and questions: 416 QASPER train papers (300 questions), MDA-QA 100."""
+def qasper_train(lo: int, hi: int, data_dir: Path = DATA_DIR) -> tuple[Docs, list[OpenQuestion]]:
+    """Train papers at shuffled positions ``lo`` to ``hi`` (seed 0) and their questions."""
     docs, questions = qasper("train", data_dir)
     ids = sorted(pid for pid, _ in docs)
     random.Random(0).shuffle(ids)
-    keep = set(ids[:ANSWER_PAPERS])
-    pool = [q for q in questions if q.papers[0] in keep]
+    keep = set(ids[lo:hi])
+    return [d for d in docs if d[0] in keep], [q for q in questions if q.papers[0] in keep]
+
+
+def answer_sets(data_dir: Path = DATA_DIR) -> dict[str, tuple[Docs, list[OpenQuestion]]]:
+    """The fresh P-3 corpora and questions: 416 QASPER train papers (300 questions), MDA-QA 100."""
+    kept_docs, pool = qasper_train(0, ANSWER_PAPERS, data_dir)
     random.Random(0).shuffle(pool)
-    kept_docs = [d for d in docs if d[0] in keep]
     # MDA-QA first: a run stopped by the cost guard has finished the benchmark of rule 2
     return {"mdaqa": mdaqa("answers", data_dir), "qasper": (kept_docs, pool[:ANSWER_QASPER])}
 

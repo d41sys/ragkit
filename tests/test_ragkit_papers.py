@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 import ragkit
+from ragkit import paperpool as pp
 from ragkit.llm import codex_transport
 from ragkit.openpapers import CONFIGS, OpenQuestion, answer_scores, answer_verdicts, choose
 from ragkit.openpapers import measure as open_measure
@@ -154,3 +155,34 @@ def test_answer_rule_reverts_only_on_shown_harm_and_counts_partial_as_not_correc
     harm = _answers("qasper", ["yes"] * 40, ["partial"] * 30 + ["yes"] * 10)
     reverted = answer_verdicts(answer_scores(harm + gain))
     assert list(reverted.values()) == ["reverted to 12 000", "confirmed", "not shown"]
+
+
+def test_pool_choice_prefers_the_simplest_configuration_within_the_tie() -> None:
+    scores = dict.fromkeys(pp.CONFIGS, 0.5)
+    scores[(50, 12_000, 3)] = 0.604
+    scores[(20, None, 1)] = 0.600  # one setting changed, within 0.005 of the best
+    scores[(10, 18_000, 1)] = 0.600  # also one setting, but the smaller pool wins
+    assert pp.choose(scores) == (10, 18_000, 1)
+    scores[(50, 12_000, 3)] = 0.700
+    assert pp.choose(scores) == (50, 12_000, 3)
+    assert pp.choose(dict.fromkeys(pp.CONFIGS, 0.5)) == pp.B36
+
+
+def _pool_rows(gain: dict[str, float]) -> dict[str, dict[str, dict[str, list[float]]]]:
+    """40 questions per benchmark; C is right on ``gain`` more of them than B36 (fewer if < 0)."""
+    rows = {}
+    for bench in pp.BENCHMARKS:
+        right = 20 + round(gain.get(bench, 0.0) * 40)
+        rows[bench] = {
+            "B36": {"primary": [1.0] * 20 + [0.0] * 20},
+            "C": {"primary": [1.0] * right + [0.0] * (40 - right)},
+        }
+    return rows
+
+
+def test_pool_rule_needs_a_gain_on_a_target_and_no_loss_anywhere() -> None:
+    assert pp.verdict(_pool_rows({"mdaqa": 0.25})) == "default for paged corpora"
+    assert pp.verdict(_pool_rows({"long": 0.25})) == "default for paged corpora"
+    assert pp.verdict(_pool_rows({"qasper": 0.25})) == "not adopted"  # QASPER is not a target
+    assert pp.verdict(_pool_rows({"mdaqa": 0.25, "qasper": -0.25})) == "not adopted"
+    assert pp.verdict(_pool_rows({})) == "not adopted"

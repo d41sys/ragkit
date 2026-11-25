@@ -78,8 +78,18 @@ def load_questions(path: Path = QA_PATH) -> list[PaperQuestion]:
     return out
 
 
-def validate(questions: Sequence[PaperQuestion], documents: Mapping[str, str]) -> list[str]:
-    """Every violation of the protocol's question rules; empty when the set is valid."""
+def validate(
+    questions: Sequence[PaperQuestion],
+    documents: Mapping[str, str],
+    *,
+    singles: int = 2,
+    cross: int = 10,
+) -> list[str]:
+    """Every violation of the protocol's question rules; empty when the set is valid.
+
+    P-1: ``singles`` = 2 per paper (one named, one described) and 10 cross. P-4's fresh set: one
+    single per paper, as many named as described, and 20 cross.
+    """
     errors = []
     texts = {d: normalize(t) for d, t in documents.items()}
     if len({q.id for q in questions}) != len(questions):
@@ -99,12 +109,15 @@ def validate(questions: Sequence[PaperQuestion], documents: Mapping[str, str]) -
                 errors.append(f"{q.id}: unknown paper {g.paper}")
             elif normalize(g.evidence) not in texts[g.paper]:
                 errors.append(f"{q.id}: evidence not found in {g.paper}: {g.evidence[:60]!r}")
+    kinds_all = [q.type for q in questions if q.type != "cross"]
     for paper in documents:
         kinds = sorted(q.type for q in questions if q.type != "cross" and q.gold[0].paper == paper)
-        if kinds != ["described", "named"]:
-            errors.append(f"{paper}: single questions {kinds}, expected one named, one described")
-    if sum(q.type == "cross" for q in questions) != 10:
-        errors.append("expected 10 cross questions")
+        if len(kinds) != singles or (singles == 2 and kinds != ["described", "named"]):
+            errors.append(f"{paper}: single questions {kinds}, expected {singles}")
+    if kinds_all.count("named") != kinds_all.count("described"):
+        errors.append("expected as many named as described questions")
+    if sum(q.type == "cross" for q in questions) != cross:
+        errors.append(f"expected {cross} cross questions")
     return errors
 
 

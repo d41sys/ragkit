@@ -1486,8 +1486,14 @@ def cmd_papers(args: argparse.Namespace) -> int:
         print(f"{len(docs)} texts in {out}")
         return 0
     if args.action == "validate":
-        questions = pb.load_questions()
-        errors = pb.validate(questions, documents)
+        if args.fresh:  # P-4's test questions (docs/paper_pool_protocol.md)
+            from ragkit.paperpool import FRESH_QA_PATH
+
+            questions = pb.load_questions(FRESH_QA_PATH)
+            errors = pb.validate(questions, documents, singles=1, cross=20)
+        else:
+            questions = pb.load_questions()
+            errors = pb.validate(questions, documents)
         print("\n".join(errors) if errors else f"{len(questions)} questions valid")
         return 1 if errors else 0
 
@@ -1564,6 +1570,46 @@ def cmd_papers(args: argparse.Namespace) -> int:
         out_path = Path(args.out)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(text + "\n", encoding="utf-8")
+    return 0
+
+
+def cmd_paperpool(args: argparse.Namespace) -> int:
+    """P-4: chunk pool and per-paper cap for paper corpora (docs/paper_pool_protocol.md)."""
+    from ragkit import paperpool as pp
+    from ragkit.ctxprefix import build_chunks
+
+    engine = _paper_engine(args)
+    dev = args.action == "dev"
+    configs: dict[Any, pp.Config] = (
+        {c: c for c in pp.CONFIGS} if dev else dict(pp.systems(pp.load_chosen()))
+    )
+    rows: dict[str, dict[Any, dict[str, list[float]]]] = {}
+    types: list[str] = []
+    notes = []
+    for bench, parts in pp.datasets(args.action).items():
+        rows[bench] = {name: {m: [] for m in pp.METRICS} for name in configs}
+        for docs, questions in parts:
+            chunks, documents = build_chunks(docs, prefix=False), dict(docs)
+            eng = engine(chunks, documents)
+            notes.append(f"{bench}: {len(docs)} papers, {len(chunks)} chunks, {len(questions)} q")
+            for q in questions:
+                ranked, passages = _paper_pool(eng, q.text, chunks)
+                for name, config in configs.items():
+                    got = pp.measure(q, ranked, pp.pack(passages, documents, config))
+                    for m, v in got.items():
+                        rows[bench][name][m].append(v)
+                if bench == "long":
+                    types.append(q.type)
+    if dev:
+        scores = pp.dev_scores(rows)
+        chosen = pp.choose(scores)
+        pp.save_chosen(chosen, scores)
+        text = pp.render_dev(rows, chosen, notes)
+    else:
+        text = pp.render_test(rows, configs, types, notes)
+    print(text)
+    if args.out:
+        Path(args.out).write_text(text + "\n", encoding="utf-8")
     return 0
 
 
@@ -2461,6 +2507,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_pap.add_argument(
         "action", choices=("fetch", "dump", "validate", "contextualize", "score"), help="Stage."
     )
+    p_pap.add_argument("--fresh", action="store_true", help="validate: P-4's fresh questions.")
     p_pap.add_argument(
         "--cache", default="data/raw/papers/contexts_cache.jsonl", help="Raw LLM call cache."
     )
@@ -2470,6 +2517,17 @@ def main(argv: Sequence[str] | None = None) -> None:
     p_pap.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
     p_pap.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
     p_pap.add_argument("--out", default=None, help="Write the report to this file as well.")
+
+    # Chunk pool and per-paper cap for paper corpora (docs/paper_pool_protocol.md)
+    p_pp = subparsers.add_parser(
+        "paperpool",
+        help="P-4: chunk pool and per-paper cap at the 36 000 budget on QASPER, MDA-QA and the "
+        "forecasting PDFs (dev chooses a configuration, score tests it once).",
+    )
+    p_pp.add_argument("action", choices=("dev", "score"), help="Stage.")
+    p_pp.add_argument("--cache-dir", default=str(DEFAULT_EMBED_DIR))
+    p_pp.add_argument("--device", default=None, help="cpu or mps (default: mps if available).")
+    p_pp.add_argument("--out", default=None, help="Write the report to this file as well.")
 
     # Paper packing on open benchmarks (docs/open_papers_protocol.md)
     p_op = subparsers.add_parser(
@@ -2720,6 +2778,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         sys.exit(cmd_papers(parsed))
     elif parsed.subcommand == "openpapers":
         sys.exit(cmd_openpapers(parsed))
+    elif parsed.subcommand == "paperpool":
+        sys.exit(cmd_paperpool(parsed))
     elif parsed.subcommand == "legalsplit":
         sys.exit(cmd_legalsplit(parsed))
     elif parsed.subcommand == "legalsize":
