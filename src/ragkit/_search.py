@@ -219,10 +219,10 @@ def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
     # alone, 36 000 fits one to three (docs/open_papers_protocol.md), and the papers a question
     # needs are more often among the top 30 chunks than the top 10 (docs/paper_pool_protocol.md)
     paged = any("\f" in text for _, text in documents)
-    defaults: dict[str, int] = (
-        {"budget_tokens": PAPER_BUDGET_TOKENS, "pack_chunks": PAPER_PACK_CHUNKS} if paged else {}
-    )
+    budget = PAPER_BUDGET_TOKENS if paged else ARTICLE_BUDGET_TOKENS
+    pool = PAPER_PACK_CHUNKS if paged else PACK_CHUNKS
     acts = _load_acts(corpus_dir)
+    error: str | None = None  # why the requested retriever fell back to bm25
     try:
         pipeline = _make_pipeline(retriever, serving=True)
         pipeline.index_documents(documents)
@@ -230,10 +230,12 @@ def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
             pipeline.retrieve(_WARMUP_QUERY, 1)  # loads every model now, not on the first query
     except Exception as exc:
         log.warning("retriever %r unavailable, falling back to bm25", retriever, exc_info=True)
+        retriever, error = "bm25", repr(exc)
         pipeline = _make_pipeline("bm25", serving=True)
         pipeline.index_documents(documents)
-        return _Entry(pipeline, dict(documents), acts, "bm25", repr(exc), **defaults)
-    return _Entry(pipeline, dict(documents), acts, retriever, **defaults)
+    return _Entry(
+        pipeline, dict(documents), acts, retriever, error, budget_tokens=budget, pack_chunks=pool
+    )
 
 
 def _stamp(corpus_dir: Path) -> tuple[tuple[str, int, int], ...]:
