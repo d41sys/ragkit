@@ -1,0 +1,45 @@
+### ragkit paperpool score: P-4 (docs/paper_pool_protocol.md)
+
+- B36 = pool 10, no cap
+- C = pool 30, no cap
+
+#### qasper test (1001 questions; primary = evidence recall)
+
+| system | primary | all gold papers packed | papers packed | tokens |
+|---|---|---|---|---|
+| B36 | 0.985 [0.977, 0.992] | 0.985 [0.977, 0.992] | 2.85 | 18374 |
+| C | 0.985 [0.977, 0.992] | 0.985 [0.977, 0.992] | 4.61 | 29252 |
+
+- C - B36: +0.000 [+0.000, +0.000] (0 better, 0 worse of 1001)
+
+#### mdaqa test (200 questions; primary = needed papers packed)
+
+| system | primary | all gold papers packed | papers packed | tokens |
+|---|---|---|---|---|
+| B36 | 0.739 [0.702, 0.777] | 0.495 [0.425, 0.565] | 2.60 | 20953 |
+| C | 0.832 [0.795, 0.867] | 0.680 [0.615, 0.745] | 3.67 | 29009 |
+
+- C - B36: +0.092 [+0.067, +0.120] (38 better, 0 worse of 200)
+
+#### long test (40 questions; primary = evidence recall)
+
+| system | primary | all gold papers packed | papers packed | tokens |
+|---|---|---|---|---|
+| B36 | 0.675 [0.562, 0.783] | 0.500 [0.350, 0.650] | 1.07 | 25752 |
+| C | 0.675 [0.562, 0.783] | 0.500 [0.350, 0.650] | 1.10 | 26203 |
+
+- C - B36: +0.000 [+0.000, +0.000] (0 better, 0 worse of 40)
+- long PDFs, named: B36 1.000, C - B36 +0.000 [+0.000, +0.000] (0 better, 0 worse of 10)
+- long PDFs, described: B36 1.000, C - B36 +0.000 [+0.000, +0.000] (0 better, 0 worse of 10)
+- long PDFs, cross: B36 0.350, C - B36 +0.000 [+0.000, +0.000] (0 better, 0 worse of 20)
+
+#### Verdict
+
+- C: **default for paged corpora**
+
+#### Not gating
+
+- qasper: 416 papers, 28112 chunks, 1001 q
+- mdaqa: 205 papers, 18677 chunks, 100 q
+- mdaqa: 204 papers, 18009 chunks, 100 q
+- long: 20 papers, 4581 chunks, 40 q
