@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import subprocess
+import threading
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 import ragkit
+from ragkit import _search
 from ragkit import paperpool as pp
 from ragkit.llm import codex_transport
 from ragkit.openpapers import CONFIGS, OpenQuestion, answer_scores, answer_verdicts, choose
@@ -116,6 +118,56 @@ def test_search_sees_a_document_added_after_the_first_search(tmp_path: Path) -> 
     (tmp_path / "b.txt").unlink()
     third = ragkit.search("heat pump defrost peak", corpus_dir=tmp_path, retriever="bm25")
     assert [a.id for a in third.articles] == ["a"]
+
+
+def test_indexing_one_corpus_does_not_block_searches_of_another(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in ("ready", "slow"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "a.txt").write_text("Batteries shave the peak.", encoding="utf-8")
+    ragkit.search("peak", corpus_dir=tmp_path / "ready", retriever="bm25")
+    started, release = threading.Event(), threading.Event()
+    waited_out: list[bool] = []
+    build = _search._build_entry
+
+    def slow_build(corpus_dir: Path, retriever: str) -> Any:
+        started.set()
+        waited_out.append(not release.wait(10))  # True: nobody released us, they were blocked
+        return build(corpus_dir, retriever)
+
+    monkeypatch.setattr(_search, "_build_entry", slow_build)
+    where: dict[str, Any] = {"corpus_dir": tmp_path / "slow", "retriever": "bm25"}
+    indexing = threading.Thread(target=ragkit.search, args=("peak",), kwargs=where)
+    indexing.start()
+    assert started.wait(10)
+    found = ragkit.search("peak", corpus_dir=tmp_path / "ready", retriever="bm25")
+    release.set()
+    indexing.join()
+    assert [a.id for a in found.articles] == ["a"]
+    assert waited_out == [False]
+
+
+def test_an_unreadable_pdf_is_skipped_and_the_other_files_are_loaded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in ("broken.pdf", "good.pdf"):
+        (tmp_path / name).write_bytes(b"%PDF")
+
+    def pdf_text(path: Path) -> str:
+        if path.stem == "broken":
+            raise ValueError("EOF marker not found")
+        return "Batteries shave the peak."
+
+    monkeypatch.setattr(_search, "_pdf_text", pdf_text)
+    assert _search.load_documents(tmp_path) == [("good", "Batteries shave the peak.")]
+
+    def no_reader(path: Path) -> str:
+        raise ImportError("No module named 'pypdf'")
+
+    monkeypatch.setattr(_search, "_pdf_text", no_reader)
+    with pytest.raises(ImportError):  # a missing PDF reader is not a broken file
+        _search.load_documents(tmp_path)
 
 
 def test_open_benchmarks_take_the_best_annotator_and_break_ties_to_shipped_packing() -> None:

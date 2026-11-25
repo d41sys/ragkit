@@ -122,7 +122,12 @@ def load_documents(corpus_dir: Path) -> list[tuple[str, str]]:
             text = strip_metadata_comment(file_path.read_text(encoding="utf-8"))
             docs.append((file_path.stem, text))
         elif suffix == ".pdf":
-            docs.append((file_path.stem, _pdf_text(file_path)))
+            try:
+                docs.append((file_path.stem, _pdf_text(file_path)))
+            except ImportError:  # the [pdf] extra is missing: no PDF can be read
+                raise
+            except Exception:  # an uploaded file may be corrupt or encrypted: keep the rest
+                log.warning("skipping unreadable PDF %s", file_path.name, exc_info=True)
     return docs
 
 
@@ -208,7 +213,7 @@ class _Entry:
 
 
 _entries: dict[tuple[Path, str], _Entry] = {}
-_entries_lock = threading.Lock()
+_entries_lock = threading.Lock()  # one build at a time; a built entry is read without it
 
 
 def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
@@ -251,11 +256,15 @@ def _entry(corpus_dir: Path, retriever: str | None) -> _Entry:
     """
     key = (corpus_dir.resolve(), retriever or DEFAULT_RETRIEVER)
     stamp = _stamp(key[0])
-    with _entries_lock:
-        if key not in _entries or _entries[key].stamp != stamp:
-            _entries[key] = _build_entry(*key)
-            _entries[key].stamp = stamp
-        entry = _entries[key]
+    entry = _entries.get(key)
+    if entry is None or entry.stamp != stamp:
+        # indexing a corpus (minutes for a folder of PDFs) must not block searches of the others
+        with _entries_lock:
+            entry = _entries.get(key)  # another thread may have built it meanwhile
+            if entry is None or entry.stamp != stamp:
+                entry = _build_entry(*key)
+                entry.stamp = stamp
+                _entries[key] = entry
     if retriever is not None and entry.load_error is not None:
         raise RuntimeError(f"retriever {retriever!r} is unavailable: {entry.load_error}")
     return entry

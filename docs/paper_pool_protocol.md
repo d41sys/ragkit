@@ -86,7 +86,8 @@ overflow `skip` and budgets other than 36 000 are not in the grid.
 
 Dev (`paper_pool_dev.txt`): the best dev score, 0.8700, is pool 30 or 50 with a cap of 18 000; pool
 30 without a cap scores 0.8675, inside the 0.005 tie and simpler, so **C = pool 30, no cap, one
-window**. Pool 50 equals pool 30 on every dev metric.
+window**. Pool 50 equals pool 30 on every dev metric except with the 12 000 x 3 cap (long PDFs
+0.742 against 0.735).
 
 | Test, primary metric | B36 (pool 10) | C (pool 30) | C - B36 | est. tokens per search |
 |---|---|---|---|---|
