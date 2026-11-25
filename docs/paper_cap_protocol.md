@@ -49,3 +49,25 @@ Otherwise `window_tokens` stays an undocumented-as-recommended option and nothin
 
 Answer quality; other cap sizes or several windows per paper (18 000 x 1 was picked post hoc from
 four variants, which is why it is tested here on new questions); papers of other fields.
+
+## Outcome (scored once, `docs/sota-runs/paper_cap_score.txt`)
+
+| Evidence recall (MDA-QA: needed papers packed) | S30 | W18 | W18 - S30 |
+|---|---|---|---|
+| Long PDFs, 20 cross questions | 0.317 | 0.533 | +0.217 [+0.117, +0.317] (10 better, 0 worse) |
+| Long PDFs, 20 single questions | 1.000 | 0.950 | -0.050 [-0.150, +0.000] (0 / 1) |
+| QASPER, 1 001 questions | 0.985 | 0.983 | -0.002 [-0.005, +0.000] (0 / 2) |
+| MDA-QA, 200 questions | 0.832 | 0.834 | +0.003 [+0.000, +0.007] (1 / 0) |
+
+**Verdict: recommended for comparison questions, not the default.** Rule 1 holds (cross lower
+bound +0.117). Rule 2 fails on the single questions: the lower bound is -0.150, the rule needs
+above -0.05 (one `described` question of 20 lost its quote, and 20 questions cannot show a loss
+smaller than that). The README names `window_tokens=18_000` as the setting for questions that
+compare papers; `search()` defaults are unchanged.
+
+- With the cap 1.95 long papers are packed per search instead of 1.15, and 34 612 estimated
+  tokens instead of 24 699.
+- P1 held (+0.217). P2 held at its edge (-0.050; rule 2 fails as predicted). P3 held.
+- Limits: the second pass changed 13 of the 20 cross questions (dropped gold papers, better
+  quotes, three replaced properties); cross gold sets can be incomplete; even with the cap half of
+  the cross evidence is still not packed (0.533).
