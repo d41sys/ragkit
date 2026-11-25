@@ -232,7 +232,7 @@ def test_cap_rule_needs_a_cross_gain_and_becomes_default_only_without_losses() -
         return {
             "long": {"S30": {"primary": half * 2}, "W18": {"primary": w18}},
             "qasper": {
-                "S30": {"primary": half * 2},
+                "S30": {"primary": [1.0] * 20 + [0.0] * 20},
                 "W18": {"primary": [1.0] * qasper + [0.0] * (40 - qasper)},
             },
             "mdaqa": {"S30": {"primary": half * 2}, "W18": {"primary": half * 2}},
