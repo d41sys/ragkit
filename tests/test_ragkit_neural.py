@@ -25,6 +25,7 @@ from ragkit.neural import (
     alpha_of_best,
     convex_fuse,
     embed_corpus,
+    embed_documents,
     rerank_head,
     rrf_fuse,
 )
@@ -176,6 +177,24 @@ def test_embed_corpus_caches_by_text_digest(tmp_path: Path) -> None:
     assert np.array_equal(first, again)
     other = embed_corpus(emb, [*TEXTS[:-1], "different"], tmp_path)  # type: ignore[arg-type]
     assert other.shape == first.shape and len(list(tmp_path.glob("*.npy"))) == 2
+
+
+def test_embed_documents_embeds_only_the_documents_it_has_not_seen(tmp_path: Path) -> None:
+    embedded: list[str] = []
+
+    class Counting(FakeEmbedder):
+        def embed(self, texts: Sequence[str]) -> np.ndarray:
+            embedded.extend(texts)
+            return super().embed(texts)
+
+    emb = Counting(TEXTS)
+    chunks = [Chunk(f"c{i}", f"d{i // 2}", t, 0, len(t)) for i, t in enumerate(TEXTS)]
+    old = [c for c in chunks if c.doc_id != "d1"]
+    embed_documents(emb, old, tmp_path)  # type: ignore[arg-type]
+    embedded.clear()
+    matrix = embed_documents(emb, chunks, tmp_path)  # type: ignore[arg-type]
+    assert embedded == TEXTS[2:4]  # d1 is the new document
+    assert np.array_equal(matrix, FakeEmbedder(TEXTS).embed(TEXTS))
 
 
 def test_level_systems_are_nested() -> None:

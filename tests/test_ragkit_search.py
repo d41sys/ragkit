@@ -188,7 +188,7 @@ def test_pipeline_is_built_once(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     module = sys.modules["ragkit._search"]
     built: list[tuple[Path, str]] = []
     real = module._build_entry
-    monkeypatch.setattr(module, "_build_entry", lambda d, r: built.append((d, r)) or real(d, r))
+    monkeypatch.setattr(module, "_build_entry", lambda *a: built.append(a[:2]) or real(*a))
     corpus = _corpus(tmp_path, False)
     for _ in range(3):
         search_fn("congestion", corpus_dir=corpus, retriever="bm25")

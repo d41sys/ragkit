@@ -111,8 +111,25 @@ def _pdf_text(path: Path) -> str:
     return "\f".join(page.extract_text() or "" for page in PdfReader(path).pages)
 
 
-def load_documents(corpus_dir: Path) -> list[tuple[str, str]]:
-    """Load all markdown, text and PDF documents of a directory as ``(doc_id, text)``."""
+def _cached_pdf_text(path: Path, cache_dir: Path | None) -> str:
+    """``_pdf_text``, kept under ``cache_dir`` by file name, size and modification time."""
+    if cache_dir is None:
+        return _pdf_text(path)
+    stat = path.stat()
+    cached = cache_dir / f"{path.stem}-{stat.st_size}-{stat.st_mtime_ns}.txt"
+    if cached.is_file():
+        return cached.read_bytes().decode("utf-8", "surrogatepass")
+    text = _pdf_text(path)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cached.write_bytes(text.encode("utf-8", "surrogatepass"))  # bytes: no newline translation
+    return text
+
+
+def load_documents(corpus_dir: Path, text_cache: Path | None = None) -> list[tuple[str, str]]:
+    """Load all markdown, text and PDF documents of a directory as ``(doc_id, text)``.
+
+    ``text_cache`` keeps the extracted text of each PDF (extraction takes about a second each).
+    """
     if not corpus_dir.is_dir():
         raise FileNotFoundError(f"Corpus directory not found: {corpus_dir}")
     docs: list[tuple[str, str]] = []
@@ -123,7 +140,7 @@ def load_documents(corpus_dir: Path) -> list[tuple[str, str]]:
             docs.append((file_path.stem, text))
         elif suffix == ".pdf":
             try:
-                docs.append((file_path.stem, _pdf_text(file_path)))
+                docs.append((file_path.stem, _cached_pdf_text(file_path, text_cache)))
             except ImportError:  # the [pdf] extra is missing: no PDF can be read
                 raise
             except Exception:  # an uploaded file may be corrupt or encrypted: keep the rest
@@ -185,7 +202,7 @@ def _article(
     )
 
 
-def _make_pipeline(retriever: str, *, serving: bool) -> RAGPipeline:
+def _make_pipeline(retriever: str, *, serving: bool, index_dir: Path | None = None) -> RAGPipeline:
     """The shipped pipeline, plain BM25, or one on a neural retriever (needs the ``[st]`` extra)."""
     if retriever == "default":
         return RAGPipeline()
@@ -193,7 +210,9 @@ def _make_pipeline(retriever: str, *, serving: bool) -> RAGPipeline:
         return RAGPipeline(retriever=BM25Index(), rerank=False)
     from ragkit.neural import NeuralChunkRetriever
 
-    neural = NeuralChunkRetriever(retriever, cache_dir=INDEX_DIR, serving=serving)
+    neural = NeuralChunkRetriever(
+        retriever, cache_dir=INDEX_DIR, serving=serving, doc_cache_dir=index_dir
+    )
     return RAGPipeline(retriever=neural, rerank=False)
 
 
@@ -216,8 +235,8 @@ _entries: dict[tuple[Path, str], _Entry] = {}
 _entries_lock = threading.Lock()  # one build at a time; a built entry is read without it
 
 
-def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
-    documents = load_documents(corpus_dir)
+def _build_entry(corpus_dir: Path, retriever: str, index_dir: Path | None = None) -> _Entry:
+    documents = load_documents(corpus_dir, index_dir)
     if not documents:
         raise ValueError(f"no .md, .txt or .pdf documents in {corpus_dir}")
     # paged text (a PDF, or form-feed page breaks) means papers: one fills the 12 000 budget
@@ -229,7 +248,7 @@ def _build_entry(corpus_dir: Path, retriever: str) -> _Entry:
     acts = _load_acts(corpus_dir)
     error: str | None = None  # why the requested retriever fell back to bm25
     try:
-        pipeline = _make_pipeline(retriever, serving=True)
+        pipeline = _make_pipeline(retriever, serving=True, index_dir=index_dir)
         pipeline.index_documents(documents)
         if retriever not in ("default", "bm25"):
             pipeline.retrieve(_WARMUP_QUERY, 1)  # loads every model now, not on the first query
@@ -249,10 +268,11 @@ def _stamp(corpus_dir: Path) -> tuple[tuple[str, int, int], ...]:
     return tuple((p.name, s.st_size, s.st_mtime_ns) for p in files for s in (p.stat(),))
 
 
-def _entry(corpus_dir: Path, retriever: str | None) -> _Entry:
+def _entry(corpus_dir: Path, retriever: str | None, index_dir: Path | None = None) -> _Entry:
     """The pipeline for ``retriever``; ``None`` means the default, which may fall back to bm25.
 
-    It is rebuilt when a file of the corpus was added, removed or changed (uploaded papers).
+    It is rebuilt when a file of the corpus was added, removed or changed (uploaded papers);
+    with ``index_dir`` the rebuild reads and embeds only the new files.
     """
     key = (corpus_dir.resolve(), retriever or DEFAULT_RETRIEVER)
     stamp = _stamp(key[0])
@@ -262,7 +282,7 @@ def _entry(corpus_dir: Path, retriever: str | None) -> _Entry:
         with _entries_lock:
             entry = _entries.get(key)  # another thread may have built it meanwhile
             if entry is None or entry.stamp != stamp:
-                entry = _build_entry(*key)
+                entry = _build_entry(*key, index_dir)
                 entry.stamp = stamp
                 _entries[key] = entry
     if retriever is not None and entry.load_error is not None:
@@ -320,6 +340,7 @@ def search(
     answerable: bool = False,
     overflow: str = PACK_OVERFLOW,
     window_tokens: int | None = None,
+    index_dir: Path | str | None = None,
 ) -> SearchResult:
     """Distinct parent articles of the top ``pack_chunks`` chunks, packed into ``budget_tokens``.
 
@@ -333,14 +354,17 @@ def search(
     ``READER_CHUNKS`` chunks, needs the ``[st]`` extra) and ``answerable_threshold``
     (``ANSWERABLE_THRESHOLDS``; ``None`` where none was measured): refuse when the score is below
     it. ``window_tokens`` packs a document longer than it as the window of that size around its
-    best chunk (long papers; ``docs/papers_protocol.md``). Raises ``ValueError`` for an empty or
-    over-long query, an unknown retriever or a non-positive ``pack_chunks`` / ``budget_tokens``
-    / ``window_tokens``.
+    best chunk (long papers; ``docs/papers_protocol.md``). ``index_dir`` is a writable folder
+    that keeps the extracted PDF text and the embeddings per document, so a restart or a new
+    file does not index the whole corpus again (a library of uploads). Raises ``ValueError``
+    for an empty or over-long query, an unknown retriever or a non-positive ``pack_chunks`` /
+    ``budget_tokens`` / ``window_tokens``.
     """
     query = _validated(query, retriever)
     if pack_chunks is not None and pack_chunks < 1:
         raise ValueError("pack_chunks must be positive")
-    entry = _entry(Path(corpus_dir or DEFAULT_CORPUS_DIR), retriever)
+    index = Path(index_dir) if index_dir is not None else None
+    entry = _entry(Path(corpus_dir or DEFAULT_CORPUS_DIR), retriever, index)
     with entry.lock:
         hits = entry.pipeline.retrieve(query, pack_chunks or entry.pack_chunks)
         pool = [Passage(c.doc_id, c.text) for c in hits]

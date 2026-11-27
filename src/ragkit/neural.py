@@ -15,6 +15,7 @@ import re
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from itertools import groupby
 from pathlib import Path
 from typing import Any
 
@@ -200,6 +201,20 @@ def embed_corpus(
     return matrix
 
 
+def embed_documents(
+    embedder: SentenceEmbedder, chunks: Sequence[Chunk], cache_dir: Path
+) -> np.ndarray:
+    """Document matrix of ``chunks``, cached under ``cache_dir`` in one file per document.
+
+    A corpus that gains a document embeds only that document (uploaded papers).
+    """
+    # shortcut: the files of removed or changed documents stay, prune when the folder grows
+    groups = groupby(chunks, key=lambda c: c.doc_id)
+    return np.vstack(
+        [embed_corpus(embedder, [c.text for c in group], cache_dir) for _, group in groups]
+    )
+
+
 # ---------------------------------------------------------------------------------------------
 # Fusion
 # ---------------------------------------------------------------------------------------------
@@ -379,11 +394,13 @@ def build_engine(
     device: str | None = None,
     dense_e5: bool = True,
     serving: bool = False,
+    doc_cache_dir: Path | None = None,
 ) -> NeuralEngine:
     """Encode the units and build an engine for the models ``level`` needs.
 
     ``serving=True`` is the long-running-server mode: ``cache_dir`` is only read (never
     written), and neither the query-vector nor the cross-encoder cache keeps anything.
+    ``doc_cache_dir`` caches the matrices per document instead (``embed_documents``).
     """
     if level not in RETRIEVERS or level == "bm25":
         raise ValueError(f"level must be one of {RETRIEVERS[1:]}, got {level!r}")
@@ -393,7 +410,10 @@ def build_engine(
     if dense_e5:
         wanted.append(("e5", e5_small(device)))
     for key, embedder in wanted:
-        matrix = embed_corpus(embedder, texts, cache_dir, write=not serving)
+        if doc_cache_dir is not None:
+            matrix = embed_documents(embedder, chunks, doc_cache_dir)
+        else:
+            matrix = embed_corpus(embedder, texts, cache_dir, write=not serving)
         sides[key] = DenseSide(embedder, matrix, cache_queries=not serving)
     ce: PassageScorer | None = None
     if level in CROSS_ENCODERS:
@@ -416,6 +436,7 @@ class NeuralChunkRetriever:
         device: str | None = None,
         cache_dir: Path | None = None,
         serving: bool = False,
+        doc_cache_dir: Path | None = None,
     ) -> None:
         if level not in RETRIEVERS[1:]:
             raise ValueError(f"unsupported retriever {level!r}")
@@ -423,6 +444,7 @@ class NeuralChunkRetriever:
         self.device = device
         self.cache_dir = cache_dir
         self.serving = serving
+        self.doc_cache_dir = doc_cache_dir
         self._engine: NeuralEngine | None = None
 
     def add(self, chunks: Sequence[Chunk]) -> None:
@@ -437,6 +459,7 @@ class NeuralChunkRetriever:
             device=self.device,
             dense_e5=False,
             serving=self.serving,
+            doc_cache_dir=self.doc_cache_dir,
         )
 
     def search(self, query: str, k: int = 10) -> list[tuple[Chunk, float]]:

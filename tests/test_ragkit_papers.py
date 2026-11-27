@@ -131,10 +131,10 @@ def test_indexing_one_corpus_does_not_block_searches_of_another(
     waited_out: list[bool] = []
     build = _search._build_entry
 
-    def slow_build(corpus_dir: Path, retriever: str) -> Any:
+    def slow_build(corpus_dir: Path, retriever: str, index_dir: Path | None) -> Any:
         started.set()
         waited_out.append(not release.wait(10))  # True: nobody released us, they were blocked
-        return build(corpus_dir, retriever)
+        return build(corpus_dir, retriever, index_dir)
 
     monkeypatch.setattr(_search, "_build_entry", slow_build)
     where: dict[str, Any] = {"corpus_dir": tmp_path / "slow", "retriever": "bm25"}
@@ -168,6 +168,22 @@ def test_an_unreadable_pdf_is_skipped_and_the_other_files_are_loaded(
     monkeypatch.setattr(_search, "_pdf_text", no_reader)
     with pytest.raises(ImportError):  # a missing PDF reader is not a broken file
         _search.load_documents(tmp_path)
+
+
+def test_a_text_cache_reads_each_pdf_once_until_the_file_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    corpus, cache = tmp_path / "corpus", tmp_path / "index"
+    corpus.mkdir()
+    (corpus / "a.pdf").write_bytes(b"%PDF")
+    reads: list[str] = []
+    monkeypatch.setattr(_search, "_pdf_text", lambda p: reads.append(p.name) or "one\ftwo\rend")
+    for _ in range(2):  # the second load is a restart of the server
+        assert _search.load_documents(corpus, cache) == [("a", "one\ftwo\rend")]
+    assert reads == ["a.pdf"]
+    (corpus / "a.pdf").write_bytes(b"%PDF replaced by a longer file")
+    _search.load_documents(corpus, cache)
+    assert reads == ["a.pdf", "a.pdf"]
 
 
 def test_open_benchmarks_take_the_best_annotator_and_break_ties_to_shipped_packing() -> None:
