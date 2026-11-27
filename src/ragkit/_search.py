@@ -29,6 +29,7 @@ import logging
 import os
 import re
 import threading
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -56,6 +57,7 @@ DEFAULT_RETRIEVER = "hybrid+ce"  # measured best (docs/packing_protocol.md: 111/
 RETRIEVERS = ("default", "bm25", "dense", "hybrid", "hybrid+ce", "hybrid+bge-ce")
 MAX_QUERY_CHARS = 2000  # the query comes from a model or a user
 READER_CHUNKS = 5  # top chunks the answerable score reads (docs/generation_protocol.md)
+DOCUMENT_CHUNKS = 100  # ranking depth a search inside chosen documents reads (followup_protocol)
 # Reader (``qa_answerable``) thresholds: answer when score >= t. Each is the threshold
 # ``abstention.best_threshold`` picks on all 87 EU questions (42 answerable + 45 unanswerable),
 # which is also the median of the five fold thresholds of the 5-fold CV (seed 0) behind the
@@ -89,6 +91,16 @@ class Article:
 
 
 @dataclass(frozen=True)
+class Match:
+    """A document with a chunk in the pool whose text did not fit the budget: search inside it."""
+
+    id: str
+    act: str
+    citation: str | None
+    pages: str | None  # pages of its best chunk
+
+
+@dataclass(frozen=True)
 class SearchResult:
     """Packed articles for one query; ``retriever`` is the one that actually ran."""
 
@@ -98,6 +110,7 @@ class SearchResult:
     estimated_tokens: int
     answerable_score: float | None = None
     answerable_threshold: float | None = None
+    also_matched: list[Match] = field(default_factory=list)  # in the rank order of best chunks
 
     def to_dict(self) -> dict[str, Any]:
         """Plain dict (``json.dumps`` accepts it)."""
@@ -345,6 +358,7 @@ def search(
     overflow: str = PACK_OVERFLOW,
     window_tokens: int | None = None,
     index_dir: Path | str | None = None,
+    documents: Sequence[str] | None = None,
 ) -> SearchResult:
     """Distinct parent articles of the top ``pack_chunks`` chunks, packed into ``budget_tokens``.
 
@@ -362,7 +376,10 @@ def search(
     that keeps the extracted PDF text and the embeddings per document, so a restart or a new
     file does not index the whole corpus again (a library of uploads). Raises ``ValueError``
     for an empty or over-long query, an unknown retriever or a non-positive ``pack_chunks`` /
-    ``budget_tokens`` / ``window_tokens``.
+    ``budget_tokens`` / ``window_tokens``. ``also_matched`` lists the documents of the pool that
+    were not packed. ``documents`` packs only those ids, from the top ``DOCUMENT_CHUNKS`` chunks
+    restricted to them (a document without a chunk there is packed from its start); an unknown
+    id raises ``ValueError`` (``docs/followup_protocol.md``).
     """
     query = _validated(query, retriever)
     if pack_chunks is not None and pack_chunks < 1:
@@ -370,8 +387,17 @@ def search(
     index = Path(index_dir) if index_dir is not None else None
     entry = _entry(Path(corpus_dir or DEFAULT_CORPUS_DIR), retriever, index)
     with entry.lock:
-        hits = entry.pipeline.retrieve(query, pack_chunks or entry.pack_chunks)
-        pool = [Passage(c.doc_id, c.text) for c in hits]
+        if documents is not None:
+            wanted = list(dict.fromkeys(documents))
+            unknown = [d for d in wanted if d not in entry.articles]
+            if not wanted or unknown:
+                raise ValueError(f"documents must name documents of the corpus, got {unknown}")
+            hits = entry.pipeline.retrieve(query, max(DOCUMENT_CHUNKS, pack_chunks or 0))
+            pool = [Passage(c.doc_id, c.text) for c in hits if c.doc_id in wanted]
+            pool += [Passage(d, "") for d in wanted if d not in {p.article_id for p in pool}]
+        else:
+            hits = entry.pipeline.retrieve(query, pack_chunks or entry.pack_chunks)
+            pool = [Passage(c.doc_id, c.text) for c in hits]
         packed = pack_articles(
             pool,
             entry.articles,
@@ -391,7 +417,22 @@ def search(
         estimated_tokens=sum(estimate_tokens(p.text) for p in packed),
         answerable_score=score,
         answerable_threshold=ANSWERABLE_THRESHOLDS.get(entry.retriever) if answerable else None,
+        also_matched=[] if documents is not None else _unpacked(pool, packed, entry),
     )
+
+
+def _unpacked(pool: list[Passage], packed: list[Passage], entry: _Entry) -> list[Match]:
+    """Documents of ``pool`` not in ``packed``, each at its best (first) chunk."""
+    done = {p.article_id for p in packed}
+    best: dict[str, Passage] = {}
+    for p in pool:
+        if p.article_id not in done:
+            best.setdefault(p.article_id, p)
+    out = []
+    for p in best.values():
+        a = _article(0, p, entry.acts, entry.articles[p.article_id])
+        out.append(Match(a.id, a.act, a.citation, a.pages))
+    return out
 
 
 def build_index(corpus_dir: Path | str | None = None, index_dir: Path | str | None = None) -> Path:

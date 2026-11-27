@@ -159,6 +159,24 @@ def test_corpus_without_sources_still_searches(tmp_path: Path) -> None:
     assert only.heading == "Heating"
 
 
+def test_a_paper_that_does_not_fit_is_listed_and_can_be_searched_inside(tmp_path: Path) -> None:
+    filler = "Models are compared on benchmarks. " * 300
+    (tmp_path / "short.txt").write_text("Introduction.\fPatching splits a series into tokens.")
+    (tmp_path / "long.txt").write_text(f"Patching splits a series. {filler}\fEnd.")
+    (tmp_path / "weather.txt").write_text("Weather data for energy.\fNothing else.")
+    q = "patching splits a series into tokens"
+    found = search_fn(q, corpus_dir=tmp_path, retriever="bm25", budget_tokens=200)
+    assert [a.id for a in found.articles] == ["short"]  # the long paper does not fit
+    assert [(m.id, m.pages) for m in found.also_matched] == [("long", "1")]
+    inside = search_fn(q, corpus_dir=tmp_path, retriever="bm25", documents=["long"])
+    assert [a.id for a in inside.articles] == ["long"] and inside.also_matched == []
+    # a document without a matching chunk is packed from its start
+    start = search_fn(q, corpus_dir=tmp_path, retriever="bm25", documents=["weather"])
+    assert start.articles[0].text.startswith("Weather data")
+    with pytest.raises(ValueError, match="documents"):
+        search_fn(q, corpus_dir=tmp_path, retriever="bm25", documents=["nope"])
+
+
 def test_search_matches_the_answer_context() -> None:
     """``search()`` returns the article ids of the pre-refactor ``ragkit answer`` context."""
     for question, expected in ((CONGESTION_Q, CONGESTION_IDS), (CAPACITY_Q, CAPACITY_IDS)):

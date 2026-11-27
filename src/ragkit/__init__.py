@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ragkit._search import Article, SearchResult, search
+from ragkit._search import Article, Match, SearchResult, search
 from ragkit.bm25 import BM25Index, tokenize
 from ragkit.chunking import Chunk, fixed, recursive, semantic, sentence
 from ragkit.dense import DenseIndex
@@ -28,7 +28,7 @@ from ragkit.rewrite import (
     TemplateLLM,
 )
 
-__version__ = "0.4.1"
+__version__ = "0.5.0"
 
 __all__ = [
     "LLM",
@@ -47,6 +47,7 @@ __all__ = [
     "HyDERewriter",
     "HybridRetriever",
     "LexicalReranker",
+    "Match",
     "MultiQueryRewriter",
     "RAGPipeline",
     "Reranker",

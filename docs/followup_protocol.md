@@ -47,3 +47,24 @@ P-4's 40 (`_fresh`) and P-5's 40 (`_fresh2`), all dev data now. Default `search(
 
 That the agent follows up (it must be told to, in its tool description, and that is measured only
 by a trial); answer quality; other corpora. Two follow-ups cost two more searches.
+
+## Outcome (one run, `docs/sota-runs/followup_dev.txt`)
+
+The default call returned the same articles as the packing before the change on 130 of 130
+questions.
+
+| Type | n | Gold papers packed | Packed or listed (M1) | Evidence, one search | + 2 follow-ups (M2) | Better / worse | Papers listed |
+|---|---|---|---|---|---|---|---|
+| named | 40 | 0.975 | 1.000 | 0.975 | 0.975 | 0 / 0 | 5.3 |
+| described | 40 | 0.950 | 1.000 | 0.950 | 0.975 | 1 / 0 | 5.8 |
+| cross | 50 | 0.338 | 0.930 | 0.338 | 0.685 | 37 / 0 | 7.7 |
+| all | 130 | 0.722 | 0.973 | 0.722 | 0.863 | 38 / 0 | 6.4 |
+
+- P1 held: 0.930 of the gold papers of cross questions are packed or listed. On named and
+  described questions every gold paper is: a search that misses the paper still names it.
+- P2 held: two follow-ups inside the first two listed papers lift cross evidence recall from
+  0.338 to 0.685 (+0.347), better on 37 of 50 questions, worse on none.
+- P3 held: no question lost evidence.
+- Both features ship (additive; defaults unchanged). The follow-ups are mechanical (the first two
+  listed papers, not chosen by a model) and each returns up to 36 000 estimated tokens; whether
+  the ezcross-ems agent follows up is open until a trial.

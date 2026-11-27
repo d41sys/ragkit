@@ -1,0 +1,7 @@
+questions: 130; default articles identical to the pre-change packing: 130/130
+| type | n | gold papers packed | packed or listed (M1) | evidence, one search | evidence, + 2 follow-ups (M2) | better / worse | papers listed |
+|---|---|---|---|---|---|---|---|
+| named | 40 | 0.975 | 1.000 | 0.975 | 0.975 | 0 / 0 | 5.3 |
+| described | 40 | 0.950 | 1.000 | 0.950 | 0.975 | 1 / 0 | 5.8 |
+| cross | 50 | 0.338 | 0.930 | 0.338 | 0.685 | 37 / 0 | 7.7 |
+| all | 130 | 0.722 | 0.973 | 0.722 | 0.863 | 38 / 0 | 6.4 |
