@@ -170,6 +170,12 @@ def test_a_paper_that_does_not_fit_is_listed_and_can_be_searched_inside(tmp_path
     assert [(m.id, m.pages) for m in found.also_matched] == [("long", "1")]
     inside = search_fn(q, corpus_dir=tmp_path, retriever="bm25", documents=["long"])
     assert [a.id for a in inside.articles] == ["long"] and inside.also_matched == []
+    # a requested document the budget has no room for is listed, not dropped
+    both = search_fn(
+        q, corpus_dir=tmp_path, retriever="bm25", budget_tokens=200, documents=["short", "long"]
+    )
+    assert [a.id for a in both.articles] == ["short"]
+    assert [m.id for m in both.also_matched] == ["long"]
     # a document without a matching chunk is packed from its start
     start = search_fn(q, corpus_dir=tmp_path, retriever="bm25", documents=["weather"])
     assert start.articles[0].text.startswith("Weather data")

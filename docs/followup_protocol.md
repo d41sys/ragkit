@@ -68,3 +68,24 @@ questions.
 - Both features ship (additive; defaults unchanged). The follow-ups are mechanical (the first two
   listed papers, not chosen by a model) and each returns up to 36 000 estimated tokens; whether
   the ezcross-ems agent follows up is open until a trial.
+
+### Added after review (v0.5.1): the tokens the follow-ups cost
+
+Not pre-registered; same questions, same index, one run (`docs/sota-runs/followup_dev.txt`).
+"Same tokens" is one default search with `budget_tokens` set, per question, to the tokens of
+the search plus its two follow-ups.
+
+| Type | Tokens, one search | Tokens, + 2 follow-ups | Evidence, + 2 follow-ups | Evidence, one search at the same tokens |
+|---|---|---|---|---|
+| named | 24 808 | 63 870 | 0.975 | 0.975 |
+| described | 24 676 | 68 820 | 0.975 | 0.975 |
+| cross | 25 772 | 73 401 | 0.685 | 0.647 |
+| all | 25 138 | 69 059 | 0.863 | 0.849 |
+
+- Most of the P2 gain is the extra text, not the listing: one search of the same size reaches
+  0.647 on cross questions (P-5 measured 0.647 with one 54 000-token search). The follow-ups add
+  0.038 over it, from one run without a confidence interval.
+- What the listing adds is the names (M1, 0.973 against 0.722): a caller learns which papers
+  matched without paying for their text, and pays only for the ones it searches inside.
+- `documents` with more than one id: a requested paper the budget has no room for is now listed
+  in `also_matched` (v0.5.0 returned `[]` there, so it was dropped without a signal).

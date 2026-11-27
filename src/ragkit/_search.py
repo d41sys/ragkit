@@ -378,8 +378,9 @@ def search(
     for an empty or over-long query, an unknown retriever or a non-positive ``pack_chunks`` /
     ``budget_tokens`` / ``window_tokens``. ``also_matched`` lists the documents of the pool that
     were not packed. ``documents`` packs only those ids, from the top ``DOCUMENT_CHUNKS`` chunks
-    restricted to them (a document without a chunk there is packed from its start); an unknown
-    id raises ``ValueError`` (``docs/followup_protocol.md``).
+    restricted to them (a document without a chunk there is packed from its start; one the budget
+    has no room for is in ``also_matched``); an unknown id raises ``ValueError``
+    (``docs/followup_protocol.md``).
     """
     query = _validated(query, retriever)
     if pack_chunks is not None and pack_chunks < 1:
@@ -417,7 +418,7 @@ def search(
         estimated_tokens=sum(estimate_tokens(p.text) for p in packed),
         answerable_score=score,
         answerable_threshold=ANSWERABLE_THRESHOLDS.get(entry.retriever) if answerable else None,
-        also_matched=[] if documents is not None else _unpacked(pool, packed, entry),
+        also_matched=_unpacked(pool, packed, entry),
     )
 
 
