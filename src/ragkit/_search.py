@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import threading
 from dataclasses import asdict, dataclass, field
@@ -121,7 +122,10 @@ def _cached_pdf_text(path: Path, cache_dir: Path | None) -> str:
         return cached.read_bytes().decode("utf-8", "surrogatepass")
     text = _pdf_text(path)
     cache_dir.mkdir(parents=True, exist_ok=True)
-    cached.write_bytes(text.encode("utf-8", "surrogatepass"))  # bytes: no newline translation
+    # bytes: no newline translation; written aside and renamed, so no reader sees half a file
+    tmp = cached.with_name(f"{cached.name}.{os.getpid()}.tmp")
+    tmp.write_bytes(text.encode("utf-8", "surrogatepass"))
+    os.replace(tmp, cached)
     return text
 
 

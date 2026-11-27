@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import os
 import re
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
@@ -192,12 +193,20 @@ def embed_corpus(
     """
     path = corpus_cache_path(embedder, texts, cache_dir) if cache_dir is not None else None
     if path is not None and path.is_file():
-        cached: np.ndarray = np.load(path)
-        return cached
+        try:
+            cached: np.ndarray = np.load(path)
+            if len(cached) == len(texts):
+                return cached
+        except (OSError, ValueError, EOFError):
+            pass  # a truncated file (a crash during a write): embed again and replace it
     matrix = embedder.embed(texts)
     if path is not None and write:
         path.parent.mkdir(parents=True, exist_ok=True)
-        np.save(path, matrix)
+        # the workers of one server share the folder: write aside, then rename in one step
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+        with tmp.open("wb") as file:
+            np.save(file, matrix)
+        os.replace(tmp, path)
     return matrix
 
 

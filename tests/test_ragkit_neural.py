@@ -179,6 +179,15 @@ def test_embed_corpus_caches_by_text_digest(tmp_path: Path) -> None:
     assert other.shape == first.shape and len(list(tmp_path.glob("*.npy"))) == 2
 
 
+def test_embed_corpus_replaces_a_truncated_cache_file(tmp_path: Path) -> None:
+    emb = FakeEmbedder(TEXTS)
+    first = embed_corpus(emb, TEXTS, tmp_path)  # type: ignore[arg-type]
+    (path,) = tmp_path.glob("*.npy")
+    path.write_bytes(path.read_bytes()[:100])  # what a crash in the middle of a write leaves
+    assert np.array_equal(embed_corpus(emb, TEXTS, tmp_path), first)  # type: ignore[arg-type]
+    assert np.array_equal(np.load(path), first) and not list(tmp_path.glob("*.tmp"))
+
+
 def test_embed_documents_embeds_only_the_documents_it_has_not_seen(tmp_path: Path) -> None:
     embedded: list[str] = []
 
