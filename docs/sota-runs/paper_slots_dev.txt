@@ -1,0 +1,83 @@
+### Post hoc dev exploration after P-5 (not a test: all 130 long-PDF questions are dev data)
+
+Question: does one long paper crowd the 30-chunk pool on comparison questions? hybrid+ce@100, overflow stop.
+
+ranked list length 100; cross questions 50, single 80
+cross: distinct papers in top 30 chunks: mean 8.82, with 1 paper 0, with <=2 0
+cross: gold papers among candidates: top30 0.930 | top100 1.000 | 3-per-paper pool of 30 0.977
+| config | cross evidence | papers packed | single evidence | papers packed |
+| pool30 nocap 36k | 0.338 | 1.14 | 0.963 | 1.10 |
+| pool30 w18 36k (compare) | 0.563 | 2.00 | 0.925 | 1.94 |
+| pool30 w12 36k | 0.618 | 3.00 | 0.838 | 2.80 |
+| pool30 w9 36k | 0.645 | 4.00 | 0.812 | 3.59 |
+| pool30 w6 36k | 0.673 | 5.80 | 0.675 | 4.95 |
+| pool30 w4 36k | 0.688 | 7.72 | 0.625 | 6.17 |
+| 3/paper w9 36k | 0.645 | 4.00 | 0.812 | 4.00 |
+| 3/paper w6 36k | 0.678 | 6.00 | 0.675 | 6.00 |
+| 3/paper w4 36k | 0.693 | 9.00 | 0.625 | 9.00 |
+| 1/paper w6 36k | 0.678 | 6.00 | 0.675 | 6.00 |
+| pool30 w18 54k | 0.647 | 3.00 | 0.925 | 2.80 |
+
+#### Script (throwaway, run once on 2026-11-27)
+
+```python
+"""Dev exploration (all 130 long-PDF questions are dev data): what limits comparison questions?"""
+import argparse
+from collections import Counter
+from ragkit import paperpool as pp, papersbench as pb
+from ragkit.cli import _paper_engine, _paper_pool, DEFAULT_EMBED_DIR
+from ragkit.ctxprefix import build_chunks
+from ragkit._search import load_documents
+from ragkit.parent import pack_articles
+
+args = argparse.Namespace(device=None, cache_dir=str(DEFAULT_EMBED_DIR))
+docs = load_documents(pb.CORPUS_DIR); documents = dict(docs)
+chunks = build_chunks(docs, prefix=False); eng = _paper_engine(args)(chunks, documents)
+qs = pb.load_questions() + pb.load_questions(pp.FRESH_QA_PATH) + pb.load_questions(pp.FRESH2_QA_PATH)
+
+def capped(passages, per_paper, k=30):
+    seen, out = Counter(), []
+    for p in passages:
+        if seen[p.article_id] < per_paper:
+            seen[p.article_id] += 1; out.append(p)
+        if len(out) == k: break
+    return out
+
+# (label, pool builder, budget, window)
+configs = [
+    ("pool30 nocap 36k", lambda ps: ps[:30], 36_000, None),
+    ("pool30 w18 36k (compare)", lambda ps: ps[:30], 36_000, 18_000),
+    ("pool30 w12 36k", lambda ps: ps[:30], 36_000, 12_000),
+    ("pool30 w9 36k", lambda ps: ps[:30], 36_000, 9_000),
+    ("pool30 w6 36k", lambda ps: ps[:30], 36_000, 6_000),
+    ("pool30 w4 36k", lambda ps: ps[:30], 36_000, 4_000),
+    ("3/paper w9 36k", lambda ps: capped(ps, 3), 36_000, 9_000),
+    ("3/paper w6 36k", lambda ps: capped(ps, 3), 36_000, 6_000),
+    ("3/paper w4 36k", lambda ps: capped(ps, 3), 36_000, 4_000),
+    ("1/paper w6 36k", lambda ps: capped(ps, 1), 36_000, 6_000),
+    ("pool30 w18 54k", lambda ps: ps[:30], 54_000, 18_000),
+]
+rows = {c[0]: {"cross": [], "single": []} for c in configs}
+packed = {c[0]: {"cross": [], "single": []} for c in configs}
+distinct30, gold30, gold100, goldcap = [], [], [], []
+for q in qs:
+    ranked, passages = _paper_pool(eng, q.text, chunks)
+    kind = "cross" if q.type == "cross" else "single"
+    if kind == "cross":
+        gold = {g.paper for g in q.gold}
+        top30 = {p.article_id for p in passages[:30]}
+        distinct30.append(len(top30)); gold30.append(len(gold & top30) / len(gold))
+        gold100.append(len(gold & {p.article_id for p in passages[:100]}) / len(gold))
+        goldcap.append(len(gold & {p.article_id for p in capped(passages, 3)}) / len(gold))
+    for name, build, budget, window in configs:
+        p = pack_articles(build(passages), documents, budget_tokens=budget, overflow="stop", window_tokens=window)
+        rows[name][kind].append(pb.measure(q, ranked, p)["evidence"]); packed[name][kind].append(len(p))
+m = lambda v: sum(v) / len(v)
+n = len(distinct30)
+print(f"ranked list length {len(passages)}; cross questions {n}, single {len(qs) - n}")
+print(f"cross: distinct papers in top 30 chunks: mean {m(distinct30):.2f}, with 1 paper {sum(d == 1 for d in distinct30)}, with <=2 {sum(d <= 2 for d in distinct30)}")
+print(f"cross: gold papers among candidates: top30 {m(gold30):.3f} | top100 {m(gold100):.3f} | 3-per-paper pool of 30 {m(goldcap):.3f}")
+print("| config | cross evidence | papers packed | single evidence | papers packed |")
+for name, *_ in configs:
+    print(f"| {name} | {m(rows[name]['cross']):.3f} | {m(packed[name]['cross']):.2f} | {m(rows[name]['single']):.3f} | {m(packed[name]['single']):.2f} |")
+```
